@@ -54,7 +54,7 @@ async function fetchFlagsForGeneration(
   flagIds: Id<"flags">[]
 ): Promise<Doc<"flags">[]> {
   const flags: Doc<"flags">[] = [];
-  
+
   for (const flagId of flagIds) {
     const flag = await ctx.db.get(flagId);
     if (!flag) {
@@ -62,7 +62,7 @@ async function fetchFlagsForGeneration(
     }
     flags.push(flag);
   }
-  
+
   return flags;
 }
 
@@ -165,8 +165,8 @@ export const getUserPracticeStats = query({
     const favoriteMode =
       completedCount > 0
         ? (Object.keys(modeCount).sort(
-            (a, b) => modeCount[b] - modeCount[a]
-          )[0] as "learn" | "match")
+          (a, b) => modeCount[b] - modeCount[a]
+        )[0] as "learn" | "match")
         : undefined;
 
     return {
@@ -272,7 +272,7 @@ export const getCurrentQuestion = query({
       q => q.userAnswer === q.correctAnswer
     ).length;
     const incorrectCount = answeredQuestions.length - correctCount;
-    
+
     // Calculate current streak
     let streak = 0;
     for (let i = session.currentIndex - 1; i >= 0; i--) {
@@ -336,7 +336,7 @@ export const createPracticeSession = mutation({
   handler: async (ctx, args) => {
     // START PERFORMANCE MONITORING
     const timer = startTimer();
-    
+
     // 1. AUTHENTICATE USER
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
@@ -375,38 +375,38 @@ export const createPracticeSession = mutation({
 
     // 4. FETCH FULL FLAG DOCUMENTS
     const selectedFlags = await fetchFlagsForGeneration(ctx, flagIds);
-    
+
     // Get all flags for distractor generation
     const allFlags = await ctx.db
       .query("flags")
       .withIndex("by_order")
       .collect();
-    
+
     // ERROR HANDLING: Ensure sufficient flags for question generation
     if (allFlags.length < 4) {
       throw new Error(
         `Insufficient flags for question generation. Need at least 4 flags, but only ${allFlags.length} available.`
       );
     }
-    
+
     // 5. GENERATE ANSWER POSITION DISTRIBUTION
     const answerPositions = args.randomSeed
       ? distributeAnswerPositionsSeeded(selectedFlags.length, args.randomSeed)
       : distributeAnswerPositions(selectedFlags.length);
-    
+
     // 6. GENERATE QUESTIONS WITH SHUFFLED OPTIONS
     const questions: Question[] = [];
-    
+
     for (let i = 0; i < selectedFlags.length; i++) {
       const targetFlag = selectedFlags[i];
       const correctPosition = answerPositions[i];
-      
+
       try {
         // Generate options based on practice mode
         const { options, correctAnswer } = args.mode === "learn"
           ? generateLearnModeOptions(targetFlag, allFlags, correctPosition)
           : generateMatchModeOptions(targetFlag, allFlags, correctPosition);
-        
+
         // Build question object
         const question: Question = {
           flagId: targetFlag._id,
@@ -415,7 +415,7 @@ export const createPracticeSession = mutation({
           correctAnswer,
           userAnswer: null,
         };
-        
+
         questions.push(question);
       } catch (error) {
         // Log error but provide helpful message
@@ -425,10 +425,10 @@ export const createPracticeSession = mutation({
         );
       }
     }
-    
+
     // 7. CALCULATE GENERATION TIME
     const generationTime = timer.elapsed();
-    
+
     // 8. LOG PERFORMANCE WARNING IF EXCEEDED THRESHOLD
     if (generationTime > 2000) {
       console.warn(
@@ -439,7 +439,7 @@ export const createPracticeSession = mutation({
         `[Performance] Generated ${questions.length} questions in ${generationTime}ms`
       );
     }
-    
+
     // 9. CREATE SESSION WITH QUESTIONS
     const sessionId = await ctx.db.insert("practiceSessions", {
       userId: user._id,
@@ -712,6 +712,7 @@ export const submitAnswer = mutation({
     const isSessionComplete = nextQuestionIndex >= session.questions.length;
 
     // 14. UPDATE SESSION
+    const completedAt = Date.now();
     const updateData: {
       questions: typeof updatedQuestions;
       correctCount: number;
@@ -719,6 +720,7 @@ export const submitAnswer = mutation({
       currentIndex: number;
       status?: "active" | "completed";
       completedAt?: number;
+      timeTaken?: number;
     } = {
       questions: updatedQuestions,
       correctCount: newCorrectCount,
@@ -729,7 +731,8 @@ export const submitAnswer = mutation({
     // Mark session as completed if this was the last question
     if (isSessionComplete) {
       updateData.status = "completed";
-      updateData.completedAt = Date.now();
+      updateData.completedAt = completedAt;
+      updateData.timeTaken = completedAt - session.startedAt;
     }
 
     await ctx.db.patch(args.sessionId, updateData);
@@ -764,7 +767,7 @@ export const submitAnswer = mutation({
       }
 
       // Count shared colors
-      const sharedColors = otherFlag.colors.filter(color => 
+      const sharedColors = otherFlag.colors.filter(color =>
         flag.colors.includes(color)
       ).length;
       similarityScore += sharedColors * 2;
@@ -795,11 +798,11 @@ export const submitAnswer = mutation({
         key: item.flag.key,
         name: item.flag.name,
         imagePath: item.flag.imagePath,
-        matchReason: item.similarityScore >= 5 
-          ? "Similar colors and pattern" 
-          : item.similarityScore >= 3 
-          ? "Same type" 
-          : "Similar appearance",
+        matchReason: item.similarityScore >= 5
+          ? "Similar colors and pattern"
+          : item.similarityScore >= 3
+            ? "Same type"
+            : "Similar appearance",
       }));
 
     // 17. GET ANSWER LABELS
@@ -828,7 +831,7 @@ export const submitAnswer = mutation({
       correctCount: newCorrectCount,
       isSessionComplete,
       nextQuestionIndex: isSessionComplete ? undefined : nextQuestionIndex,
-      
+
       // New fields for FeedbackModal
       flag: {
         _id: flag._id,

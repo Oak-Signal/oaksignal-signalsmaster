@@ -6,7 +6,7 @@
  * Integrates all quiz components and manages the complete flow
  */
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useQuery, useMutation } from "convex/react"
 import { api } from "@/convex/_generated/api"
@@ -26,7 +26,7 @@ import { QuizLoadingState } from "./quiz-loading-state"
 import { QuizErrorBoundary } from "./quiz-error-boundary"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { AlertCircle, ArrowLeft, Trophy } from "lucide-react"
+import { AlertCircle, ArrowLeft } from "lucide-react"
 
 // Hooks & Utils
 import { useQuizState } from "@/hooks/use-quiz-state"
@@ -118,8 +118,13 @@ function QuizInterfaceContent({ sessionId }: QuizInterfaceProps) {
   const handleViewResults = () => {
     setFeedbackModalOpen(false)
     setFeedbackData(null)
-    router.push(`/dashboard/practice`)
+    router.push(`/dashboard/practice/session/${sessionId}/results`)
   }
+
+  useEffect(() => {
+    if (!session || questionData !== null) return
+    router.replace(`/dashboard/practice/session/${sessionId}/results`)
+  }, [session, questionData, router, sessionId])
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
@@ -180,28 +185,7 @@ function QuizInterfaceContent({ sessionId }: QuizInterfaceProps) {
   if (!questionData) {
     return (
       <QuizContainer>
-        <Card className="border-green-200 dark:border-green-900">
-          <CardContent className="flex flex-col items-center gap-6 p-8 text-center">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-              <Trophy className="h-10 w-10 text-green-600 dark:text-green-400" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold">Quiz Complete!</h2>
-              <p className="text-muted-foreground mt-2">
-                Final Score: {session.score}%
-              </p>
-              <p className="text-sm text-muted-foreground mt-1">
-                {session.correctCount} correct out of {session.questions?.length || 0} questions
-              </p>
-            </div>
-            <Button asChild size="lg">
-              <Link href="/dashboard/practice">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Practice
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
+        <QuizLoadingState className="mt-8" />
         <PerfectScoreCelebration trigger={session.score === 100} />
       </QuizContainer>
     )

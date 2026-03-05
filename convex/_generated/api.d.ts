@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as analytics from "../analytics.js";
 import type * as flags from "../flags.js";
 import type * as lib_distractor_generation from "../lib/distractor_generation.js";
 import type * as lib_flag_similarity from "../lib/flag_similarity.js";
@@ -29,6 +30,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  analytics: typeof analytics;
   flags: typeof flags;
   "lib/distractor_generation": typeof lib_distractor_generation;
   "lib/flag_similarity": typeof lib_flag_similarity;

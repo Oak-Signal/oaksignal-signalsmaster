@@ -1,15 +1,15 @@
-import { 
-  BookOpen, 
-  GraduationCap, 
-  Trophy, 
-  Flag 
+import {
+  BookOpen,
+  GraduationCap,
+  Trophy,
+  Flag,
 } from "lucide-react"
 import Link from "next/link"
 
 import { StatsOverview } from "@/components/dashboard/stats-overview"
 import { ModuleCard } from "@/components/dashboard/module-card"
 import { RecentActivity } from "@/components/dashboard/recent-activity"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { DashboardPerformanceTrend } from "@/components/dashboard/dashboard-performance-trend"
 import { Button } from "@/components/ui/button"
 
 // TODO: Add Convex query for current user
@@ -35,7 +35,7 @@ export default function DashboardPage() {
       <StatsOverview />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <ModuleCard 
+        <ModuleCard
           title="Practice Mode"
           description="Customizable learning sessions. Focus on specific flags."
           icon={Flag}
@@ -43,21 +43,21 @@ export default function DashboardPage() {
           ctaText="Start Practice"
           variant="featured"
         />
-        <ModuleCard 
+        <ModuleCard
           title="Formal Exam"
           description="Official assessment with immutable results."
           icon={GraduationCap}
           href="/dashboard/exam"
           ctaText="Begin Exam"
         />
-        <ModuleCard 
+        <ModuleCard
           title="Ranked Challenge"
           description="Reflex-based competitive mode. Climb the leaderboard."
           icon={Trophy}
           href="/dashboard/ranked"
           ctaText="Enter Arena"
         />
-         <ModuleCard 
+        <ModuleCard
           title="Reference Guide"
           description="Complete encyclopedia of flags and meanings."
           icon={BookOpen}
@@ -68,18 +68,9 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-7">
         <RecentActivity />
-        
-        <Card className="col-span-1 md:col-span-2 lg:col-span-4">
-            {/* TODO: Add performance chart with Convex query */}
-            {/* const performanceData = useQuery(api.stats.getPerformanceTrend) */}
-            <CardHeader>
-                <CardTitle>Performance Trend</CardTitle>
-                <CardDescription>Average accuracy over last 10 sessions</CardDescription>
-            </CardHeader>
-            <CardContent className="h-[200px] flex items-center justify-center text-muted-foreground bg-muted/20 rounded-md mx-6 mb-6">
-                <p>Performance data will appear here</p>
-            </CardContent>
-        </Card>
+        <div className="col-span-1 md:col-span-2 lg:col-span-4">
+          <DashboardPerformanceTrend />
+        </div>
       </div>
     </div>
   )

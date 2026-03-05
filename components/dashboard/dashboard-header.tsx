@@ -30,6 +30,9 @@ export function DashboardHeader() {
         <Link href="/dashboard/exam" className="text-muted-foreground transition-colors hover:text-primary">
           Exam
         </Link>
+        <Link href="/dashboard/analytics" className="text-muted-foreground transition-colors hover:text-primary">
+          Analytics
+        </Link>
         <Link href="/dashboard/reference" className="text-muted-foreground transition-colors hover:text-primary">
           Reference
         </Link>

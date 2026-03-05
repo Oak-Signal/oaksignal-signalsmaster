@@ -72,6 +72,7 @@ export default defineSchema({
     ),
     startedAt: v.number(),
     completedAt: v.optional(v.number()),
+    timeTaken: v.optional(v.number()), // Total session duration in ms (completedAt - startedAt)
     
     // Question Generation Data (optional for backward compatibility)
     questions: v.optional(v.array(v.object({
@@ -92,5 +93,6 @@ export default defineSchema({
   })
   .index("by_user", ["userId"])
   .index("by_user_status", ["userId", "status"])
-  .index("by_status", ["status"]),
+  .index("by_status", ["status"])
+  .index("by_user_completedAt", ["userId", "completedAt"]), // For date-range analytics queries
 });
