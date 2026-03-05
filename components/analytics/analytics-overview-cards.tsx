@@ -42,6 +42,15 @@ export function AnalyticsOverviewCards({ summary }: AnalyticsOverviewCardsProps)
       color: "text-purple-500",
     },
     {
+      title: "Avg Session Time",
+      value: summary.avgSessionTime > 0
+        ? formatDistanceStrict(0, summary.avgSessionTime)
+        : "0 m",
+      icon: Clock,
+      description: "Per completed session",
+      color: "text-indigo-500",
+    },
+    {
       title: "Best Streak",
       value: summary.longestStreak.toString(),
       icon: Flame,
@@ -51,7 +60,7 @@ export function AnalyticsOverviewCards({ summary }: AnalyticsOverviewCardsProps)
   ];
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
       {cards.map((card, i) => (
         <Card key={i}>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">

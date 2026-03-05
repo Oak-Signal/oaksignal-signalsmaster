@@ -68,7 +68,7 @@ function QuestionRow({ question, number }: QuestionRowProps) {
 
                         {/* Flag thumbnail — links to reference */}
                         <Link
-                            href={`/dashboard/reference/${flagKey}`}
+                            href={`/dashboard/reference/flags/${flagKey}`}
                             className="shrink-0 rounded-md overflow-hidden ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                             aria-label={`View ${flagName} in reference guide`}
                         >
@@ -88,7 +88,7 @@ function QuestionRow({ question, number }: QuestionRowProps) {
                             <div className="flex items-center gap-1.5">
                                 <p className="font-medium truncate">{flagName}</p>
                                 <Link
-                                    href={`/dashboard/reference/${flagKey}`}
+                                    href={`/dashboard/reference/flags/${flagKey}`}
                                     className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
                                     aria-label={`Open ${flagName} reference page`}
                                     tabIndex={-1}

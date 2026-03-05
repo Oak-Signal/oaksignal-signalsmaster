@@ -11,6 +11,7 @@ import { CategoryBreakdownChart } from "@/components/analytics/category-breakdow
 import { ModeBreakdownChart } from "@/components/analytics/mode-breakdown-chart";
 import { PracticeFrequencyChart } from "@/components/analytics/practice-frequency-chart";
 import { ChallengingFlagsList } from "@/components/analytics/challenging-flags-list";
+import { MasteryFlagsGrid } from "@/components/analytics/mastery-flags-grid";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function AnalyticsPageClient() {
@@ -19,8 +20,13 @@ export function AnalyticsPageClient() {
   const summary = useQuery(api.analytics.getAnalyticsSummary, { dateRange });
   const trend = useQuery(api.analytics.getPerformanceTrend, { dateRange });
   const missedFlags = useQuery(api.analytics.getMostMissedFlags, { dateRange, limit: 5 });
+  const masteryFlags = useQuery(api.analytics.getMasteryFlags, { dateRange, limit: 8 });
 
-  const isLoading = summary === undefined || trend === undefined || missedFlags === undefined;
+  const isLoading =
+    summary === undefined ||
+    trend === undefined ||
+    missedFlags === undefined ||
+    masteryFlags === undefined;
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-10">
@@ -55,8 +61,10 @@ export function AnalyticsPageClient() {
             </div>
             <div>
               <ModeBreakdownChart 
-                learnCount={summary?.modeBreakdown.learn ?? 0} 
-                matchCount={summary?.modeBreakdown.match ?? 0} 
+                learnSessions={summary?.modeBreakdown.learn.sessions ?? 0}
+                matchSessions={summary?.modeBreakdown.match.sessions ?? 0}
+                learnSuccessRate={summary?.modeBreakdown.learn.successRate ?? 0}
+                matchSuccessRate={summary?.modeBreakdown.match.successRate ?? 0}
               />
             </div>
           </div>
@@ -65,8 +73,9 @@ export function AnalyticsPageClient() {
             <div className="lg:col-span-2">
               <PracticeFrequencyChart data={summary?.weeklyFrequency} />
             </div>
-            <div>
+            <div className="space-y-4">
               <ChallengingFlagsList flags={missedFlags} />
+              <MasteryFlagsGrid flags={masteryFlags} />
             </div>
           </div>
         </>

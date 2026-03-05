@@ -107,6 +107,20 @@ export interface WeeklyFrequency {
     count: number;
 }
 
+export interface MasteryFlag {
+    flagId: string;
+    flagKey: string;
+    flagName: string;
+    flagImagePath: string;
+    flagCategory: string;
+    attempts: number;
+}
+
+export interface ModeStats {
+    sessions: number;
+    successRate: number;
+}
+
 /** Full analytics summary returned by getAnalyticsSummary */
 export interface AnalyticsSummary {
     totalSessions: number;
@@ -119,8 +133,8 @@ export interface AnalyticsSummary {
     longestStreak: number;
     currentStreak: number;
     modeBreakdown: {
-        learn: number;
-        match: number;
+        learn: ModeStats;
+        match: ModeStats;
     };
     categoryBreakdown: CategoryBreakdown[];
     weeklyFrequency: WeeklyFrequency[];

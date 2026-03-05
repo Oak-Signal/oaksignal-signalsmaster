@@ -292,6 +292,85 @@ export const getMostMissedFlags = query({
 });
 
 // ---------------------------------------------------------------------------
+// Query: getMasteryFlags
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns flags the user has consistently answered correctly within the
+ * selected range. A flag is considered "mastered" when it has at least
+ * 2 attempts and 0 misses.
+ */
+export const getMasteryFlags = query({
+    args: {
+        limit: v.optional(v.number()),
+        dateRange: v.optional(
+            v.union(v.literal("7d"), v.literal("30d"), v.literal("all"))
+        ),
+    },
+    handler: async (ctx, args) => {
+        const user = await getAuthenticatedUser(ctx);
+        if (!user) return null;
+
+        const range = args.dateRange ?? "all";
+        const cutoff = dateRangeCutoff(range);
+        const limit = args.limit ?? 8;
+
+        const sessions = await ctx.db
+            .query("practiceSessions")
+            .withIndex("by_user_status", (q) =>
+                q.eq("userId", user._id).eq("status", "completed")
+            )
+            .collect();
+
+        const tally = new Map<
+            string,
+            { flagId: Id<"flags">; attempts: number; misses: number }
+        >();
+
+        for (const session of sessions) {
+            if (cutoff > 0 && (session.completedAt ?? 0) < cutoff) continue;
+            if (!session.questions) continue;
+
+            for (const q of session.questions) {
+                const key = q.flagId.toString();
+                const existing = tally.get(key) ?? {
+                    flagId: q.flagId,
+                    attempts: 0,
+                    misses: 0,
+                };
+                existing.attempts += 1;
+                if (q.userAnswer !== q.correctAnswer) existing.misses += 1;
+                tally.set(key, existing);
+            }
+        }
+
+        const mastered = Array.from(tally.values())
+            .filter((t) => t.attempts >= 2 && t.misses === 0)
+            .sort((a, b) => b.attempts - a.attempts)
+            .slice(0, limit);
+
+        const enriched = await Promise.all(
+            mastered.map(async (item) => {
+                const flag = await ctx.db.get(item.flagId);
+                if (!flag) return null;
+                return {
+                    flagId: flag._id,
+                    flagKey: flag.key,
+                    flagName: flag.name,
+                    flagImagePath: flag.imagePath,
+                    flagCategory: flag.category,
+                    attempts: item.attempts,
+                };
+            })
+        );
+
+        return enriched.filter(Boolean) as NonNullable<
+            (typeof enriched)[number]
+        >[];
+    },
+});
+
+// ---------------------------------------------------------------------------
 // Query: getAnalyticsSummary
 // ---------------------------------------------------------------------------
 
@@ -337,7 +416,10 @@ export const getAnalyticsSummary = query({
                 avgSessionTime: 0,
                 longestStreak: 0,
                 currentStreak: 0,
-                modeBreakdown: { learn: 0, match: 0 },
+                modeBreakdown: {
+                    learn: { sessions: 0, successRate: 0 },
+                    match: { sessions: 0, successRate: 0 },
+                },
                 categoryBreakdown: [] as {
                     category: string;
                     attempts: number;
@@ -360,13 +442,52 @@ export const getAnalyticsSummary = query({
         const avgSessionTime = Math.round(totalTimePracticed / totalSessions);
 
         // --- Mode breakdown ---
-        const modeBreakdown = sessions.reduce(
-            (acc, s) => {
-                acc[s.mode] = (acc[s.mode] ?? 0) + 1;
-                return acc;
+        const modeTally: Record<
+            "learn" | "match",
+            { sessions: number; correct: number; attempts: number }
+        > = {
+            learn: { sessions: 0, correct: 0, attempts: 0 },
+            match: { sessions: 0, correct: 0, attempts: 0 },
+        };
+
+        for (const session of sessions) {
+            const bucket = modeTally[session.mode];
+            bucket.sessions += 1;
+
+            if (session.questions && session.questions.length > 0) {
+                bucket.attempts += session.questions.length;
+                bucket.correct += session.questions.filter(
+                    (q) => q.userAnswer === q.correctAnswer
+                ).length;
+            } else {
+                // Fallback for legacy sessions without question array.
+                const attempts = session.sessionLength;
+                const correct = Math.round((session.score / 100) * attempts);
+                bucket.attempts += attempts;
+                bucket.correct += correct;
+            }
+        }
+
+        const modeBreakdown = {
+            learn: {
+                sessions: modeTally.learn.sessions,
+                successRate:
+                    modeTally.learn.attempts > 0
+                        ? Math.round(
+                              (modeTally.learn.correct / modeTally.learn.attempts) * 100
+                          )
+                        : 0,
             },
-            { learn: 0, match: 0 } as Record<"learn" | "match", number>
-        );
+            match: {
+                sessions: modeTally.match.sessions,
+                successRate:
+                    modeTally.match.attempts > 0
+                        ? Math.round(
+                              (modeTally.match.correct / modeTally.match.attempts) * 100
+                          )
+                        : 0,
+            },
+        };
 
         // --- Streak calculation ---
         // Sort all-time completed sessions by date (most recent first) for streak
