@@ -95,4 +95,77 @@ export default defineSchema({
   .index("by_user_status", ["userId", "status"])
   .index("by_status", ["status"])
   .index("by_user_completedAt", ["userId", "completedAt"]), // For date-range analytics queries
+
+  // Official Exam Attempts Table
+  examAttempts: defineTable({
+    userId: v.id("users"),
+
+    // Lifecycle state for official exam attempt records.
+    status: v.union(
+      v.literal("started"),
+      v.literal("completed"),
+      v.literal("abandoned")
+    ),
+    attemptNumber: v.number(),
+
+    // Required acknowledgments captured before exam start.
+    rulesAcknowledgedAt: v.number(),
+    readinessAcknowledgedAt: v.number(),
+    rulesViewDurationMs: v.number(),
+
+    // Policy snapshot locked at start for auditability.
+    policySnapshot: v.object({
+      passThresholdPercent: v.number(),
+      totalQuestions: v.number(),
+      isUntimed: v.boolean(),
+      timeLimitMinutes: v.optional(v.number()),
+      singleAttemptOnly: v.boolean(),
+      noPauseResume: v.boolean(),
+      noBacktracking: v.boolean(),
+      requiresAllAnswers: v.boolean(),
+    }),
+
+    // Prerequisite context captured at exam start.
+    prerequisiteSnapshot: v.object({
+      minimumPracticeSessionsRequired: v.number(),
+      userPracticeSessions: v.number(),
+      userPracticeAveragePercent: v.number(),
+    }),
+
+    // Best-effort client environment and network capture.
+    systemSnapshot: v.object({
+      ipAddress: v.optional(v.string()),
+      userAgent: v.optional(v.string()),
+      browserFamily: v.optional(v.string()),
+      browserVersion: v.optional(v.string()),
+      browserSupported: v.boolean(),
+      stableInternetConfirmed: v.boolean(),
+    }),
+
+    // Optional instructor-proctored scheduling metadata.
+    proctorInfo: v.optional(v.object({
+      instructorName: v.string(),
+      scheduledStartAt: v.number(),
+      instructions: v.optional(v.string()),
+    })),
+
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+    immutableAt: v.optional(v.number()),
+
+    // Optional result payload once completed.
+    result: v.optional(v.object({
+      totalQuestions: v.number(),
+      correctCount: v.number(),
+      scorePercent: v.number(),
+      passed: v.boolean(),
+    })),
+
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+  .index("by_user", ["userId"])
+  .index("by_user_startedAt", ["userId", "startedAt"])
+  .index("by_user_status", ["userId", "status"])
+  .index("by_status_startedAt", ["status", "startedAt"]),
 });
