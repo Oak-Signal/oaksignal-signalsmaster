@@ -35,3 +35,6 @@ jobs:
 
       - name: Lint, Typecheck, Convex codegen, Build
         run: npm run check
+        env:
+          CONVEX_DEPLOYMENT: ${{ vars.CONVEX_DEPLOYMENT }}
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}

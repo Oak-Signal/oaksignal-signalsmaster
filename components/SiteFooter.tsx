@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Anchor, Github, Twitter, Mail, AlertTriangle } from "lucide-react";
+import { Anchor, Github, Mail, AlertTriangle } from "lucide-react";
 
 export function SiteFooter() {
   const currentYear = new Date().getFullYear();

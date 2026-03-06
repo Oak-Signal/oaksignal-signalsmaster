@@ -58,7 +58,7 @@ export function FlagDisplay({
               {flagImage ? (
                 <Image
                   src={flagImage}
-                  alt="Signal flag"
+                  alt={flagName ? `Signal flag for ${flagName}` : "Signal flag"}
                   fill
                   className="object-contain drop-shadow-lg"
                   unoptimized

@@ -693,7 +693,6 @@ export const submitAnswer = mutation({
 
     // 11. CALCULATE NEW SCORE AND COUNTS
     const newCorrectCount = isCorrect ? session.correctCount + 1 : session.correctCount;
-    const totalAnswered = args.questionIndex + 1;
     const newScore = Math.round((newCorrectCount / session.questions.length) * 100);
 
     // 12. CALCULATE STREAK

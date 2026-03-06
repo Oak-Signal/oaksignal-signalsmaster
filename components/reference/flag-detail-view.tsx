@@ -8,7 +8,7 @@ import { useQuery } from "convex/react"
 import { ChevronLeft, ChevronRight, ArrowLeft, Share2, Volume2, Printer } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/tooltip"
 
 import { api } from "@/convex/_generated/api"
-import { Doc } from "@/convex/_generated/dataModel"
 
 interface FlagDetailViewProps {
   flagKey: string

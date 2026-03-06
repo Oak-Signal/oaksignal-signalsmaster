@@ -6,8 +6,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Trophy, Shield, Brain, Zap, BookOpen, AlertTriangle } from "lucide-react";
+import { Shield, Brain, Zap, BookOpen, AlertTriangle } from "lucide-react";
 
 export const metadata = {
   title: "FAQ - Signals Master",

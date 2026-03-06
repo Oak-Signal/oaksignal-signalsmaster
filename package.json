@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "convex:codegen": "convex codegen",
+    "convex:codegen": "node -e \"const cp=require('child_process');const hasDeployment=Boolean(process.env.CONVEX_DEPLOYMENT);if(!hasDeployment){console.log('Skipping convex codegen: CONVEX_DEPLOYMENT is not set.');process.exit(0);}cp.execSync('npx convex codegen',{stdio:'inherit'});\"",
     "clean:next-dev-types": "node -e \"require('fs').rmSync('.next/dev/types',{ recursive: true, force: true })\"",
     "check": "npm run lint && npm run convex:codegen && npm run clean:next-dev-types && npm run build",
     "prepare": "husky"

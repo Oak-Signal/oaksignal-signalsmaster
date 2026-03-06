@@ -1,8 +1,6 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { Package, Anchor, ShieldCheck, AlertTriangle } from "lucide-react";
-import Link from "next/link";
+import { Package, Anchor, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
