@@ -27,7 +27,7 @@ export function RecentActivity() {
       <CardHeader>
         <CardTitle>Recent Activity</CardTitle>
         <CardDescription>
-          Your latest practice sessions and exam attempts.
+          Your latest completed practice sessions.
         </CardDescription>
       </CardHeader>
       <CardContent>

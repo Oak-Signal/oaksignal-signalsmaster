@@ -9,8 +9,11 @@
  */
 
 import type * as analytics from "../analytics.js";
+import type * as exams from "../exams.js";
 import type * as flags from "../flags.js";
 import type * as lib_distractor_generation from "../lib/distractor_generation.js";
+import type * as lib_exam_policy from "../lib/exam_policy.js";
+import type * as lib_exam_start_validators from "../lib/exam_start_validators.js";
 import type * as lib_flag_similarity from "../lib/flag_similarity.js";
 import type * as lib_performance from "../lib/performance.js";
 import type * as lib_randomization from "../lib/randomization.js";
@@ -31,8 +34,11 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   analytics: typeof analytics;
+  exams: typeof exams;
   flags: typeof flags;
   "lib/distractor_generation": typeof lib_distractor_generation;
+  "lib/exam_policy": typeof lib_exam_policy;
+  "lib/exam_start_validators": typeof lib_exam_start_validators;
   "lib/flag_similarity": typeof lib_flag_similarity;
   "lib/performance": typeof lib_performance;
   "lib/randomization": typeof lib_randomization;
