@@ -39,6 +39,8 @@ Designed for both rapid learning and formal assessment:
 
 ## 🛠️ Tech Stack
 
+> Built with:
+
 * **Framework / Library**: [React.js](https://reactjs.org/) + [Next.js 16](https://nextjs.org/) (App Router, Turbopack)
 * **Language**: [TypeScript](https://www.typescriptlang.org/)
 * **Styling / UI**: [Tailwind CSS](https://tailwindcss.com/) with [ShadCN/UI](https://ui.shadcn.com/)
