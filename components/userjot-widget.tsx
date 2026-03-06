@@ -5,11 +5,13 @@ import { useEffect, useRef } from "react"
 
 type UserjotTheme = "auto" | "light" | "dark"
 type UserjotPosition = "left" | "right"
+type UserjotTrigger = "default" | "custom"
 
 interface UserjotInitOptions {
   widget: boolean
   position: UserjotPosition
   theme: UserjotTheme
+  trigger?: UserjotTrigger
 }
 
 interface UserjotIdentifyPayload {
@@ -23,6 +25,7 @@ interface UserjotIdentifyPayload {
 interface UserjotApi {
   init: (projectId: string, options: UserjotInitOptions) => void
   identify: (payload: UserjotIdentifyPayload) => void
+  showWidget: () => void
 }
 
 declare global {
@@ -39,6 +42,7 @@ const USERJOT_OPTIONS: UserjotInitOptions = {
   widget: true,
   position: "right",
   theme: "auto",
+  trigger: "custom",
 }
 
 export function UserjotWidget() {
