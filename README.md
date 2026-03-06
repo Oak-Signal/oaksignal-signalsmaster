@@ -86,7 +86,12 @@ Follow these steps to set up the project locally.
 This project uses **Husky** to enforce quality and security standards:
 
 *   **Pre-commit**: Runs `gitleaks` (staged files) and `eslint` to prevent secrets and bad code from continuing.
-*   **Pre-push**: Runs comprehensive `gitleaks` scans and `npm run build` to ensure the branch is deployable.
+*   **Pre-push**: Runs comprehensive `gitleaks` scans, basic secret pattern checks, and `npm run check` with formatted progress output.
+
+Pre-push helper flags:
+*   `PUSH_CHECKS_FAST=1`: Skip `npm run check` (local troubleshooting only).
+*   `PUSH_CHECKS_VERBOSE=1`: Stream full command output live.
+*   `PUSH_CHECKS_NO_SPINNER=1`: Disable spinner animation for non-interactive logs.
 
 ---
 
