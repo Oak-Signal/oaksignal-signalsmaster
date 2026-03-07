@@ -24,6 +24,9 @@ import {
 
 type AuthenticatedCtx = QueryCtx | MutationCtx;
 const MIN_OFFICIAL_EXAM_IDLE_TIMEOUT_MS = 60_000;
+const DEFAULT_OFFICIAL_EXAM_SUBMISSION_MIN_INTERVAL_MS = 750;
+const DEFAULT_OFFICIAL_EXAM_SUBMISSION_WINDOW_MS = 60_000;
+const DEFAULT_OFFICIAL_EXAM_SUBMISSION_MAX_PER_WINDOW = 30;
 
 interface ExamStartData {
   totalQuestions: number;
@@ -38,6 +41,54 @@ interface ExamStartData {
 interface ExamGenerationSettings {
   modeStrategy: ExamModeStrategy;
   singleMode?: ExamQuestionMode;
+}
+
+interface ExamSubmissionRateLimitConfig {
+  minIntervalMs: number;
+  windowMs: number;
+  maxPerWindow: number;
+}
+
+function getPositiveIntegerEnv(
+  envKey: string,
+  fallback: number,
+  minimum: number
+): number {
+  const raw = process.env[envKey]?.trim();
+  if (!raw) {
+    return fallback;
+  }
+
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) {
+    throw new Error(`${envKey} must be an integer.`);
+  }
+
+  if (parsed < minimum) {
+    throw new Error(`${envKey} must be at least ${minimum}.`);
+  }
+
+  return parsed;
+}
+
+function getOfficialExamSubmissionRateLimitConfig(): ExamSubmissionRateLimitConfig {
+  return {
+    minIntervalMs: getPositiveIntegerEnv(
+      "OFFICIAL_EXAM_SUBMISSION_MIN_INTERVAL_MS",
+      DEFAULT_OFFICIAL_EXAM_SUBMISSION_MIN_INTERVAL_MS,
+      100
+    ),
+    windowMs: getPositiveIntegerEnv(
+      "OFFICIAL_EXAM_SUBMISSION_WINDOW_MS",
+      DEFAULT_OFFICIAL_EXAM_SUBMISSION_WINDOW_MS,
+      1_000
+    ),
+    maxPerWindow: getPositiveIntegerEnv(
+      "OFFICIAL_EXAM_SUBMISSION_MAX_PER_WINDOW",
+      DEFAULT_OFFICIAL_EXAM_SUBMISSION_MAX_PER_WINDOW,
+      1
+    ),
+  };
 }
 
 function getOfficialExamIdleTimeoutMs(): number | null {
@@ -818,6 +869,53 @@ export const submitExamAnswer = mutation({
 
     const questions = await getAttemptQuestions(ctx, args.examAttemptId);
     const requestReceivedAt = Date.now();
+    const submissionRateLimit = getOfficialExamSubmissionRateLimitConfig();
+
+    const answeredTimestamps = questions
+      .map((question) => question.answeredAt ?? null)
+      .filter((answeredAt): answeredAt is number => answeredAt !== null)
+      .sort((a, b) => b - a);
+
+    const mostRecentAnsweredAt = answeredTimestamps[0] ?? null;
+    if (mostRecentAnsweredAt !== null) {
+      const intervalSinceLastSubmissionMs = requestReceivedAt - mostRecentAnsweredAt;
+      if (intervalSinceLastSubmissionMs < submissionRateLimit.minIntervalMs) {
+        return rejectExamSubmission(ctx, {
+          examAttemptId: args.examAttemptId,
+          userId: user._id,
+          questionIndex: args.questionIndex,
+          reason: "rate_limited_min_interval",
+          auditMessage: "Rejected submission due to minimum interval rate limit.",
+          throwMessage: "Submitting too quickly. Please wait a moment and try again.",
+          metadata: {
+            intervalSinceLastSubmissionMs,
+            minIntervalMs: submissionRateLimit.minIntervalMs,
+            lastAnsweredAt: mostRecentAnsweredAt,
+          },
+        });
+      }
+    }
+
+    const recentSubmissionCount = answeredTimestamps.filter(
+      (answeredAt) => requestReceivedAt - answeredAt <= submissionRateLimit.windowMs
+    ).length;
+
+    if (recentSubmissionCount >= submissionRateLimit.maxPerWindow) {
+      return rejectExamSubmission(ctx, {
+        examAttemptId: args.examAttemptId,
+        userId: user._id,
+        questionIndex: args.questionIndex,
+        reason: "rate_limited_window",
+        auditMessage: "Rejected submission due to rolling-window rate limit.",
+        throwMessage: "Too many submissions in a short period. Please wait and try again.",
+        metadata: {
+          recentSubmissionCount,
+          windowMs: submissionRateLimit.windowMs,
+          maxPerWindow: submissionRateLimit.maxPerWindow,
+        },
+      });
+    }
+
     if (idleTimeoutMs !== null) {
       const lastActivityAt = getLastAnsweredAt(questions) ?? attempt.startedAt;
       const idleDurationMs = requestReceivedAt - lastActivityAt;

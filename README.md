@@ -128,6 +128,10 @@ Pre-push helper flags:
 
 * `EXAM_SESSION_TOKEN_SECRET` is mandatory for starting official exam attempts. Rotate it with care because existing in-progress exam session tokens will no longer validate.
 * `OFFICIAL_EXAM_IDLE_TIMEOUT_MS` is optional and server-enforced at answer submission time. If idle time exceeds this value, the attempt is marked `abandoned`.
+* Optional server-side submission rate limits:
+   * `OFFICIAL_EXAM_SUBMISSION_MIN_INTERVAL_MS` (default `750`, minimum `100`)
+   * `OFFICIAL_EXAM_SUBMISSION_WINDOW_MS` (default `60000`, minimum `1000`)
+   * `OFFICIAL_EXAM_SUBMISSION_MAX_PER_WINDOW` (default `30`, minimum `1`)
 * Rollback path for idle timeout: remove/unset `OFFICIAL_EXAM_IDLE_TIMEOUT_MS` and redeploy Convex functions.
 
 ---
