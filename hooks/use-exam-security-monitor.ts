@@ -110,11 +110,6 @@ export function useExamSecurityMonitor({
       return
     }
 
-    setIsOffline(!navigator.onLine)
-    setIsWindowFocused(document.hasFocus())
-    setIsTabVisible(document.visibilityState !== "hidden")
-    setIsFullscreen(Boolean(document.fullscreenElement))
-
     const handleOffline = () => {
       setIsOffline(true)
       emitClientEvent({

@@ -183,7 +183,9 @@ development**.
 
 ## Current - Pre-Alpha 
 
-0.1.0 - Exam Start and Rules
+v0.1.0 - Exam Start and Rules
+
+v0.2.0 - Pre-Verification: Secure Exam Interface
 
 
 
