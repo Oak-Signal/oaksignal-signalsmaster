@@ -60,6 +60,8 @@ export interface ExamAttemptDetail {
   status: "started" | "completed" | "abandoned"
   startedAt: number
   completedAt: number | null
+  sessionIssuedAt?: number
+  sessionExpiresAt?: number
   rulesAcknowledgedAt: number
   readinessAcknowledgedAt: number
   rulesViewDurationMs: number
@@ -129,6 +131,7 @@ export interface ExamQuestionSubmissionInput {
   examAttemptId: string
   questionIndex: number
   selectedAnswer: string
+  sessionToken?: string
 }
 
 export interface ExamQuestionSubmissionResult {
@@ -148,6 +151,10 @@ export interface ExamAttemptRuntimeProgress {
   answeredCount: number
   correctCount: number
   totalQuestions: number
+  remainingCount?: number
+  completionPercent?: number
+  elapsedMs?: number
+  lastAnsweredAt?: number | null
   startedAt: number
   completedAt: number | null
   generationSnapshot: ExamGenerationSnapshot | null
@@ -165,3 +172,26 @@ export interface ExamGenerationSnapshot {
   examChecksum: string
   generationVersion: number
 }
+
+export type ExamAuditEventType =
+  | "generation_started"
+  | "generation_completed"
+  | "generation_failed"
+  | "submission_received"
+  | "submission_validated"
+  | "submission_rejected"
+  | "session_token_issued"
+  | "session_token_validated"
+  | "session_token_rejected"
+  | "connection_lost"
+  | "connection_restored"
+  | "window_blur"
+  | "window_focus"
+  | "tab_hidden"
+  | "tab_visible"
+  | "fullscreen_entered"
+  | "fullscreen_exited"
+  | "back_navigation_blocked"
+  | "restricted_shortcut_blocked"
+  | "idle_warning_shown"
+  | "idle_timeout_triggered"

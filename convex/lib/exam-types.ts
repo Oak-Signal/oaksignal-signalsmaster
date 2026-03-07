@@ -60,3 +60,25 @@ export interface ExamSettingsSnapshot {
   singleMode?: ExamQuestionMode;
 }
 
+export type ExamAuditEventType =
+  | "generation_started"
+  | "generation_completed"
+  | "generation_failed"
+  | "submission_received"
+  | "submission_validated"
+  | "submission_rejected"
+  | "session_token_issued"
+  | "session_token_validated"
+  | "session_token_rejected"
+  | "connection_lost"
+  | "connection_restored"
+  | "window_blur"
+  | "window_focus"
+  | "tab_hidden"
+  | "tab_visible"
+  | "fullscreen_entered"
+  | "fullscreen_exited"
+  | "back_navigation_blocked"
+  | "restricted_shortcut_blocked"
+  | "idle_warning_shown"
+  | "idle_timeout_triggered";

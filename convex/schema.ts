@@ -152,6 +152,9 @@ export default defineSchema({
     startedAt: v.number(),
     completedAt: v.optional(v.number()),
     immutableAt: v.optional(v.number()),
+    sessionTokenHash: v.optional(v.string()),
+    sessionIssuedAt: v.optional(v.number()),
+    sessionExpiresAt: v.optional(v.number()),
 
     // Optional result payload once completed.
     result: v.optional(v.object({
@@ -248,7 +251,22 @@ export default defineSchema({
       v.literal("generation_failed"),
       v.literal("submission_received"),
       v.literal("submission_validated"),
-      v.literal("submission_rejected")
+      v.literal("submission_rejected"),
+      v.literal("session_token_issued"),
+      v.literal("session_token_validated"),
+      v.literal("session_token_rejected"),
+      v.literal("connection_lost"),
+      v.literal("connection_restored"),
+      v.literal("window_blur"),
+      v.literal("window_focus"),
+      v.literal("tab_hidden"),
+      v.literal("tab_visible"),
+      v.literal("fullscreen_entered"),
+      v.literal("fullscreen_exited"),
+      v.literal("back_navigation_blocked"),
+      v.literal("restricted_shortcut_blocked"),
+      v.literal("idle_warning_shown"),
+      v.literal("idle_timeout_triggered")
     ),
     message: v.string(),
     metadataJson: v.optional(v.string()),
