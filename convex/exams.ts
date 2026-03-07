@@ -110,6 +110,34 @@ async function insertExamAuditLog(
   });
 }
 
+async function rejectExamSubmission(
+  ctx: MutationCtx,
+  input: {
+    examAttemptId: Doc<"examAttempts">["_id"];
+    userId: Doc<"users">["_id"];
+    questionIndex: number;
+    reason: string;
+    auditMessage: string;
+    throwMessage?: string;
+    eventType?: Extract<ExamAuditEventType, "submission_rejected" | "session_token_rejected">;
+    metadata?: Record<string, unknown>;
+  }
+): Promise<never> {
+  await insertExamAuditLog(ctx, {
+    examAttemptId: input.examAttemptId,
+    userId: input.userId,
+    eventType: input.eventType ?? "submission_rejected",
+    message: input.auditMessage,
+    metadata: {
+      questionIndex: input.questionIndex,
+      reason: input.reason,
+      ...input.metadata,
+    },
+  });
+
+  throw new Error(input.throwMessage ?? input.auditMessage);
+}
+
 async function getOwnedAttempt(
   ctx: AuthenticatedCtx,
   userId: Doc<"users">["_id"],
@@ -717,28 +745,43 @@ export const submitExamAnswer = mutation({
 
     const attempt = await getOwnedAttempt(ctx, user._id, args.examAttemptId);
     if (!attempt) {
-      throw new Error("Exam attempt not found or access denied.");
+      return rejectExamSubmission(ctx, {
+        examAttemptId: args.examAttemptId,
+        userId: user._id,
+        questionIndex: args.questionIndex,
+        reason: "attempt_not_found_or_access_denied",
+        auditMessage: "Rejected submission because exam attempt was not found or access was denied.",
+        throwMessage: "Exam attempt not found or access denied.",
+      });
     }
 
     if (attempt.status !== "started") {
-      throw new Error("Exam attempt is no longer active.");
+      return rejectExamSubmission(ctx, {
+        examAttemptId: args.examAttemptId,
+        userId: user._id,
+        questionIndex: args.questionIndex,
+        reason: "attempt_not_active",
+        auditMessage: "Rejected submission because exam attempt is no longer active.",
+        throwMessage: "Exam attempt is no longer active.",
+        metadata: {
+          attemptStatus: attempt.status,
+        },
+      });
     }
 
     const idleTimeoutMs = getOfficialExamIdleTimeoutMs();
 
     if (attempt.sessionTokenHash && attempt.sessionIssuedAt && attempt.sessionExpiresAt) {
       if (!args.sessionToken) {
-        await insertExamAuditLog(ctx, {
+        return rejectExamSubmission(ctx, {
           examAttemptId: args.examAttemptId,
           userId: user._id,
+          questionIndex: args.questionIndex,
+          reason: "missing_session_token",
           eventType: "session_token_rejected",
-          message: "Rejected submission because session token was missing.",
-          metadata: {
-            questionIndex: args.questionIndex,
-            reason: "missing_session_token",
-          },
+          auditMessage: "Rejected submission because session token was missing.",
+          throwMessage: "Session validation failed. Please refresh the exam session.",
         });
-        throw new Error("Session validation failed. Please refresh the exam session.");
       }
 
       const tokenValidation = await validateExamSessionToken({
@@ -751,17 +794,15 @@ export const submitExamAnswer = mutation({
       });
 
       if (!tokenValidation.valid) {
-        await insertExamAuditLog(ctx, {
+        return rejectExamSubmission(ctx, {
           examAttemptId: args.examAttemptId,
           userId: user._id,
+          questionIndex: args.questionIndex,
+          reason: tokenValidation.reason ?? "unknown",
           eventType: "session_token_rejected",
-          message: "Rejected submission due to invalid session token.",
-          metadata: {
-            questionIndex: args.questionIndex,
-            reason: tokenValidation.reason ?? "unknown",
-          },
+          auditMessage: "Rejected submission due to invalid session token.",
+          throwMessage: "Session validation failed. Please refresh the exam session.",
         });
-        throw new Error("Session validation failed. Please refresh the exam session.");
       }
 
       await insertExamAuditLog(ctx, {
@@ -817,23 +858,29 @@ export const submitExamAnswer = mutation({
 
     const expectedQuestionIndex = getCurrentQuestionIndex(questions);
     if (expectedQuestionIndex === null) {
-      throw new Error("Exam has already been completed.");
+      return rejectExamSubmission(ctx, {
+        examAttemptId: args.examAttemptId,
+        userId: user._id,
+        questionIndex: args.questionIndex,
+        reason: "attempt_already_completed",
+        auditMessage: "Rejected submission because exam has already been completed.",
+        throwMessage: "Exam has already been completed.",
+      });
     }
 
     if (args.questionIndex !== expectedQuestionIndex) {
-      await insertExamAuditLog(ctx, {
+      return rejectExamSubmission(ctx, {
         examAttemptId: args.examAttemptId,
         userId: user._id,
-        eventType: "submission_rejected",
-        message: "Rejected out-of-order question submission.",
+        questionIndex: args.questionIndex,
+        reason: "out_of_order_submission",
+        auditMessage: "Rejected out-of-order question submission.",
+        throwMessage: `Question index mismatch. Expected ${expectedQuestionIndex}, got ${args.questionIndex}.`,
         metadata: {
           expectedQuestionIndex,
           receivedQuestionIndex: args.questionIndex,
         },
       });
-      throw new Error(
-        `Question index mismatch. Expected ${expectedQuestionIndex}, got ${args.questionIndex}.`
-      );
     }
 
     const question = await ctx.db
@@ -844,26 +891,41 @@ export const submitExamAnswer = mutation({
       .first();
 
     if (!question) {
-      throw new Error("Exam question not found.");
+      return rejectExamSubmission(ctx, {
+        examAttemptId: args.examAttemptId,
+        userId: user._id,
+        questionIndex: args.questionIndex,
+        reason: "question_not_found",
+        auditMessage: "Rejected submission because exam question was not found.",
+        throwMessage: "Exam question not found.",
+      });
     }
 
     if (question.userAnswer !== null) {
-      throw new Error("This question has already been answered.");
+      return rejectExamSubmission(ctx, {
+        examAttemptId: args.examAttemptId,
+        userId: user._id,
+        questionIndex: args.questionIndex,
+        reason: "duplicate_submission",
+        auditMessage: "Rejected duplicate submission for previously answered question.",
+        throwMessage: "This question has already been answered.",
+      });
     }
 
     const optionIds = question.options.map((option) => option.id);
     if (!optionIds.includes(args.selectedAnswer)) {
-      await insertExamAuditLog(ctx, {
+      return rejectExamSubmission(ctx, {
         examAttemptId: args.examAttemptId,
         userId: user._id,
-        eventType: "submission_rejected",
-        message: "Rejected submission with invalid option id.",
+        questionIndex: args.questionIndex,
+        reason: "invalid_option_id",
+        auditMessage: "Rejected submission with invalid option id.",
+        throwMessage: "Invalid answer option submitted.",
         metadata: {
-          questionIndex: args.questionIndex,
           selectedAnswer: args.selectedAnswer,
+          validOptionIds: optionIds,
         },
       });
-      throw new Error("Invalid answer option submitted.");
     }
 
     const expectedChecksum = buildQuestionChecksum({
@@ -876,16 +938,18 @@ export const submitExamAnswer = mutation({
     });
 
     if (question.checksum !== expectedChecksum) {
-      await insertExamAuditLog(ctx, {
+      return rejectExamSubmission(ctx, {
         examAttemptId: args.examAttemptId,
         userId: user._id,
-        eventType: "submission_rejected",
-        message: "Rejected submission due to question checksum mismatch.",
+        questionIndex: args.questionIndex,
+        reason: "question_checksum_mismatch",
+        auditMessage: "Rejected submission due to question checksum mismatch.",
+        throwMessage: "Exam question integrity check failed.",
         metadata: {
-          questionIndex: args.questionIndex,
+          expectedChecksum,
+          receivedChecksum: question.checksum,
         },
       });
-      throw new Error("Exam question integrity check failed.");
     }
 
     const submittedAt = Date.now();
