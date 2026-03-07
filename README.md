@@ -37,6 +37,23 @@ Designed for both rapid learning and formal assessment:
 
 ---
 
+## 🎬 Video Showcase
+
+> **In Development** — See Signals Master in action:
+
+### Browser Experience
+![Signals Master Browser Interface](showcase/browser/showcase3.png)
+
+### Watch the Demo
+[![Watch Signals Master Demo on YouTube](https://img.youtube.com/vi/migVniG5wvs/maxresdefault.jpg)](https://youtu.be/migVniG5wvs)
+
+▶️ **[Watch Full Demo on YouTube](https://youtu.be/migVniG5wvs)**
+
+### Mobile Experience (iOS)
+![Signals Master Mobile - Results](showcase/iOS/showcase2.png)
+
+---
+
 ## 🛠️ Tech Stack
 
 > Built with:
