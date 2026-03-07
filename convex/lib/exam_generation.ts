@@ -4,8 +4,8 @@ import {
   buildBalancedAnswerPositions,
   createSeededRandom,
   shuffleWithRandom,
-} from "./exam-randomization";
-import { buildExamChecksum, buildQuestionChecksum } from "./exam-checksum";
+} from "./exam_randomization";
+import { buildExamChecksum, buildQuestionChecksum } from "./exam_checksum";
 import {
   ExamFlagSnapshotItem,
   ExamGenerationSnapshot,
@@ -13,7 +13,7 @@ import {
   ExamQuestionMode,
   ExamQuestionOption,
   ExamQuestionRecord,
-} from "./exam-types";
+} from "./exam_types";
 
 interface ExamGenerationConfig {
   modeStrategy: ExamModeStrategy;
@@ -250,4 +250,5 @@ export function applyExamAttemptToQuestions(
     checksum: question.checksum,
   }));
 }
+
 

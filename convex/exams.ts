@@ -12,15 +12,15 @@ import {
   getExamAcknowledgementErrors,
   getExamStartBlockers,
 } from "./lib/exam_start_validators";
-import { generateExamQuestions, applyExamAttemptToQuestions } from "./lib/exam-generation";
-import { generateExamSeed } from "./lib/exam-randomization";
-import { ExamAuditEventType, ExamModeStrategy, ExamQuestionMode } from "./lib/exam-types";
-import { buildQuestionChecksum } from "./lib/exam-checksum";
+import { generateExamQuestions, applyExamAttemptToQuestions } from "./lib/exam_generation";
+import { generateExamSeed } from "./lib/exam_randomization";
+import { ExamAuditEventType, ExamModeStrategy, ExamQuestionMode } from "./lib/exam_types";
+import { buildQuestionChecksum } from "./lib/exam_checksum";
 import {
   deriveExamSessionToken,
   issueExamSessionToken,
   validateExamSessionToken,
-} from "./lib/exam-session-token";
+} from "./lib/exam_session_token";
 
 type AuthenticatedCtx = QueryCtx | MutationCtx;
 const MIN_OFFICIAL_EXAM_IDLE_TIMEOUT_MS = 60_000;
@@ -1101,3 +1101,4 @@ export const logExamClientEvent = mutation({
     };
   },
 });
+

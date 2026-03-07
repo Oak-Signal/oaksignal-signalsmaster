@@ -2,7 +2,7 @@
  * Lightweight checksum helpers for exam integrity checks.
  */
 
-import { ExamQuestionOption } from "./exam-types";
+import { ExamQuestionOption } from "./exam_types";
 
 function stableStringify(value: unknown): string {
   if (value === null || typeof value !== "object") {
@@ -49,4 +49,5 @@ export function buildExamChecksum(input: {
   const serialized = stableStringify(input);
   return fnv1aHex(serialized);
 }
+
 
