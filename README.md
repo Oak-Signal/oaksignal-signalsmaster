@@ -45,7 +45,7 @@ Designed for both rapid learning and formal assessment:
 ![Signals Master Browser Interface](showcase/browser/showcase3.png)
 
 ### Watch the Demo
-[![Watch Signals Master Demo on YouTube](https://img.youtube.com/vi/migVniG5wvs/maxresdefault.jpg)](https://youtu.be/migVniG5wvs)
+[![Watch Signals Master Demo on YouTube](https://img.youtube.com/vi/migVniG5wvs/maxresdefault.webm)](https://youtu.be/migVniG5wvs)
 
 ▶️ **[Watch Full Demo on YouTube](https://youtu.be/migVniG5wvs)**
 
