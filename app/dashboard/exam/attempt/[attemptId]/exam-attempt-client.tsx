@@ -212,7 +212,7 @@ export function ExamAttemptClient({ attemptId }: ExamAttemptClientProps) {
             </p>
             {attempt.result && (
               <div className="rounded-md border bg-muted/40 p-4 text-sm">
-                <p>Score: <span className="font-semibold">{attempt.result.scorePercent}%</span></p>
+                <p>Score: <span className="font-semibold">{attempt.result.scorePercent.toFixed(2)}%</span></p>
                 <p>
                   Correct answers: <span className="font-semibold">
                     {attempt.result.correctCount}/{attempt.result.totalQuestions}

@@ -67,7 +67,7 @@ export function ExamAttemptHistoryCard({ attempts }: ExamAttemptHistoryCardProps
             </p>
             {attempt.scorePercent !== null && (
               <p className="mt-1 text-sm text-muted-foreground">
-                Score: {attempt.scorePercent}% {attempt.passed ? "(Passed)" : "(Not Passed)"}
+                Score: {attempt.scorePercent.toFixed(2)}% {attempt.passed ? "(Passed)" : "(Not Passed)"}
               </p>
             )}
           </div>

@@ -246,6 +246,80 @@ function getLastAnsweredAt(questions: Doc<"examQuestions">[]): number | null {
     .sort((a, b) => b - a)[0] ?? null;
 }
 
+function roundToTwoDecimals(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
+function buildCompletedExamStats(
+  questions: Doc<"examQuestions">[],
+  attempt: Doc<"examAttempts">
+): {
+  modeStats: {
+    learn: { total: number; correct: number; incorrect: number };
+    match: { total: number; correct: number; incorrect: number };
+  };
+  categoryStats: Array<{
+    category: string;
+    total: number;
+    correct: number;
+    incorrect: number;
+  }>;
+} {
+  const modeStats = {
+    learn: { total: 0, correct: 0, incorrect: 0 },
+    match: { total: 0, correct: 0, incorrect: 0 },
+  };
+
+  const categoryByFlagId = new Map<string, string>();
+  for (const item of attempt.flagSnapshot ?? []) {
+    categoryByFlagId.set(item.flagId, item.category);
+  }
+
+  const categoryTally = new Map<
+    string,
+    { total: number; correct: number; incorrect: number }
+  >();
+
+  for (const question of questions) {
+    const correct = question.isCorrect === true;
+    const modeBucket = modeStats[question.mode];
+    modeBucket.total += 1;
+    if (correct) {
+      modeBucket.correct += 1;
+    } else {
+      modeBucket.incorrect += 1;
+    }
+
+    const category = categoryByFlagId.get(question.flagId) ?? "unknown";
+    const existing = categoryTally.get(category) ?? {
+      total: 0,
+      correct: 0,
+      incorrect: 0,
+    };
+    existing.total += 1;
+    if (correct) {
+      existing.correct += 1;
+    } else {
+      existing.incorrect += 1;
+    }
+    categoryTally.set(category, existing);
+  }
+
+  const categoryStats = [...categoryTally.entries()]
+    .map(([category, tally]) => ({
+      category,
+      total: tally.total,
+      correct: tally.correct,
+      incorrect: tally.incorrect,
+    }))
+    .sort((a, b) => a.category.localeCompare(b.category));
+
+  return {
+    modeStats,
+    categoryStats,
+  };
+}
+
 async function resolveFlagPrompt(
   ctx: AuthenticatedCtx,
   attempt: Doc<"examAttempts">,
@@ -1126,9 +1200,10 @@ export const submitExamAnswer = mutation({
 
     if (isExamComplete) {
       const scorePercent = totalQuestions > 0
-        ? Math.round((correctCount / totalQuestions) * 100)
+        ? roundToTwoDecimals((correctCount / totalQuestions) * 100)
         : 0;
       const passed = scorePercent >= attempt.policySnapshot.passThresholdPercent;
+      const { modeStats, categoryStats } = buildCompletedExamStats(updatedQuestions, attempt);
 
       await ctx.db.patch(attempt._id, {
         status: "completed",
@@ -1139,6 +1214,8 @@ export const submitExamAnswer = mutation({
           correctCount,
           scorePercent,
           passed,
+          modeStats,
+          categoryStats,
         },
         updatedAt: submittedAt,
       });

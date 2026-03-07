@@ -162,6 +162,24 @@ export default defineSchema({
       correctCount: v.number(),
       scorePercent: v.number(),
       passed: v.boolean(),
+      modeStats: v.optional(v.object({
+        learn: v.object({
+          total: v.number(),
+          correct: v.number(),
+          incorrect: v.number(),
+        }),
+        match: v.object({
+          total: v.number(),
+          correct: v.number(),
+          incorrect: v.number(),
+        }),
+      })),
+      categoryStats: v.optional(v.array(v.object({
+        category: v.string(),
+        total: v.number(),
+        correct: v.number(),
+        incorrect: v.number(),
+      }))),
     })),
 
     // Question generation metadata for reproducibility and auditability.

@@ -86,6 +86,24 @@ export interface ExamAttemptDetail {
     correctCount: number
     scorePercent: number
     passed: boolean
+    modeStats?: {
+      learn: {
+        total: number
+        correct: number
+        incorrect: number
+      }
+      match: {
+        total: number
+        correct: number
+        incorrect: number
+      }
+    }
+    categoryStats?: Array<{
+      category: string
+      total: number
+      correct: number
+      incorrect: number
+    }>
   } | null
 }
 
