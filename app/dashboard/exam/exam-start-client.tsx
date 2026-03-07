@@ -107,6 +107,10 @@ export function ExamStartClient() {
     rulesAcknowledged &&
     readinessAcknowledged &&
     minRulesViewRemainingMs === 0
+  const questionModePolicy = startContext.questionModePolicy ?? {
+    modeStrategy: "alternating" as const,
+    singleMode: undefined,
+  }
 
   const handleStartClick = () => {
     if (!canStartExam || isSubmitting) {
@@ -171,8 +175,8 @@ export function ExamStartClient() {
         <div className="space-y-6 lg:col-span-2">
           <ExamRulesCard
             policy={startContext.examPolicy}
-            modeStrategy={startContext.questionModePolicy.modeStrategy}
-            singleMode={startContext.questionModePolicy.singleMode}
+            modeStrategy={questionModePolicy.modeStrategy}
+            singleMode={questionModePolicy.singleMode}
             expectedDurationMinutes={startContext.expectedDurationMinutes}
           />
           <ExamPrerequisitesCard
