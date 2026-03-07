@@ -23,6 +23,7 @@ import {
 } from "./lib/exam-session-token";
 
 type AuthenticatedCtx = QueryCtx | MutationCtx;
+const MIN_OFFICIAL_EXAM_IDLE_TIMEOUT_MS = 60_000;
 
 interface ExamStartData {
   totalQuestions: number;
@@ -37,6 +38,26 @@ interface ExamStartData {
 interface ExamGenerationSettings {
   modeStrategy: ExamModeStrategy;
   singleMode?: ExamQuestionMode;
+}
+
+function getOfficialExamIdleTimeoutMs(): number | null {
+  const raw = process.env.OFFICIAL_EXAM_IDLE_TIMEOUT_MS?.trim();
+  if (!raw) {
+    return null;
+  }
+
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) {
+    throw new Error("OFFICIAL_EXAM_IDLE_TIMEOUT_MS must be an integer number of milliseconds.");
+  }
+
+  if (parsed < MIN_OFFICIAL_EXAM_IDLE_TIMEOUT_MS) {
+    throw new Error(
+      `OFFICIAL_EXAM_IDLE_TIMEOUT_MS must be at least ${MIN_OFFICIAL_EXAM_IDLE_TIMEOUT_MS}.`
+    );
+  }
+
+  return parsed;
 }
 
 async function resolveExamGenerationSettings(ctx: AuthenticatedCtx): Promise<ExamGenerationSettings> {
@@ -705,40 +726,84 @@ export const submitExamAnswer = mutation({
       throw new Error("Exam attempt is no longer active.");
     }
 
+    const idleTimeoutMs = getOfficialExamIdleTimeoutMs();
+
     if (attempt.sessionTokenHash && attempt.sessionIssuedAt && attempt.sessionExpiresAt) {
-      if (args.sessionToken) {
-        const tokenValidation = await validateExamSessionToken({
-          token: args.sessionToken,
+      if (!args.sessionToken) {
+        await insertExamAuditLog(ctx, {
           examAttemptId: args.examAttemptId,
           userId: user._id,
-          issuedAt: attempt.sessionIssuedAt,
-          expiresAt: attempt.sessionExpiresAt,
-          expectedHash: attempt.sessionTokenHash,
+          eventType: "session_token_rejected",
+          message: "Rejected submission because session token was missing.",
+          metadata: {
+            questionIndex: args.questionIndex,
+            reason: "missing_session_token",
+          },
         });
+        throw new Error("Session validation failed. Please refresh the exam session.");
+      }
 
-        if (!tokenValidation.valid) {
-          await insertExamAuditLog(ctx, {
-            examAttemptId: args.examAttemptId,
-            userId: user._id,
-            eventType: "session_token_rejected",
-            message: "Rejected submission due to invalid session token.",
-            metadata: {
-              questionIndex: args.questionIndex,
-              reason: tokenValidation.reason ?? "unknown",
-            },
-          });
-          throw new Error("Session validation failed. Please refresh the exam session.");
-        }
+      const tokenValidation = await validateExamSessionToken({
+        token: args.sessionToken,
+        examAttemptId: args.examAttemptId,
+        userId: user._id,
+        issuedAt: attempt.sessionIssuedAt,
+        expiresAt: attempt.sessionExpiresAt,
+        expectedHash: attempt.sessionTokenHash,
+      });
+
+      if (!tokenValidation.valid) {
+        await insertExamAuditLog(ctx, {
+          examAttemptId: args.examAttemptId,
+          userId: user._id,
+          eventType: "session_token_rejected",
+          message: "Rejected submission due to invalid session token.",
+          metadata: {
+            questionIndex: args.questionIndex,
+            reason: tokenValidation.reason ?? "unknown",
+          },
+        });
+        throw new Error("Session validation failed. Please refresh the exam session.");
+      }
+
+      await insertExamAuditLog(ctx, {
+        examAttemptId: args.examAttemptId,
+        userId: user._id,
+        eventType: "session_token_validated",
+        message: "Validated session token for submission.",
+        metadata: {
+          questionIndex: args.questionIndex,
+        },
+      });
+    }
+
+    const questions = await getAttemptQuestions(ctx, args.examAttemptId);
+    const requestReceivedAt = Date.now();
+    if (idleTimeoutMs !== null) {
+      const lastActivityAt = getLastAnsweredAt(questions) ?? attempt.startedAt;
+      const idleDurationMs = requestReceivedAt - lastActivityAt;
+      if (idleDurationMs >= idleTimeoutMs) {
+        await ctx.db.patch(attempt._id, {
+          status: "abandoned",
+          completedAt: requestReceivedAt,
+          immutableAt: requestReceivedAt,
+          updatedAt: requestReceivedAt,
+        });
 
         await insertExamAuditLog(ctx, {
           examAttemptId: args.examAttemptId,
           userId: user._id,
-          eventType: "session_token_validated",
-          message: "Validated session token for submission.",
+          eventType: "idle_timeout_triggered",
+          message: "Exam attempt ended automatically due to inactivity timeout.",
           metadata: {
+            idleTimeoutMs,
+            idleDurationMs,
+            lastActivityAt,
             questionIndex: args.questionIndex,
           },
         });
+
+        throw new Error("Exam attempt ended due to inactivity. Return to Exam Start.");
       }
     }
 
@@ -752,7 +817,6 @@ export const submitExamAnswer = mutation({
       },
     });
 
-    const questions = await getAttemptQuestions(ctx, args.examAttemptId);
     const expectedQuestionIndex = getCurrentQuestionIndex(questions);
     if (expectedQuestionIndex === null) {
       throw new Error("Exam has already been completed.");
@@ -826,14 +890,14 @@ export const submitExamAnswer = mutation({
       throw new Error("Exam question integrity check failed.");
     }
 
-    const now = Date.now();
+    const submittedAt = Date.now();
     const isCorrect = args.selectedAnswer === question.correctAnswer;
 
     await ctx.db.patch(question._id, {
       userAnswer: args.selectedAnswer,
-      answeredAt: now,
+      answeredAt: submittedAt,
       isCorrect,
-      updatedAt: now,
+      updatedAt: submittedAt,
     });
 
     const updatedQuestions = await getAttemptQuestions(ctx, args.examAttemptId);
@@ -851,19 +915,19 @@ export const submitExamAnswer = mutation({
 
       await ctx.db.patch(attempt._id, {
         status: "completed",
-        completedAt: now,
-        immutableAt: now,
+        completedAt: submittedAt,
+        immutableAt: submittedAt,
         result: {
           totalQuestions,
           correctCount,
           scorePercent,
           passed,
         },
-        updatedAt: now,
+        updatedAt: submittedAt,
       });
     } else {
       await ctx.db.patch(attempt._id, {
-        updatedAt: now,
+        updatedAt: submittedAt,
       });
     }
 
@@ -997,6 +1061,10 @@ export const logExamClientEvent = mutation({
     const attempt = await getOwnedAttempt(ctx, user._id, args.examAttemptId);
     if (!attempt) {
       throw new Error("Exam attempt not found or access denied.");
+    }
+
+    if (attempt.status !== "started") {
+      throw new Error("Client security events can only be logged for active exam attempts.");
     }
 
     if (!CLIENT_SECURITY_EVENT_TYPES.includes(args.eventType)) {

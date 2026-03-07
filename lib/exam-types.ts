@@ -196,3 +196,25 @@ export type ExamAuditEventType =
   | "restricted_shortcut_blocked"
   | "idle_warning_shown"
   | "idle_timeout_triggered"
+
+export type ExamClientSecurityEventType = Extract<
+  ExamAuditEventType,
+  | "connection_lost"
+  | "connection_restored"
+  | "window_blur"
+  | "window_focus"
+  | "tab_hidden"
+  | "tab_visible"
+  | "fullscreen_entered"
+  | "fullscreen_exited"
+  | "back_navigation_blocked"
+  | "restricted_shortcut_blocked"
+  | "idle_warning_shown"
+  | "idle_timeout_triggered"
+>
+
+export interface ExamClientSecurityEventInput {
+  eventType: ExamClientSecurityEventType
+  message: string
+  metadata?: Record<string, unknown>
+}

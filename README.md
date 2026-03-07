@@ -73,7 +73,19 @@ Follow these steps to set up the project locally.
    ```
 
 3. **Set up environment variables:**
-   Create a `.env.local` file in the root directory and configure your MongoDB URI and NextAuth secrets (see docs for template).
+   Create a `.env.local` file in the root directory with your Clerk + Convex settings and exam security variables.
+   Required for auth/backend:
+   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+   - `CLERK_SECRET_KEY`
+   - `CLERK_WEBHOOK_SECRET`
+   - `CLERK_ISSUER_URL`
+   - `CONVEX_DEPLOYMENT`
+   - `NEXT_PUBLIC_CONVEX_URL`
+   - `NEXT_PUBLIC_CONVEX_SITE_URL`
+   Required for official exam session security:
+   - `EXAM_SESSION_TOKEN_SECRET` (minimum 32 characters)
+   Optional hardening toggle:
+   - `OFFICIAL_EXAM_IDLE_TIMEOUT_MS` (integer milliseconds, minimum `60000`; unset to disable idle timeout)
 
 4. **Run the development server:**
    ```bash
@@ -94,6 +106,12 @@ Pre-push helper flags:
 *   `PUSH_CHECKS_FAST=1`: Skip `npm run check` (local troubleshooting only).
 *   `PUSH_CHECKS_VERBOSE=1`: Stream full command output live.
 *   `PUSH_CHECKS_NO_SPINNER=1`: Disable spinner animation for non-interactive logs.
+
+### Official Exam Security Ops Notes
+
+* `EXAM_SESSION_TOKEN_SECRET` is mandatory for starting official exam attempts. Rotate it with care because existing in-progress exam session tokens will no longer validate.
+* `OFFICIAL_EXAM_IDLE_TIMEOUT_MS` is optional and server-enforced at answer submission time. If idle time exceeds this value, the attempt is marked `abandoned`.
+* Rollback path for idle timeout: remove/unset `OFFICIAL_EXAM_IDLE_TIMEOUT_MS` and redeploy Convex functions.
 
 ---
 

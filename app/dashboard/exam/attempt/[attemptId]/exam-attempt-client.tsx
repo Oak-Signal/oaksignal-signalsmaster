@@ -2,12 +2,14 @@
 
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useCallback } from "react"
 import { useMutation, useQuery } from "convex/react"
 import { formatDistanceToNow } from "date-fns"
 
 import { Id } from "@/convex/_generated/dataModel"
 import { api } from "@/convex/_generated/api"
 import {
+  ExamClientSecurityEventInput,
   ExamAttemptDetail,
   ExamAttemptRuntimeProgress,
   ExamQuestionPublic,
@@ -16,8 +18,14 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ExamInProgressHeader, ExamQuestionInterface } from "@/components/exam"
+import {
+  ExamInProgressHeader,
+  ExamQuestionInterface,
+  ExamSecurityBanner,
+} from "@/components/exam"
 import { useExamImagePreload } from "@/hooks/use-exam-image-preload"
+import { useExamSecurityMonitor } from "@/hooks/use-exam-security-monitor"
+import { useExamKeyboardLockdown } from "@/hooks/use-exam-keyboard-lockdown"
 
 interface ExamAttemptClientProps {
   attemptId: Id<"examAttempts">
@@ -39,6 +47,48 @@ export function ExamAttemptClient({ attemptId }: ExamAttemptClientProps) {
     examAttemptId: attemptId,
   }) as { currentQuestionImages: string[]; nextQuestionImages: string[] } | null | undefined
   const submitExamAnswer = useMutation(api.exams.submitExamAnswer)
+  const logExamClientEvent = useMutation(api.exams.logExamClientEvent)
+
+  const isExamActive = runtimeProgress?.status === "started"
+
+  const logClientSecurityEvent = useCallback(
+    (input: ExamClientSecurityEventInput) => {
+      let metadataJson: string | undefined
+      if (input.metadata) {
+        try {
+          metadataJson = JSON.stringify(input.metadata)
+        } catch {
+          metadataJson = undefined
+        }
+      }
+
+      void logExamClientEvent({
+        examAttemptId: attemptId,
+        eventType: input.eventType,
+        message: input.message,
+        metadataJson,
+      }).catch(() => undefined)
+    },
+    [attemptId, logExamClientEvent]
+  )
+
+  const securityMonitor = useExamSecurityMonitor({
+    enabled: isExamActive,
+    onClientEvent: logClientSecurityEvent,
+    fullscreenRecommendation: true,
+    backNavigationGuard: true,
+  })
+
+  const keyboardLockdown = useExamKeyboardLockdown({
+    enabled: isExamActive,
+    onRestrictedShortcutBlocked: (details) => {
+      logClientSecurityEvent({
+        eventType: "restricted_shortcut_blocked",
+        message: "Blocked restricted keyboard shortcut during active exam.",
+        metadata: { ...details },
+      })
+    },
+  })
 
   useExamImagePreload({
     currentQuestionImages: preload?.currentQuestionImages,
@@ -112,6 +162,20 @@ export function ExamAttemptClient({ attemptId }: ExamAttemptClientProps) {
         </div>
       ) : (
         <ExamInProgressHeader attemptNumber={attempt.attemptNumber} />
+      )}
+
+      {runtimeProgress.status === "started" && (
+        <ExamSecurityBanner
+          isOffline={securityMonitor.isOffline}
+          isWindowFocused={securityMonitor.isWindowFocused}
+          isTabVisible={securityMonitor.isTabVisible}
+          isFullscreenRecommended={securityMonitor.isFullscreenRecommended}
+          backNavigationBlockedCount={securityMonitor.backNavigationBlockedCount}
+          restrictedShortcutBlockedCount={keyboardLockdown.blockedShortcutCount}
+          onRequestFullscreen={() => {
+            void securityMonitor.requestFullscreen()
+          }}
+        />
       )}
 
       {runtimeProgress.status !== "completed" && !attempt.sessionToken ? (
