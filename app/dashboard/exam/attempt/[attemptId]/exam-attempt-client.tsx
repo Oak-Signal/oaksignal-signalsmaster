@@ -387,6 +387,18 @@ export function ExamAttemptClient({ attemptId }: ExamAttemptClientProps) {
                   </div>
                 </div>
 
+                {effectiveOfficialResult?.percentileRanking && (
+                  <div className="mt-4 rounded-md border bg-background p-4 text-sm">
+                    <p className="text-muted-foreground">Percentile Ranking</p>
+                    <p className="text-lg font-semibold">
+                      {effectiveOfficialResult.percentileRanking.percentile.toFixed(2)}th percentile
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Cohort: {effectiveOfficialResult.percentileRanking.cohortLabel} ({effectiveOfficialResult.percentileRanking.cohortSize} results)
+                    </p>
+                  </div>
+                )}
+
                 {!hasImmutableOfficialResult && (
                   <p className="mt-3 text-xs text-amber-700">
                     Immutable result record is not available yet. Rendering legacy completion data.

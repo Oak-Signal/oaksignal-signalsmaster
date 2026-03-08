@@ -302,6 +302,47 @@ function mapOfficialResultRecord(result: Doc<"examResults">) {
   };
 }
 
+async function buildPercentileRanking(
+  ctx: MutationCtx,
+  result: Doc<"examResults">
+): Promise<{
+  percentile: number;
+  cohortSize: number;
+  cohortLabel: string;
+  method: "score_midrank_global_all_time";
+}> {
+  const allResults = await ctx.db
+    .query("examResults")
+    .withIndex("by_completedAt")
+    .collect();
+
+  const cohortSize = allResults.length;
+  if (cohortSize === 0) {
+    return {
+      percentile: 0,
+      cohortSize: 0,
+      cohortLabel: "All official test takers (all-time)",
+      method: "score_midrank_global_all_time",
+    };
+  }
+
+  const score = result.scorePercent;
+  const lowerCount = allResults.filter((item) => item.scorePercent < score).length;
+  const equalCount = allResults.filter((item) => item.scorePercent === score).length;
+
+  // Midrank percentile: ties share the midpoint of their score band.
+  const percentile = roundToTwoDecimals(
+    ((lowerCount + 0.5 * equalCount) / cohortSize) * 100
+  );
+
+  return {
+    percentile,
+    cohortSize,
+    cohortLabel: "All official test takers (all-time)",
+    method: "score_midrank_global_all_time",
+  };
+}
+
 function getCurrentQuestionIndex(questions: Doc<"examQuestions">[]): number | null {
   const sorted = [...questions].sort((a, b) => a.questionIndex - b.questionIndex);
   const next = sorted.find((question) => question.userAnswer === null);
@@ -1637,7 +1678,12 @@ export const getMyOfficialResult = mutation({
       },
     });
 
-    return mapOfficialResultRecord(result);
+    const percentileRanking = await buildPercentileRanking(ctx, result);
+
+    return {
+      ...mapOfficialResultRecord(result),
+      percentileRanking,
+    };
   },
 });
 
@@ -1761,7 +1807,12 @@ export const getOfficialResultForAdminReview = mutation({
       },
     });
 
-    return mapOfficialResultRecord(result);
+    const percentileRanking = await buildPercentileRanking(ctx, result);
+
+    return {
+      ...mapOfficialResultRecord(result),
+      percentileRanking,
+    };
   },
 });
 

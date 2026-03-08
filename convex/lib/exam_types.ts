@@ -164,4 +164,10 @@ export interface OfficialExamResultRecord {
   signatureAlgorithm: string;
   signature: string;
   createdAt: number;
+  percentileRanking?: {
+    percentile: number;
+    cohortSize: number;
+    cohortLabel: string;
+    method: "score_midrank_global_all_time";
+  };
 }
