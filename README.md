@@ -7,7 +7,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)](https://www.typescriptlang.org/)
 [![Status](https://img.shields.io/badge/Status-Development-yellow)](https://github.com/mjsamaha/oaksignal-signalsmaster)
 
-_Part of the **[OakSignal](https://mjsamaha.github.io/oaksignal-landing/)** ecosystem._
+_Part of the **[OakSignal](https://oak-signal.github.io/oaksignal-landing//)** ecosystem._
 
 ---
 
@@ -185,7 +185,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **OakSignal Team**
 
-For inquiries, please visit the [OakSignal landing page](https://mjsamaha.github.io/oaksignal-landing/).
+For inquiries, please visit the [OakSignal landing page](https://oak-signal.github.io/oaksignal-landing//).
 
 ---
 *Built with ❤️ for the Cadet Program.*
