@@ -99,6 +99,7 @@ export default defineSchema({
   // Official Exam Attempts Table
   examAttempts: defineTable({
     userId: v.id("users"),
+    examResultId: v.optional(v.id("examResults")),
 
     // Lifecycle state for official exam attempt records.
     status: v.union(
@@ -226,6 +227,136 @@ export default defineSchema({
   .index("by_user_startedAt", ["userId", "startedAt"])
   .index("by_user_status", ["userId", "status"])
   .index("by_status_startedAt", ["status", "startedAt"]),
+
+  // Immutable official exam results for completed attempts.
+  examResults: defineTable({
+    examAttemptId: v.id("examAttempts"),
+    userId: v.id("users"),
+    immutable: v.boolean(),
+    immutableAt: v.number(),
+
+    // Stable certificate identity for external verification workflows.
+    certificateNumber: v.string(),
+    resultVersion: v.number(),
+
+    // User snapshot captured at completion time to preserve historical context.
+    userSnapshot: v.object({
+      userId: v.id("users"),
+      fullName: v.string(),
+      roleAtExam: v.union(
+        v.literal("cadet"),
+        v.literal("admin"),
+        v.literal("instructor")
+      ),
+    }),
+
+    attemptNumber: v.number(),
+    startedAt: v.number(),
+    completedAt: v.number(),
+
+    totalQuestions: v.number(),
+    totalCorrect: v.number(),
+    scorePercent: v.number(),
+    passThresholdPercent: v.number(),
+    passed: v.boolean(),
+
+    // Explicitly preserve the modes that were used in this exam run.
+    examModesUsed: v.array(v.union(v.literal("learn"), v.literal("match"))),
+
+    modeStats: v.optional(v.object({
+      learn: v.object({
+        total: v.number(),
+        correct: v.number(),
+        incorrect: v.number(),
+      }),
+      match: v.object({
+        total: v.number(),
+        correct: v.number(),
+        incorrect: v.number(),
+      }),
+    })),
+
+    categoryStats: v.optional(v.array(v.object({
+      category: v.string(),
+      total: v.number(),
+      correct: v.number(),
+      incorrect: v.number(),
+    }))),
+
+    // Flag corpus provenance for integrity and audit investigations.
+    flagDatabaseSnapshot: v.object({
+      generationVersion: v.number(),
+      examChecksum: v.string(),
+      questionCount: v.number(),
+      modeStrategy: v.union(v.literal("alternating"), v.literal("single")),
+      singleMode: v.optional(v.union(v.literal("learn"), v.literal("match"))),
+      generationStartedAt: v.number(),
+      generationCompletedAt: v.number(),
+      generationTimeMs: v.number(),
+      generationRetryCount: v.number(),
+    }),
+
+    // Detailed immutable question-by-question record.
+    questionBreakdown: v.array(v.object({
+      questionIndex: v.number(),
+      flagId: v.id("flags"),
+      flagKey: v.string(),
+      flagName: v.string(),
+      flagImagePath: v.string(),
+      category: v.string(),
+      mode: v.union(v.literal("learn"), v.literal("match")),
+      options: v.array(v.object({
+        id: v.string(),
+        label: v.string(),
+        value: v.string(),
+        imagePath: v.optional(v.string()),
+      })),
+      selectedAnswer: v.union(v.string(), v.null()),
+      correctAnswer: v.string(),
+      isCorrect: v.boolean(),
+      answeredAt: v.optional(v.number()),
+      responseTimeMs: v.optional(v.number()),
+      questionChecksum: v.string(),
+    })),
+
+    // Tamper-evidence for the immutable record payload.
+    recordChecksum: v.string(),
+    signatureAlgorithm: v.string(),
+    signature: v.string(),
+
+    createdAt: v.number(),
+  })
+  .index("by_attempt", ["examAttemptId"])
+  .index("by_user_completedAt", ["userId", "completedAt"])
+  .index("by_completedAt", ["completedAt"])
+  .index("by_certificate", ["certificateNumber"])
+  .index("by_passed_completedAt", ["passed", "completedAt"]),
+
+  // Audit trail for all immutable result retrieval and verification accesses.
+  examResultAccessLogs: defineTable({
+    examResultId: v.id("examResults"),
+    examAttemptId: v.id("examAttempts"),
+    targetUserId: v.id("users"),
+    actorUserId: v.id("users"),
+    actorRole: v.union(
+      v.literal("cadet"),
+      v.literal("admin"),
+      v.literal("instructor"),
+      v.literal("auditor")
+    ),
+    accessType: v.union(
+      v.literal("result_read"),
+      v.literal("result_list"),
+      v.literal("result_verify"),
+      v.literal("result_access_denied")
+    ),
+    metadataJson: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+  .index("by_result_createdAt", ["examResultId", "createdAt"])
+  .index("by_attempt_createdAt", ["examAttemptId", "createdAt"])
+  .index("by_actor_createdAt", ["actorUserId", "createdAt"])
+  .index("by_target_createdAt", ["targetUserId", "createdAt"]),
 
   // Generated official exam question records.
   examQuestions: defineTable({

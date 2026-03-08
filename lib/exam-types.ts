@@ -233,3 +233,86 @@ export interface ExamClientSecurityEventInput {
   message: string
   metadata?: Record<string, unknown>
 }
+
+export type ResultAccessActorRole = "cadet" | "admin" | "instructor" | "auditor"
+
+export type ResultAccessType =
+  | "result_read"
+  | "result_list"
+  | "result_verify"
+  | "result_access_denied"
+
+export interface OfficialExamQuestionResult {
+  questionIndex: number
+  flagId: string
+  flagKey: string
+  flagName: string
+  flagImagePath: string
+  category: string
+  mode: ExamQuestionMode
+  options: ExamQuestionOption[]
+  selectedAnswer: string | null
+  correctAnswer: string
+  isCorrect: boolean
+  answeredAt?: number
+  responseTimeMs?: number
+  questionChecksum: string
+}
+
+export interface OfficialExamResult {
+  examResultId: string
+  examAttemptId: string
+  userId: string
+  immutable: true
+  immutableAt: number
+  certificateNumber: string
+  resultVersion: number
+  userSnapshot: {
+    userId: string
+    fullName: string
+    roleAtExam: "cadet" | "admin" | "instructor"
+  }
+  attemptNumber: number
+  startedAt: number
+  completedAt: number
+  totalQuestions: number
+  totalCorrect: number
+  scorePercent: number
+  passThresholdPercent: number
+  passed: boolean
+  examModesUsed: ExamQuestionMode[]
+  modeStats?: {
+    learn: {
+      total: number
+      correct: number
+      incorrect: number
+    }
+    match: {
+      total: number
+      correct: number
+      incorrect: number
+    }
+  }
+  categoryStats?: Array<{
+    category: string
+    total: number
+    correct: number
+    incorrect: number
+  }>
+  flagDatabaseSnapshot: {
+    generationVersion: number
+    examChecksum: string
+    questionCount: number
+    modeStrategy: ExamModeStrategy
+    singleMode?: ExamQuestionMode
+    generationStartedAt: number
+    generationCompletedAt: number
+    generationTimeMs: number
+    generationRetryCount: number
+  }
+  questionBreakdown: OfficialExamQuestionResult[]
+  recordChecksum: string
+  signatureAlgorithm: string
+  signature: string
+  createdAt: number
+}
