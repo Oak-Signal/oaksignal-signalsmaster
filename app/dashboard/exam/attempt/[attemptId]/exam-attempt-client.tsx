@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useState } from "react"
 import { useMutation, useQuery } from "convex/react"
@@ -57,6 +58,41 @@ function formatHashSnippet(value: string | null | undefined): string {
     return value
   }
   return `${value.slice(0, 8)}...${value.slice(-8)}`
+}
+
+function formatResponseTime(value: number | null | undefined): string {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    return "Not tracked"
+  }
+
+  if (value < 1000) {
+    return `${value} ms`
+  }
+
+  const seconds = value / 1000
+  if (seconds < 60) {
+    return `${seconds.toFixed(1)} sec`
+  }
+
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = Math.round(seconds % 60)
+  return `${minutes}m ${remainingSeconds}s`
+}
+
+function getOptionLabel(
+  options: Array<{ id: string; label: string; value: string }>,
+  optionId: string | null | undefined
+): string {
+  if (!optionId) {
+    return "No answer submitted"
+  }
+
+  const option = options.find((item) => item.id === optionId)
+  if (!option) {
+    return optionId
+  }
+
+  return option.label?.trim() ? option.label : option.value
 }
 
 export function ExamAttemptClient({ attemptId }: ExamAttemptClientProps) {
@@ -234,6 +270,8 @@ export function ExamAttemptClient({ attemptId }: ExamAttemptClientProps) {
     : result?.categoryStats
   const hasModeStats = Boolean(completionModeStats)
   const hasCategoryStats = Boolean(completionCategoryStats && completionCategoryStats.length > 0)
+  const questionBreakdown = effectiveOfficialResult?.questionBreakdown ?? []
+  const hasQuestionBreakdown = questionBreakdown.length > 0
 
   return (
     <div className="container mx-auto max-w-4xl space-y-6 py-6">
@@ -381,6 +419,80 @@ export function ExamAttemptClient({ attemptId }: ExamAttemptClientProps) {
                         </p>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {hasQuestionBreakdown ? (
+                  <div className="mt-4 border-t pt-4">
+                    <p className="mb-3 text-sm font-medium">Question-by-Question Review</p>
+                    <div className="space-y-3">
+                      {questionBreakdown
+                        .slice()
+                        .sort((a, b) => a.questionIndex - b.questionIndex)
+                        .map((question) => {
+                          const selectedAnswerLabel = getOptionLabel(question.options, question.selectedAnswer)
+                          const correctAnswerLabel = getOptionLabel(question.options, question.correctAnswer)
+                          const showCorrectAnswer = question.isCorrect !== true
+
+                          return (
+                            <div key={question.questionIndex} className="rounded-md border bg-background p-3">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-medium">Question {question.questionIndex + 1}</p>
+                                  <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
+                                    {question.mode}
+                                  </Badge>
+                                </div>
+                                <Badge variant={question.isCorrect ? "default" : "destructive"}>
+                                  {question.isCorrect ? "Correct" : "Incorrect"}
+                                </Badge>
+                              </div>
+
+                              <div className="mt-3 flex gap-3">
+                                <div className="h-14 w-20 shrink-0 overflow-hidden rounded border bg-muted">
+                                  {question.flagImagePath ? (
+                                    <Image
+                                      src={question.flagImagePath}
+                                      alt={`${question.flagName} flag thumbnail`}
+                                      width={80}
+                                      height={56}
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="flex h-full items-center justify-center text-[10px] text-muted-foreground">
+                                      No image
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="min-w-0 flex-1 space-y-1 text-sm">
+                                  <p className="font-medium">{question.flagName}</p>
+                                  <p className="text-xs text-muted-foreground">Category: {question.category}</p>
+                                  <p>
+                                    <span className="text-muted-foreground">Your answer:</span>{" "}
+                                    <span className={question.isCorrect ? "font-medium" : "font-medium text-destructive"}>
+                                      {selectedAnswerLabel}
+                                    </span>
+                                  </p>
+                                  {showCorrectAnswer && (
+                                    <p>
+                                      <span className="text-muted-foreground">Correct answer:</span>{" "}
+                                      <span className="font-medium">{correctAnswerLabel}</span>
+                                    </p>
+                                  )}
+                                  <p className="text-xs text-muted-foreground">
+                                    Response time: {formatResponseTime(question.responseTimeMs)}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-4 border-t pt-3 text-sm text-muted-foreground">
+                    Detailed question review is unavailable for this attempt.
                   </div>
                 )}
               </div>
