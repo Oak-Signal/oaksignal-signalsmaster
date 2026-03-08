@@ -2,6 +2,8 @@ import { v } from "convex/values";
 import { query } from "../../_generated/server";
 import { getAuthenticatedUser } from "../services/auth";
 import { dateRangeCutoff } from "../services/dateRange";
+import { tallyFlagsFromSessions } from "../services/flagTally";
+import { getCompletedSessions } from "../services/sessions";
 
 export const getAnalyticsSummary = query({
   args: {
@@ -18,12 +20,7 @@ export const getAnalyticsSummary = query({
     const range = args.dateRange ?? "all";
     const cutoff = dateRangeCutoff(range);
 
-    const allCompleted = await ctx.db
-      .query("practiceSessions")
-      .withIndex("by_user_status", (q) =>
-        q.eq("userId", user._id).eq("status", "completed")
-      )
-      .collect();
+    const allCompleted = await getCompletedSessions(ctx, user._id, "desc");
 
     const sessions = allCompleted.filter(
       (session) => cutoff === 0 || (session.completedAt ?? 0) >= cutoff
@@ -161,37 +158,42 @@ export const getAnalyticsSummary = query({
       longestStreak = dayList.length > 0 ? best : 0;
     }
 
+    const flagTallies = tallyFlagsFromSessions(sessions, 0);
     const categoryTally = new Map<string, { attempts: number; correct: number }>();
 
-    for (const session of sessions) {
-      if (!session.questions) {
+    const talliesWithFlags = await Promise.all(
+      flagTallies.map(async (row) => {
+        const flag = await ctx.db.get(row.flagId);
+        if (!flag) {
+          return null;
+        }
+        return { category: flag.category, ...row };
+      })
+    );
+
+    for (const row of talliesWithFlags) {
+      if (!row) {
         continue;
       }
 
-      for (const question of session.questions) {
-        const flag = await ctx.db.get(question.flagId);
-        if (!flag) {
-          continue;
-        }
-
-        const existing = categoryTally.get(flag.category) ?? {
-          attempts: 0,
-          correct: 0,
-        };
-        existing.attempts += 1;
-        if (question.userAnswer === question.correctAnswer) {
-          existing.correct += 1;
-        }
-        categoryTally.set(flag.category, existing);
-      }
+      const existing = categoryTally.get(row.category) ?? {
+        attempts: 0,
+        correct: 0,
+      };
+      existing.attempts += row.attempts;
+      existing.correct += row.attempts - row.misses;
+      categoryTally.set(row.category, existing);
     }
 
     const categoryBreakdown = Array.from(categoryTally.entries()).map(
-      ([category, { attempts, correct }]) => ({
+      ([category, values]) => ({
         category,
-        attempts,
-        correct,
-        successRate: attempts > 0 ? Math.round((correct / attempts) * 100) : 0,
+        attempts: values.attempts,
+        correct: values.correct,
+        successRate:
+          values.attempts > 0
+            ? Math.round((values.correct / values.attempts) * 100)
+            : 0,
       })
     );
 

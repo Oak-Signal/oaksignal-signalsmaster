@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { query } from "../../_generated/server";
 import { dateRangeCutoff } from "../services/dateRange";
 import { getAuthenticatedUser } from "../services/auth";
+import { getCompletedSessions } from "../services/sessions";
 
 export const getSessionResults = query({
   args: {
@@ -96,13 +97,10 @@ export const getRecentSessions = query({
 
     const limit = args.limit ?? 5;
 
-    const sessions = await ctx.db
-      .query("practiceSessions")
-      .withIndex("by_user_status", (q) =>
-        q.eq("userId", user._id).eq("status", "completed")
-      )
-      .order("desc")
-      .take(limit);
+    const sessions = (await getCompletedSessions(ctx, user._id, "desc")).slice(
+      0,
+      limit
+    );
 
     return sessions.map((session) => ({
       sessionId: session._id,
@@ -133,13 +131,7 @@ export const getPerformanceTrend = query({
     const range = args.dateRange ?? "all";
     const cutoff = dateRangeCutoff(range);
 
-    const sessions = await ctx.db
-      .query("practiceSessions")
-      .withIndex("by_user_status", (q) =>
-        q.eq("userId", user._id).eq("status", "completed")
-      )
-      .order("asc")
-      .collect();
+    const sessions = await getCompletedSessions(ctx, user._id, "asc");
 
     return sessions
       .filter((session) => (cutoff === 0 ? true : (session.completedAt ?? 0) >= cutoff))

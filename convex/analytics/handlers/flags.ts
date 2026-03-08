@@ -1,8 +1,9 @@
 import { v } from "convex/values";
-import { Id } from "../../_generated/dataModel";
 import { query } from "../../_generated/server";
 import { getAuthenticatedUser } from "../services/auth";
 import { dateRangeCutoff } from "../services/dateRange";
+import { tallyFlagsFromSessions } from "../services/flagTally";
+import { getCompletedSessions } from "../services/sessions";
 
 export const getMostMissedFlags = query({
   args: {
@@ -21,42 +22,10 @@ export const getMostMissedFlags = query({
     const cutoff = dateRangeCutoff(range);
     const limit = args.limit ?? 5;
 
-    const sessions = await ctx.db
-      .query("practiceSessions")
-      .withIndex("by_user_status", (q) =>
-        q.eq("userId", user._id).eq("status", "completed")
-      )
-      .collect();
+    const sessions = await getCompletedSessions(ctx, user._id);
+    const tallies = tallyFlagsFromSessions(sessions, cutoff);
 
-    const tally = new Map<
-      string,
-      { flagId: Id<"flags">; attempts: number; misses: number }
-    >();
-
-    for (const session of sessions) {
-      if (cutoff > 0 && (session.completedAt ?? 0) < cutoff) {
-        continue;
-      }
-      if (!session.questions) {
-        continue;
-      }
-
-      for (const question of session.questions) {
-        const key = question.flagId.toString();
-        const existing = tally.get(key) ?? {
-          flagId: question.flagId,
-          attempts: 0,
-          misses: 0,
-        };
-        existing.attempts += 1;
-        if (question.userAnswer !== question.correctAnswer) {
-          existing.misses += 1;
-        }
-        tally.set(key, existing);
-      }
-    }
-
-    const sorted = Array.from(tally.values())
+    const sorted = tallies
       .filter((item) => item.misses > 0)
       .sort((a, b) => {
         const rateA = a.misses / a.attempts;
@@ -109,42 +78,10 @@ export const getMasteryFlags = query({
     const cutoff = dateRangeCutoff(range);
     const limit = args.limit ?? 8;
 
-    const sessions = await ctx.db
-      .query("practiceSessions")
-      .withIndex("by_user_status", (q) =>
-        q.eq("userId", user._id).eq("status", "completed")
-      )
-      .collect();
+    const sessions = await getCompletedSessions(ctx, user._id);
+    const tallies = tallyFlagsFromSessions(sessions, cutoff);
 
-    const tally = new Map<
-      string,
-      { flagId: Id<"flags">; attempts: number; misses: number }
-    >();
-
-    for (const session of sessions) {
-      if (cutoff > 0 && (session.completedAt ?? 0) < cutoff) {
-        continue;
-      }
-      if (!session.questions) {
-        continue;
-      }
-
-      for (const question of session.questions) {
-        const key = question.flagId.toString();
-        const existing = tally.get(key) ?? {
-          flagId: question.flagId,
-          attempts: 0,
-          misses: 0,
-        };
-        existing.attempts += 1;
-        if (question.userAnswer !== question.correctAnswer) {
-          existing.misses += 1;
-        }
-        tally.set(key, existing);
-      }
-    }
-
-    const mastered = Array.from(tally.values())
+    const mastered = tallies
       .filter((item) => item.attempts >= 2 && item.misses === 0)
       .sort((a, b) => b.attempts - a.attempts)
       .slice(0, limit);
