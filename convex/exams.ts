@@ -250,6 +250,74 @@ function roundToTwoDecimals(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value);
+  }
+
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+  }
+
+  const entries = Object.entries(value as Record<string, unknown>)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, item]) => `${JSON.stringify(key)}:${stableStringify(item)}`);
+
+  return `{${entries.join(",")}}`;
+}
+
+function fallbackHashHex(input: string): string {
+  // Deterministic fallback hash when SubtleCrypto is unavailable.
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < input.length; index += 1) {
+    hash ^= input.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+async function sha256Hex(input: string): Promise<string> {
+  if (!("crypto" in globalThis) || !globalThis.crypto?.subtle) {
+    return fallbackHashHex(input);
+  }
+
+  const data = new TextEncoder().encode(input);
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", data);
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function buildCertificateNumber(input: {
+  completedAt: number;
+  attemptNumber: number;
+  examAttemptId: string;
+}): string {
+  const date = new Date(input.completedAt);
+  const yyyy = date.getUTCFullYear();
+  const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(date.getUTCDate()).padStart(2, "0");
+  const compactAttemptId = input.examAttemptId.replace(/[^a-zA-Z0-9]/g, "").slice(-8).toUpperCase();
+  return `OSM-${yyyy}${mm}${dd}-${String(input.attemptNumber).padStart(3, "0")}-${compactAttemptId}`;
+}
+
+function getQuestionResponseTimeMs(input: {
+  startedAt: number;
+  sortedQuestions: Doc<"examQuestions">[];
+  index: number;
+}): number | undefined {
+  const current = input.sortedQuestions[input.index];
+  const currentAnsweredAt = current.answeredAt;
+  if (!currentAnsweredAt) {
+    return undefined;
+  }
+
+  const previous = input.sortedQuestions[input.index - 1];
+  const baseline = previous?.answeredAt ?? input.startedAt;
+  const delta = currentAnsweredAt - baseline;
+  return delta >= 0 ? delta : 0;
+}
+
 function buildCompletedExamStats(
   questions: Doc<"examQuestions">[],
   attempt: Doc<"examAttempts">
@@ -1205,7 +1273,123 @@ export const submitExamAnswer = mutation({
       const passed = scorePercent >= attempt.policySnapshot.passThresholdPercent;
       const { modeStats, categoryStats } = buildCompletedExamStats(updatedQuestions, attempt);
 
+      const sortedQuestions = [...updatedQuestions].sort((a, b) => a.questionIndex - b.questionIndex);
+      const flagSnapshotById = new Map(
+        (attempt.flagSnapshot ?? []).map((item) => [item.flagId, item])
+      );
+
+      const questionBreakdown = [] as Array<{
+        questionIndex: number;
+        flagId: Doc<"flags">["_id"];
+        flagKey: string;
+        flagName: string;
+        flagImagePath: string;
+        category: string;
+        mode: "learn" | "match";
+        options: Array<{
+          id: string;
+          label: string;
+          value: string;
+          imagePath?: string;
+        }>;
+        selectedAnswer: string | null;
+        correctAnswer: string;
+        isCorrect: boolean;
+        answeredAt?: number;
+        responseTimeMs?: number;
+        questionChecksum: string;
+      }>;
+
+      for (let index = 0; index < sortedQuestions.length; index += 1) {
+        const question = sortedQuestions[index];
+        const snapshotFlag = flagSnapshotById.get(question.flagId);
+        const fallbackFlag = snapshotFlag ? null : await ctx.db.get(question.flagId);
+
+        questionBreakdown.push({
+          questionIndex: question.questionIndex,
+          flagId: question.flagId,
+          flagKey: question.flagKey,
+          flagName: snapshotFlag?.name ?? fallbackFlag?.name ?? question.flagKey,
+          flagImagePath: snapshotFlag?.imagePath ?? fallbackFlag?.imagePath ?? "",
+          category: snapshotFlag?.category ?? fallbackFlag?.category ?? "unknown",
+          mode: question.mode,
+          options: question.options,
+          selectedAnswer: question.userAnswer,
+          correctAnswer: question.correctAnswer,
+          isCorrect: question.isCorrect === true,
+          answeredAt: question.answeredAt,
+          responseTimeMs: getQuestionResponseTimeMs({
+            startedAt: attempt.startedAt,
+            sortedQuestions,
+            index,
+          }),
+          questionChecksum: question.checksum,
+        });
+      }
+
+      const examModesUsed = [...new Set(sortedQuestions.map((question) => question.mode))];
+      const generationSnapshot = attempt.generationSnapshot;
+      const certificateNumber = buildCertificateNumber({
+        completedAt: submittedAt,
+        attemptNumber: attempt.attemptNumber,
+        examAttemptId: String(attempt._id),
+      });
+
+      const canonicalResultPayload = {
+        examAttemptId: attempt._id,
+        userId: user._id,
+        immutable: true,
+        immutableAt: submittedAt,
+        certificateNumber,
+        resultVersion: 1,
+        userSnapshot: {
+          userId: user._id,
+          fullName: user.name?.trim() || user.email,
+          roleAtExam: user.role,
+        },
+        attemptNumber: attempt.attemptNumber,
+        startedAt: attempt.startedAt,
+        completedAt: submittedAt,
+        totalQuestions,
+        totalCorrect: correctCount,
+        scorePercent,
+        passThresholdPercent: attempt.policySnapshot.passThresholdPercent,
+        passed,
+        examModesUsed,
+        modeStats,
+        categoryStats,
+        flagDatabaseSnapshot: {
+          generationVersion: generationSnapshot?.generationVersion ?? 1,
+          examChecksum: generationSnapshot?.examChecksum ?? "unknown",
+          questionCount: generationSnapshot?.questionCount ?? totalQuestions,
+          modeStrategy: generationSnapshot?.modeStrategy ?? "alternating",
+          singleMode: generationSnapshot?.singleMode,
+          generationStartedAt: generationSnapshot?.generationStartedAt ?? attempt.startedAt,
+          generationCompletedAt: generationSnapshot?.generationCompletedAt ?? attempt.startedAt,
+          generationTimeMs: generationSnapshot?.generationTimeMs ?? 0,
+          generationRetryCount: generationSnapshot?.generationRetryCount ?? 0,
+        },
+        questionBreakdown,
+      };
+
+      const canonicalJson = stableStringify(canonicalResultPayload);
+      const recordChecksum = await sha256Hex(canonicalJson);
+      const signatureAlgorithm = "sha256";
+      const signature = recordChecksum;
+
+      let examResultId = attempt.examResultId;
+      if (!examResultId) {
+        examResultId = await ctx.db.insert("examResults", {
+          ...canonicalResultPayload,
+          recordChecksum,
+          signatureAlgorithm,
+          signature,
+          createdAt: submittedAt,
+        });
+      }
+
       await ctx.db.patch(attempt._id, {
+        examResultId,
         status: "completed",
         completedAt: submittedAt,
         immutableAt: submittedAt,
