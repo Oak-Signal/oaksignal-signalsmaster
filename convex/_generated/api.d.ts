@@ -9,6 +9,11 @@
  */
 
 import type * as analytics from "../analytics.js";
+import type * as analytics_handlers_flags from "../analytics/handlers/flags.js";
+import type * as analytics_handlers_sessions from "../analytics/handlers/sessions.js";
+import type * as analytics_handlers_summary from "../analytics/handlers/summary.js";
+import type * as analytics_services_auth from "../analytics/services/auth.js";
+import type * as analytics_services_dateRange from "../analytics/services/dateRange.js";
 import type * as exams from "../exams.js";
 import type * as exams_handlers_clientEvents from "../exams/handlers/clientEvents.js";
 import type * as exams_handlers_maintenance from "../exams/handlers/maintenance.js";
@@ -61,6 +66,11 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   analytics: typeof analytics;
+  "analytics/handlers/flags": typeof analytics_handlers_flags;
+  "analytics/handlers/sessions": typeof analytics_handlers_sessions;
+  "analytics/handlers/summary": typeof analytics_handlers_summary;
+  "analytics/services/auth": typeof analytics_services_auth;
+  "analytics/services/dateRange": typeof analytics_services_dateRange;
   exams: typeof exams;
   "exams/handlers/clientEvents": typeof exams_handlers_clientEvents;
   "exams/handlers/maintenance": typeof exams_handlers_maintenance;
