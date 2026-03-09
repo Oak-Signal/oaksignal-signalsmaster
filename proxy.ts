@@ -1,27 +1,74 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server"; // Need this for redirects
+import { verifyAdminAccess } from "@/lib/auth/admin-guard";
 
 const isPublicRoute = createRouteMatcher([
-  "/", 
-  "/login(.*)", 
-  "/sign-up(.*)", 
+  "/",
+  "/login(.*)",
+  "/sign-up(.*)",
   "/faq(.*)", 
   "/legal(.*)",
-  "/api/webhooks(.*)"
+  "/forbidden",
+  "/api/webhooks(.*)",
 ]);
 
 // Define routes that logged-in users shouldn't visit
 const isAuthRoute = createRouteMatcher([
   "/login(.*)",
-  "/sign-up(.*)"
+  "/sign-up(.*)",
 ]);
 
+const isAdminPageRoute = createRouteMatcher(["/admin(.*)"]);
+const isAdminApiRoute = createRouteMatcher(["/api/admin(.*)"]);
+
+function jsonAccessError(status: number, code: string, message: string): NextResponse {
+  return NextResponse.json(
+    {
+      success: false,
+      error: {
+        code,
+        message,
+      },
+    },
+    { status }
+  );
+}
+
 export default clerkMiddleware(async (auth, request) => {
-  const { userId } = await auth();
+  const { userId, getToken } = await auth();
 
   // 1. If user is logged in and trying to access login/signup, redirect to dashboard
   if (userId && isAuthRoute(request)) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
+  const isAdminPage = isAdminPageRoute(request);
+  const isAdminApi = isAdminApiRoute(request);
+
+  if (isAdminPage || isAdminApi) {
+    if (!userId) {
+      if (isAdminApi) {
+        return jsonAccessError(401, "UNAUTHORIZED", "Authentication is required.");
+      }
+
+      await auth.protect();
+      return;
+    }
+
+    const convexToken = await getToken({ template: "convex" });
+    const adminCheck = await verifyAdminAccess(convexToken);
+
+    if (!adminCheck.ok) {
+      if (isAdminApi) {
+        const status = adminCheck.code === "UNAUTHENTICATED" ? 401 : 403;
+        const code = status === 401 ? "UNAUTHORIZED" : "FORBIDDEN";
+        return jsonAccessError(status, code, adminCheck.message);
+      }
+
+      return NextResponse.redirect(new URL("/forbidden", request.url));
+    }
+
+    return;
   }
 
   // 2. Protect private routes (like dashboard)

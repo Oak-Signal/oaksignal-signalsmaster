@@ -1,10 +1,12 @@
 import { Doc } from "../../_generated/dataModel";
 import { MutationCtx } from "../../_generated/server";
 import {
-  AuthenticatedCtx,
+  AuthenticatedCtx as SharedAuthenticatedCtx,
   getAuthenticatedUser as getAuthenticatedUserFromCtx,
   requireAdminUser,
 } from "../../lib/auth";
+
+export type AuthenticatedCtx = SharedAuthenticatedCtx;
 
 export async function getAuthenticatedUser(
   ctx: AuthenticatedCtx
