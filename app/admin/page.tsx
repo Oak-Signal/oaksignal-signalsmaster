@@ -1,6 +1,7 @@
 import Link from "next/link"
-import { BarChart3, ClipboardList, ShieldCheck } from "lucide-react"
+import { ClipboardList, ShieldCheck } from "lucide-react"
 
+import { AdminStatsOverviewSection } from "@/components/admin/admin-stats-overview-section"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -60,17 +61,15 @@ export default function AdminHomePage() {
         ))}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-xl">
-            <BarChart3 className="h-5 w-5 text-primary" />
-            Next Story Readiness
-          </CardTitle>
-          <CardDescription>
-            This layout is intentionally minimal and ready for exam overview statistics components in the next child issue.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-xl font-semibold tracking-tight">Exam Overview Statistics</h3>
+          <p className="text-sm text-muted-foreground">
+            High-level system performance metrics for official exam outcomes.
+          </p>
+        </div>
+        <AdminStatsOverviewSection />
+      </div>
     </div>
   )
 }
