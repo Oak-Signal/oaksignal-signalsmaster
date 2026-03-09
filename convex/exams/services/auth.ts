@@ -1,33 +1,21 @@
 import { Doc } from "../../_generated/dataModel";
-import { MutationCtx, QueryCtx } from "../../_generated/server";
-
-export type AuthenticatedCtx = QueryCtx | MutationCtx;
+import { MutationCtx } from "../../_generated/server";
+import {
+  AuthenticatedCtx,
+  getAuthenticatedUser as getAuthenticatedUserFromCtx,
+  requireAdminUser,
+} from "../../lib/auth";
 
 export async function getAuthenticatedUser(
   ctx: AuthenticatedCtx
 ): Promise<Doc<"users"> | null> {
-  const identity = await ctx.auth.getUserIdentity();
-  if (!identity) {
-    return null;
-  }
-
-  return ctx.db
-    .query("users")
-    .withIndex("by_clerkId", (q) => q.eq("clerkId", identity.subject))
-    .unique();
+  return getAuthenticatedUserFromCtx(ctx);
 }
 
 export async function assertAdminUser(
   ctx: MutationCtx
 ): Promise<Doc<"users">> {
-  const user = await getAuthenticatedUser(ctx);
-  if (!user) {
-    throw new Error("Authentication is required.");
-  }
-  if (user.role !== "admin") {
-    throw new Error("Only administrators can change official exam settings.");
-  }
-  return user;
+  return requireAdminUser(ctx);
 }
 
 export async function getOwnedAttempt(
