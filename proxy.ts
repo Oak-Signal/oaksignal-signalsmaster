@@ -2,7 +2,7 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server"; // Need this for redirects
 import { verifyAdminAccess } from "@/lib/auth/admin-guard";
 import { logAdminAccessAttempt } from "@/lib/audit/admin-access";
-
+// strict domain access
 const ALLOWED_EMAIL_DOMAIN = process.env.ALLOWED_SIGNIN_EMAIL_DOMAIN?.trim().toLowerCase();
 
 const isPublicRoute = createRouteMatcher([
