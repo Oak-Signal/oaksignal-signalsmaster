@@ -9,6 +9,7 @@ const isTTY = process.stdout.isTTY;
 const useColor = isTTY && process.env.NO_COLOR !== "1";
 const verbose = process.env.PUSH_CHECKS_VERBOSE === "1";
 const fastMode = process.env.PUSH_CHECKS_FAST === "1";
+const fullMode = process.env.PUSH_CHECKS_FULL === "1";
 const noSpinner = process.env.PUSH_CHECKS_NO_SPINNER === "1" || !isTTY;
 
 const logDir = path.join(os.tmpdir(), "signals-master-pre-push");
@@ -237,6 +238,10 @@ async function main() {
   );
   if (fastMode) {
     println(`${color("[WARN]", "yellow")} PUSH_CHECKS_FAST=1 enabled. Quality checks will be skipped.`);
+  } else if (fullMode) {
+    println(`${color("[INFO]", "cyan")} PUSH_CHECKS_FULL=1 enabled. Running full quality checks (includes build).`);
+  } else {
+    println(`${color("[INFO]", "cyan")} Running quick local quality checks. Set PUSH_CHECKS_FULL=1 for full checks.`);
   }
 
   currentStep += 1;
@@ -277,12 +282,14 @@ async function main() {
     summary.skipped += 1;
     println(`${color("[SKIP]", "yellow")} Skipped npm run check because PUSH_CHECKS_FAST=1.`);
   } else {
+    const qualityScript = fullMode ? "check" : "check:quick";
+    const qualityLabel = fullMode ? "npm run check" : "npm run check:quick";
     const quality = process.platform === "win32"
-      ? await runCommandWithSpinner("cmd", ["/d", "/s", "/c", "npm run check"], "Running npm run check", "npm-check")
-      : await runCommandWithSpinner("npm", ["run", "check"], "Running npm run check", "npm-check");
+      ? await runCommandWithSpinner("cmd", ["/d", "/s", "/c", `npm run ${qualityScript}`], `Running ${qualityLabel}`, "npm-check")
+      : await runCommandWithSpinner("npm", ["run", qualityScript], `Running ${qualityLabel}`, "npm-check");
     if (quality.code !== 0) {
       summary.failed += 1;
-      println(color("[FAIL] npm run check failed.", "red"));
+      println(color(`[FAIL] ${qualityLabel} failed.`, "red"));
       println(`  - Full log: ${quality.logPath}`);
       const output = `${quality.stdout}\n${quality.stderr}`.trim();
       if (output) {
@@ -293,7 +300,7 @@ async function main() {
       process.exit(1);
     }
     summary.passed += 1;
-    println(`${color("[OK]", "green")} npm run check passed in ${formatDuration(quality.elapsed)}`);
+    println(`${color("[OK]", "green")} ${qualityLabel} passed in ${formatDuration(quality.elapsed)}`);
   }
 
   currentStep += 1;
