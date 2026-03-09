@@ -28,10 +28,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install Gitleaks
+        run: |
+          GITLEAKS_VERSION=8.24.2
+          wget -qO- "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar -xz
+          sudo mv gitleaks /usr/local/bin/gitleaks
+
       - name: Gitleaks scan
-        uses: zricethezav/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gitleaks git --source . --redact --no-banner --exit-code 1
 
       - name: Lint, Typecheck, Convex codegen, Build
         run: npm run check
