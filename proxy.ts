@@ -1,6 +1,7 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server"; // Need this for redirects
 import { verifyAdminAccess } from "@/lib/auth/admin-guard";
+import { logAdminAccessAttempt } from "@/lib/audit/admin-access";
 
 const isPublicRoute = createRouteMatcher([
   "/",
@@ -47,6 +48,15 @@ export default clerkMiddleware(async (auth, request) => {
 
   if (isAdminPage || isAdminApi) {
     if (!userId) {
+      await logAdminAccessAttempt({
+        actorRole: "unknown",
+        surface: isAdminApi ? "api" : "page",
+        target: request.nextUrl.pathname,
+        method: request.method,
+        outcome: "denied",
+        reason: "Authentication is required.",
+      });
+
       if (isAdminApi) {
         return jsonAccessError(401, "UNAUTHORIZED", "Authentication is required.");
       }
@@ -59,6 +69,18 @@ export default clerkMiddleware(async (auth, request) => {
     const adminCheck = await verifyAdminAccess(convexToken);
 
     if (!adminCheck.ok) {
+      await logAdminAccessAttempt({
+        actorUserId: adminCheck.user?._id,
+        actorClerkId: userId,
+        actorRole: adminCheck.user?.role ?? "unknown",
+        surface: isAdminApi ? "api" : "page",
+        target: request.nextUrl.pathname,
+        method: request.method,
+        outcome: "denied",
+        reason: adminCheck.message,
+        convexToken,
+      });
+
       if (isAdminApi) {
         const status = adminCheck.code === "UNAUTHENTICATED" ? 401 : 403;
         const code = status === 401 ? "UNAUTHORIZED" : "FORBIDDEN";
@@ -66,6 +88,20 @@ export default clerkMiddleware(async (auth, request) => {
       }
 
       return NextResponse.redirect(new URL("/forbidden", request.url));
+    }
+
+    if (isAdminPage) {
+      await logAdminAccessAttempt({
+        actorUserId: adminCheck.user._id,
+        actorClerkId: userId,
+        actorRole: adminCheck.user.role,
+        surface: "page",
+        target: request.nextUrl.pathname,
+        method: request.method,
+        outcome: "allowed",
+        reason: "Administrator role verified.",
+        convexToken,
+      });
     }
 
     return;

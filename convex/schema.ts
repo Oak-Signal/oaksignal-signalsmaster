@@ -432,4 +432,25 @@ export default defineSchema({
     createdAt: v.number(),
   })
   .index("by_updatedAt", ["updatedAt"]),
+
+  // Audit trail for admin page and API access attempts.
+  adminAccessLogs: defineTable({
+    actorUserId: v.optional(v.id("users")),
+    actorClerkId: v.optional(v.string()),
+    actorRole: v.union(
+      v.literal("cadet"),
+      v.literal("admin"),
+      v.literal("unknown")
+    ),
+    surface: v.union(v.literal("page"), v.literal("api")),
+    target: v.string(),
+    method: v.optional(v.string()),
+    outcome: v.union(v.literal("allowed"), v.literal("denied")),
+    reason: v.optional(v.string()),
+    metadataJson: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+  .index("by_createdAt", ["createdAt"])
+  .index("by_surface_createdAt", ["surface", "createdAt"])
+  .index("by_outcome_createdAt", ["outcome", "createdAt"]),
 });

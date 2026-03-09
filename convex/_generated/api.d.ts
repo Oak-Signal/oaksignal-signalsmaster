@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as admin_access_logs from "../admin_access_logs.js";
 import type * as analytics from "../analytics.js";
 import type * as analytics_handlers_flags from "../analytics/handlers/flags.js";
 import type * as analytics_handlers_sessions from "../analytics/handlers/sessions.js";
@@ -35,6 +36,7 @@ import type * as exams_services_result_access from "../exams/services/result_acc
 import type * as exams_services_result_builder from "../exams/services/result_builder.js";
 import type * as exams_services_time from "../exams/services/time.js";
 import type * as flags from "../flags.js";
+import type * as lib_auth from "../lib/auth.js";
 import type * as lib_distractor_generation from "../lib/distractor_generation.js";
 import type * as lib_exam_checksum from "../lib/exam_checksum.js";
 import type * as lib_exam_generation from "../lib/exam_generation.js";
@@ -68,6 +70,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  admin_access_logs: typeof admin_access_logs;
   analytics: typeof analytics;
   "analytics/handlers/flags": typeof analytics_handlers_flags;
   "analytics/handlers/sessions": typeof analytics_handlers_sessions;
@@ -95,6 +98,7 @@ declare const fullApi: ApiFromModules<{
   "exams/services/result_builder": typeof exams_services_result_builder;
   "exams/services/time": typeof exams_services_time;
   flags: typeof flags;
+  "lib/auth": typeof lib_auth;
   "lib/distractor_generation": typeof lib_distractor_generation;
   "lib/exam_checksum": typeof lib_exam_checksum;
   "lib/exam_generation": typeof lib_exam_generation;

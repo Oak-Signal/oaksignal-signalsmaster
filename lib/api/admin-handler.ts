@@ -3,6 +3,7 @@ import "server-only";
 import { auth } from "@clerk/nextjs/server";
 
 import { Doc } from "@/convex/_generated/dataModel";
+import { logAdminAccessAttempt } from "@/lib/audit/admin-access";
 import { verifyAdminAccess } from "@/lib/auth/admin-guard";
 
 export interface AdminApiErrorBody {
@@ -52,6 +53,15 @@ export function withAdminApiGuard<TParams = Record<string, string | string[]>>(
   ): Promise<Response> => {
     const { userId, getToken } = await auth();
     if (!userId) {
+      await logAdminAccessAttempt({
+        actorRole: "unknown",
+        surface: "api",
+        target: new URL(req.url).pathname,
+        method: req.method,
+        outcome: "denied",
+        reason: "Authentication is required.",
+      });
+
       return adminApiErrorResponse(
         401,
         "UNAUTHORIZED",
@@ -63,12 +73,35 @@ export function withAdminApiGuard<TParams = Record<string, string | string[]>>(
     const adminCheck = await verifyAdminAccess(convexToken);
 
     if (!adminCheck.ok) {
+      await logAdminAccessAttempt({
+        actorUserId: adminCheck.user?._id,
+        actorClerkId: userId,
+        actorRole: adminCheck.user?.role ?? "unknown",
+        surface: "api",
+        target: new URL(req.url).pathname,
+        method: req.method,
+        outcome: "denied",
+        reason: adminCheck.message,
+        convexToken,
+      });
+
       const status = adminCheck.code === "UNAUTHENTICATED" ? 401 : 403;
       const code = status === 401 ? "UNAUTHORIZED" : "FORBIDDEN";
       return adminApiErrorResponse(status, code, adminCheck.message);
     }
 
     if (!convexToken) {
+      await logAdminAccessAttempt({
+        actorUserId: adminCheck.user._id,
+        actorClerkId: userId,
+        actorRole: adminCheck.user.role,
+        surface: "api",
+        target: new URL(req.url).pathname,
+        method: req.method,
+        outcome: "denied",
+        reason: "Could not obtain an authenticated Convex token.",
+      });
+
       return adminApiErrorResponse(
         401,
         "UNAUTHORIZED",
@@ -80,6 +113,18 @@ export function withAdminApiGuard<TParams = Record<string, string | string[]>>(
       routeContext.params instanceof Promise
         ? await routeContext.params
         : routeContext.params;
+
+    await logAdminAccessAttempt({
+      actorUserId: adminCheck.user._id,
+      actorClerkId: userId,
+      actorRole: adminCheck.user.role,
+      surface: "api",
+      target: new URL(req.url).pathname,
+      method: req.method,
+      outcome: "allowed",
+      reason: "Administrator role verified.",
+      convexToken,
+    });
 
     return handler(req, {
       adminUser: adminCheck.user,

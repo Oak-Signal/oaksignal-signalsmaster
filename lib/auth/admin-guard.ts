@@ -21,6 +21,7 @@ export type AdminGuardFailure = {
   ok: false;
   code: AdminGuardFailureCode;
   message: string;
+  user?: Doc<"users">;
 };
 
 export type AdminGuardResult = AdminGuardSuccess | AdminGuardFailure;
@@ -86,6 +87,7 @@ export async function verifyAdminAccess(
         ok: false,
         code: "FORBIDDEN",
         message: "Administrator access is required.",
+        user,
       };
     }
 
