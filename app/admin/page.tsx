@@ -1,7 +1,7 @@
 import Link from "next/link"
 import { ClipboardList, ShieldCheck } from "lucide-react"
 
-import { AdminStatsOverview } from "@/components/admin/admin-stats-overview"
+import { AdminStatsOverviewSection } from "@/components/admin/admin-stats-overview-section"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -68,7 +68,7 @@ export default function AdminHomePage() {
             High-level system performance metrics for official exam outcomes.
           </p>
         </div>
-        <AdminStatsOverview isLoading />
+        <AdminStatsOverviewSection />
       </div>
     </div>
   )

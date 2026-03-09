@@ -11,7 +11,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 
-type AdminExamOverviewStats = {
+export type AdminExamOverviewStats = {
   totalExamsAdministered: number
   overallPassRatePercent: number
   averageScorePercent: number
