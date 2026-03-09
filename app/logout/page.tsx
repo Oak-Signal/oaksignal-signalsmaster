@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useAuth, useClerk } from "@clerk/nextjs";
 import { LogOut, Home } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,16 +12,16 @@ const REDIRECT_DELAY_MS = 3000;
 
 export default function LogoutPage() {
   const router = useRouter();
-  const { signOut } = useClerk();
-  const { isSignedIn } = useAuth();
 
   useEffect(() => {
     let isActive = true;
 
     const handleLogout = async () => {
-      if (isSignedIn) {
+      const clerk = (window as unknown as { Clerk?: { signOut: () => Promise<void> } }).Clerk;
+
+      if (clerk?.signOut) {
         try {
-          await signOut();
+          await clerk.signOut();
         } catch {
           // Keep UX stable even if signOut fails transiently.
         }
@@ -40,7 +39,7 @@ export default function LogoutPage() {
     return () => {
       isActive = false;
     };
-  }, [isSignedIn, router, signOut]);
+  }, [router]);
 
   return (
     <main className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-10">
