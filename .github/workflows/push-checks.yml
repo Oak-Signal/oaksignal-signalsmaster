@@ -35,7 +35,7 @@ jobs:
           sudo mv gitleaks /usr/local/bin/gitleaks
 
       - name: Gitleaks scan
-        run: gitleaks git --source . --redact --no-banner --exit-code 1
+        run: gitleaks git . --redact --no-banner --exit-code 1
 
       - name: Lint, Typecheck, Convex codegen, Build
         run: npm run check
