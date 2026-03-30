@@ -4,7 +4,10 @@ import { assertAdminUser } from "./exams/services/auth";
 
 export { getExamStartContext, getAttemptHistory } from "./exams/handlers/start";
 export { getExamGenerationSettings } from "./exams/handlers/settings";
-export { getAdminExamOverviewStats } from "./exams/handlers/adminStats";
+export {
+  getAdminExamOverviewStats,
+  getAdminExamActivityTimeline,
+} from "./exams/handlers/adminStats";
 export {
   getAttemptRuntimeProgress,
   getCurrentAttemptQuestion,

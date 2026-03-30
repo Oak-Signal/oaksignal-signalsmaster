@@ -1,5 +1,11 @@
+import { v } from "convex/values";
 import { query } from "../../_generated/server";
 import { getAuthenticatedUser } from "../services/auth";
+import {
+  buildAdminExamActivityTimeline,
+  getAdminTimelineRangeDays,
+  normalizeAdminTimelineTimeZone,
+} from "../services/activity-timeline";
 import { roundToTwoDecimals } from "../services/time";
 
 export const getAdminExamOverviewStats = query({
@@ -53,5 +59,41 @@ export const getAdminExamOverviewStats = query({
       uniqueTestTakers: uniqueUserIds.size,
       generatedAt: Date.now(),
     };
+  },
+});
+
+export const getAdminExamActivityTimeline = query({
+  args: {
+    range: v.optional(v.union(v.literal("7d"), v.literal("30d"), v.literal("90d"))),
+    view: v.optional(v.union(v.literal("daily"), v.literal("weekly"), v.literal("monthly"))),
+    timeZone: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const user = await getAuthenticatedUser(ctx);
+    if (!user || user.role !== "admin") {
+      return null;
+    }
+
+    const range = args.range ?? "30d";
+    const view = args.view ?? "daily";
+    const timeZone = normalizeAdminTimelineTimeZone(args.timeZone);
+
+    const rangeDays = getAdminTimelineRangeDays(range);
+    const cutoff = Date.now() - (rangeDays + 2) * 24 * 60 * 60 * 1000;
+
+    const results = await ctx.db
+      .query("examResults")
+      .withIndex("by_completedAt", (q) => q.gte("completedAt", cutoff))
+      .collect();
+
+    return buildAdminExamActivityTimeline({
+      results: results.map((result) => ({
+        completedAt: result.completedAt,
+        passed: result.passed,
+      })),
+      range,
+      view,
+      timeZone,
+    });
   },
 });
