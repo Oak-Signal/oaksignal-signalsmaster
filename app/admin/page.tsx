@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { ClipboardList, ShieldCheck } from "lucide-react"
 
+import { AdminExamActivityTimelineSection } from "@/components/admin/admin-exam-activity-timeline-section"
 import { AdminStatsOverviewSection } from "@/components/admin/admin-stats-overview-section"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -69,6 +70,16 @@ export default function AdminHomePage() {
           </p>
         </div>
         <AdminStatsOverviewSection />
+      </div>
+
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-xl font-semibold tracking-tight">Exam Activity Timeline</h3>
+          <p className="text-sm text-muted-foreground">
+            Analyze testing trends, pass/fail distribution, and peak activity periods.
+          </p>
+        </div>
+        <AdminExamActivityTimelineSection />
       </div>
     </div>
   )
