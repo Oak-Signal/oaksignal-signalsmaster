@@ -1,4 +1,4 @@
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { AdminRecentExamAttemptsSection } from "@/components/admin/admin-recent-exam-attempts-section"
 
 export default function AdminExamManagementPage() {
   return (
@@ -6,18 +6,11 @@ export default function AdminExamManagementPage() {
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Exam Management</h2>
         <p className="text-muted-foreground">
-          Administrative controls for official exam configuration will be implemented here.
+          Review recent official exam attempts and monitor cadet assessment outcomes.
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Coming Soon</CardTitle>
-          <CardDescription>
-            This placeholder route keeps admin navigation functional while exam management features are delivered in follow-up stories.
-          </CardDescription>
-        </CardHeader>
-      </Card>
+      <AdminRecentExamAttemptsSection />
     </div>
   )
 }
