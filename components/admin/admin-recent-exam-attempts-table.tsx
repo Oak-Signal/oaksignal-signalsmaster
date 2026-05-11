@@ -88,15 +88,15 @@ export function AdminRecentExamAttemptsTable({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="overflow-x-auto rounded-md border">
+        <div className="overflow-x-auto rounded-md border" aria-busy={isLoading}>
           <table className="w-full min-w-[760px] text-sm" aria-label="Recent exam attempts">
             <thead className="bg-muted/50">
               <tr>
-                <th className="px-4 py-3 text-left font-medium">Cadet</th>
-                <th className="px-4 py-3 text-left font-medium">Date/Time</th>
-                <th className="px-4 py-3 text-left font-medium">Score</th>
-                <th className="px-4 py-3 text-left font-medium">Status</th>
-                <th className="px-4 py-3 text-left font-medium">Duration</th>
+                <th scope="col" className="px-4 py-3 text-left font-medium">Cadet</th>
+                <th scope="col" className="px-4 py-3 text-left font-medium">Date/Time</th>
+                <th scope="col" className="px-4 py-3 text-left font-medium">Score</th>
+                <th scope="col" className="px-4 py-3 text-left font-medium">Status</th>
+                <th scope="col" className="px-4 py-3 text-left font-medium">Duration</th>
               </tr>
             </thead>
             <tbody>

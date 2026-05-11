@@ -83,6 +83,25 @@ export function AdminRecentExamAttemptsSection() {
     totalPages: 0,
   };
 
+  const handlePageChange = useCallback(
+    (nextPage: number) => {
+      if (!Number.isInteger(nextPage) || nextPage < 1) {
+        return;
+      }
+
+      if (pagination.totalPages > 0 && nextPage > pagination.totalPages) {
+        return;
+      }
+
+      if (nextPage === page) {
+        return;
+      }
+
+      setPage(nextPage);
+    },
+    [page, pagination.totalPages]
+  );
+
   return (
     <div className="space-y-2">
       {errorMessage ? (
@@ -95,7 +114,7 @@ export function AdminRecentExamAttemptsSection() {
         items={data?.items ?? []}
         pagination={pagination}
         isLoading={isLoading}
-        onPageChange={setPage}
+        onPageChange={handlePageChange}
       />
     </div>
   );
