@@ -9,6 +9,15 @@ import {
   mapOfficialResultRecord,
 } from "../services/result_access";
 
+const MAX_INVESTIGATION_NOTES_LENGTH = 2000;
+
+function sanitizeInvestigationNotes(rawNotes: string): string {
+  return rawNotes
+    .replace(/[\u0000-\u001F\u007F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export const getMyOfficialResult = mutation({
   args: {
     examAttemptId: v.id("examAttempts"),
@@ -303,6 +312,60 @@ export const verifyOfficialResultIntegrity = mutation({
       recomputedChecksum,
       signatureAlgorithm: result.signatureAlgorithm,
       verifiedAt: Date.now(),
+    };
+  },
+});
+
+export const setOfficialResultInvestigationNotes = mutation({
+  args: {
+    examResultId: v.id("examResults"),
+    notes: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await getAuthenticatedUser(ctx);
+    if (!user || user.role !== "admin") {
+      return null;
+    }
+
+    const result = await ctx.db.get(args.examResultId);
+    if (!result) {
+      return null;
+    }
+
+    const sanitizedNotes = sanitizeInvestigationNotes(args.notes);
+    if (sanitizedNotes.length > MAX_INVESTIGATION_NOTES_LENGTH) {
+      throw new Error(`Investigation notes must be ${MAX_INVESTIGATION_NOTES_LENGTH} characters or less.`);
+    }
+
+    const updatedAt = Date.now();
+
+    await ctx.db.patch(result._id, {
+      investigationNotes: {
+        notes: sanitizedNotes,
+        updatedAt,
+        updatedBy: user._id,
+      },
+    });
+
+    const updatedResult = await ctx.db.get(result._id);
+    if (!updatedResult) {
+      return null;
+    }
+
+    await insertExamResultAccessLog(ctx, {
+      result: updatedResult,
+      actorUser: user,
+      accessType: "result_read",
+      metadata: {
+        endpoint: "setOfficialResultInvestigationNotes",
+        requestedResultId: args.examResultId,
+        notesLength: sanitizedNotes.length,
+      },
+    });
+
+    return {
+      ...mapOfficialResultRecord(updatedResult),
+      percentileRanking: await buildPercentileRanking(ctx, updatedResult),
     };
   },
 });

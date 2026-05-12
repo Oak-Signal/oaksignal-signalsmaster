@@ -24,6 +24,7 @@ export {
   getOfficialResultForAdminReview,
   getOfficialResultByCertificate,
   verifyOfficialResultIntegrity,
+  setOfficialResultInvestigationNotes,
 } from "./exams/handlers/results";
 export { backfillImmutableResults } from "./exams/handlers/maintenance";
 export { logExamClientEvent } from "./exams/handlers/clientEvents";

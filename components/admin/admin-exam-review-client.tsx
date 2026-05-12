@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { useMutation } from "convex/react";
+import { AlertTriangle, ShieldCheck } from "lucide-react";
 
 import { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
@@ -12,6 +13,7 @@ import { OfficialExamResult } from "@/lib/exam-types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 
 interface AdminExamReviewClientProps {
   examResultId: Id<"examResults">;
@@ -78,8 +80,14 @@ function getOptionLabel(
 
 export function AdminExamReviewClient({ examResultId }: AdminExamReviewClientProps) {
   const getOfficialResultForAdminReview = useMutation(api.exams.getOfficialResultForAdminReview);
+  const setOfficialResultInvestigationNotes = useMutation(
+    api.exams.setOfficialResultInvestigationNotes
+  );
   const [result, setResult] = useState<OfficialExamResult | null | undefined>(undefined);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [notesDraft, setNotesDraft] = useState<string>("");
+  const [notesStatusMessage, setNotesStatusMessage] = useState<string | null>(null);
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,7 +98,10 @@ export function AdminExamReviewClient({ examResultId }: AdminExamReviewClientPro
           return;
         }
 
-        setResult((data as OfficialExamResult | null) ?? null);
+        const nextResult = (data as OfficialExamResult | null) ?? null;
+        setResult(nextResult);
+        setNotesDraft(nextResult?.investigationNotes?.notes ?? "");
+        setNotesStatusMessage(null);
         setErrorMessage(null);
       })
       .catch(() => {
@@ -105,6 +116,43 @@ export function AdminExamReviewClient({ examResultId }: AdminExamReviewClientPro
       cancelled = true;
     };
   }, [examResultId, getOfficialResultForAdminReview]);
+
+  const handleSaveInvestigationNotes = async () => {
+    if (!result || isSavingNotes) {
+      return;
+    }
+
+    setIsSavingNotes(true);
+    setNotesStatusMessage(null);
+
+    try {
+      const updated = await setOfficialResultInvestigationNotes({
+        examResultId,
+        notes: notesDraft,
+      });
+
+      if (!updated) {
+        setNotesStatusMessage("Unable to save notes. Administrator access is required.");
+        return;
+      }
+
+      const nextResult = updated as OfficialExamResult;
+      setResult(nextResult);
+      setNotesDraft(nextResult.investigationNotes?.notes ?? "");
+      setNotesStatusMessage("Investigation notes saved.");
+    } catch {
+      setNotesStatusMessage("Failed to save investigation notes.");
+    } finally {
+      setIsSavingNotes(false);
+    }
+  };
+
+  const integritySeverityClass =
+    result?.integritySeverity === "high"
+      ? "border-red-200 bg-red-100 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
+      : result?.integritySeverity === "medium"
+        ? "border-amber-200 bg-amber-100 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+        : "border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200";
 
   if (result === undefined) {
     return (
@@ -309,6 +357,110 @@ export function AdminExamReviewClient({ examResultId }: AdminExamReviewClientPro
                 </div>
               );
             })}
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/70">
+        <CardHeader>
+          <CardTitle className="text-lg">Integrity Investigation</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 rounded-md border bg-background p-4 text-sm md:grid-cols-4">
+            <div>
+              <p className="text-muted-foreground">Integrity Score</p>
+              <p className="text-lg font-semibold">
+                {typeof result.integrityScore === "number" ? `${result.integrityScore.toFixed(0)}%` : "N/A"}
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Severity</p>
+              <Badge className={integritySeverityClass}>
+                {result.hasIntegrityFlags
+                  ? (result.integritySeverity ?? "medium").toUpperCase()
+                  : "CLEAR"}
+              </Badge>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Avg Answer Time</p>
+              <p className="font-medium">
+                {typeof result.integritySignals?.averageAnswerTimeMs === "number"
+                  ? `${(result.integritySignals.averageAnswerTimeMs / 1000).toFixed(2)}s`
+                  : "N/A"}
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Timing Std Dev</p>
+              <p className="font-medium">
+                {typeof result.integritySignals?.answerTimeStdDevMs === "number"
+                  ? `${(result.integritySignals.answerTimeStdDevMs / 1000).toFixed(2)}s`
+                  : "N/A"}
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-md border bg-background p-4">
+            <p className="mb-2 text-sm font-medium">Automated Flags</p>
+            {result.integritySignals?.flags?.length ? (
+              <div className="space-y-2">
+                {result.integritySignals.flags.map((flag) => (
+                  <div key={flag.ruleId} className="rounded border p-2 text-sm">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {flag.severity === "high" || flag.severity === "medium" ? (
+                        <AlertTriangle className="h-4 w-4 text-amber-600" aria-hidden="true" />
+                      ) : (
+                        <ShieldCheck className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+                      )}
+                      <span className="font-medium">{flag.title}</span>
+                      <Badge variant="outline" className="uppercase">
+                        {flag.severity}
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-muted-foreground">{flag.description}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No automated integrity flags were raised for this attempt.
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-md border bg-background p-4">
+            <div className="space-y-2">
+              <Label htmlFor="investigation-notes">Manual Investigation Notes</Label>
+              <textarea
+                id="investigation-notes"
+                value={notesDraft}
+                onChange={(event) => setNotesDraft(event.target.value)}
+                className="min-h-28 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm"
+                placeholder="Add findings, follow-up actions, or context for this attempt..."
+                disabled={isSavingNotes}
+                aria-label="Manual investigation notes"
+              />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-muted-foreground">
+                  {result.investigationNotes
+                    ? `Last updated ${formatDateTime(result.investigationNotes.updatedAt)}`
+                    : "No notes saved yet."}
+                </p>
+                <Button
+                  type="button"
+                  variant="default"
+                  onClick={() => void handleSaveInvestigationNotes()}
+                  disabled={isSavingNotes}
+                  aria-label="Save investigation notes"
+                >
+                  {isSavingNotes ? "Saving..." : "Save Notes"}
+                </Button>
+              </div>
+              {notesStatusMessage ? (
+                <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
+                  {notesStatusMessage}
+                </p>
+              ) : null}
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
