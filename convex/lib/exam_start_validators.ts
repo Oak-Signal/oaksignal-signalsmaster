@@ -1,10 +1,8 @@
 import { OFFICIAL_EXAM_MIN_PRACTICE_SESSIONS } from "./exam_policy";
 
 interface ExamStartBlockersInput {
-  userRole: "cadet" | "admin";
   totalQuestions: number;
   userPracticeSessions: number;
-  hasOfficialAttempt: boolean;
 }
 
 interface ExamAcknowledgementInput {
@@ -16,10 +14,6 @@ interface ExamAcknowledgementInput {
 
 export function getExamStartBlockers(input: ExamStartBlockersInput): string[] {
   const blockers: string[] = [];
-
-  if (input.userRole !== "cadet") {
-    blockers.push("Only cadets can start an official exam attempt.");
-  }
 
   if (input.totalQuestions === 0) {
     blockers.push("Exam is unavailable because no flags are currently loaded.");
@@ -35,10 +29,6 @@ export function getExamStartBlockers(input: ExamStartBlockersInput): string[] {
     blockers.push(
       `Complete at least ${OFFICIAL_EXAM_MIN_PRACTICE_SESSIONS} practice sessions before starting the official exam.`
     );
-  }
-
-  if (input.hasOfficialAttempt) {
-    blockers.push("You already have an official exam attempt on record.");
   }
 
   return blockers;

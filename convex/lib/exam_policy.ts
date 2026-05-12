@@ -1,7 +1,7 @@
 export const OFFICIAL_EXAM_PASS_THRESHOLD_PERCENT = 80;
 export const OFFICIAL_EXAM_IS_UNTIMED = true;
 export const OFFICIAL_EXAM_TIME_LIMIT_MINUTES: number | undefined = undefined;
-export const OFFICIAL_EXAM_SINGLE_ATTEMPT_ONLY = true;
+export const OFFICIAL_EXAM_SINGLE_ATTEMPT_ONLY = false;
 export const OFFICIAL_EXAM_NO_PAUSE_RESUME = true;
 export const OFFICIAL_EXAM_NO_BACKTRACKING = true;
 export const OFFICIAL_EXAM_REQUIRES_ALL_ANSWERS = true;

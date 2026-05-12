@@ -157,10 +157,8 @@ export async function getExamStartData(
   const hasOfficialAttempt = Boolean(latestAttempt);
 
   const blockers = getExamStartBlockers({
-    userRole: user.role,
     totalQuestions,
     userPracticeSessions: totalPracticeSessions,
-    hasOfficialAttempt,
   });
 
   return {
