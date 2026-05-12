@@ -97,8 +97,16 @@ function parseOptionalQuery(value: string | null): string | undefined {
 }
 
 export function parseAdminExamsQueryState(searchParams: SearchParamReader): AdminExamsQueryState {
-  const scoreMin = clampScore(Number(searchParams.get("scoreMin")));
-  const scoreMax = clampScore(Number(searchParams.get("scoreMax")));
+  const scoreMinRaw = searchParams.get("scoreMin");
+  const scoreMaxRaw = searchParams.get("scoreMax");
+  const scoreMin =
+    scoreMinRaw === null
+      ? ADMIN_EXAMS_MIN_SCORE
+      : clampScore(Number(scoreMinRaw));
+  const scoreMax =
+    scoreMaxRaw === null
+      ? ADMIN_EXAMS_MAX_SCORE
+      : clampScore(Number(scoreMaxRaw));
 
   return {
     page: parsePositiveInteger(searchParams.get("page"), ADMIN_EXAMS_DEFAULT_PAGE),
