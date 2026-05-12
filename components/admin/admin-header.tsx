@@ -3,7 +3,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Shield, LayoutDashboard, ClipboardList } from "lucide-react"
+import { Shield, LayoutDashboard, ClipboardList, AlertTriangle } from "lucide-react"
 import { UserButton } from "@clerk/nextjs"
 import { useQuery } from "convex/react"
 
@@ -23,6 +23,11 @@ const navItems = [
     href: "/admin/exams",
     label: "Exam Management",
     icon: Shield,
+  },
+  {
+    href: "/admin/exams/flagged",
+    label: "Flagged Exams",
+    icon: AlertTriangle,
   },
   {
     href: "/admin/access",

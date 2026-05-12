@@ -225,6 +225,81 @@ export function AdminExamAttemptsFilters({
               />
             </div>
           </div>
+
+          <div className="mt-4 rounded-md border border-border/70 p-3">
+            <p className="text-xs font-medium text-muted-foreground">
+              Integrity Score Range: {filters.integrityScoreMin ?? ADMIN_EXAMS_MIN_SCORE}% - {filters.integrityScoreMax ?? ADMIN_EXAMS_MAX_SCORE}%
+            </p>
+            <div className="mt-2 space-y-3">
+              <div>
+                <label htmlFor="integrity-score-min-filter" className="text-xs text-muted-foreground">
+                  Minimum integrity score
+                </label>
+                <Input
+                  id="integrity-score-min-filter"
+                  type="range"
+                  min={ADMIN_EXAMS_MIN_SCORE}
+                  max={ADMIN_EXAMS_MAX_SCORE}
+                  step={1}
+                  value={filters.integrityScoreMin ?? ADMIN_EXAMS_MIN_SCORE}
+                  onChange={(event) => {
+                    const nextMin = parseSliderValue(event)
+                    onFiltersChange({
+                      ...filters,
+                      integrityScoreMin: Math.min(nextMin, filters.integrityScoreMax ?? ADMIN_EXAMS_MAX_SCORE),
+                    })
+                  }}
+                  disabled={isLoading}
+                  aria-label="Minimum integrity score percentage"
+                />
+              </div>
+              <div>
+                <label htmlFor="integrity-score-max-filter" className="text-xs text-muted-foreground">
+                  Maximum integrity score
+                </label>
+                <Input
+                  id="integrity-score-max-filter"
+                  type="range"
+                  min={ADMIN_EXAMS_MIN_SCORE}
+                  max={ADMIN_EXAMS_MAX_SCORE}
+                  step={1}
+                  value={filters.integrityScoreMax ?? ADMIN_EXAMS_MAX_SCORE}
+                  onChange={(event) => {
+                    const nextMax = parseSliderValue(event)
+                    onFiltersChange({
+                      ...filters,
+                      integrityScoreMax: Math.max(nextMax, filters.integrityScoreMin ?? ADMIN_EXAMS_MIN_SCORE),
+                    })
+                  }}
+                  disabled={isLoading}
+                  aria-label="Maximum integrity score percentage"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-md border border-border/70 p-3">
+            <label htmlFor="flagged-only-filter" className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+              <input
+                id="flagged-only-filter"
+                type="checkbox"
+                checked={filters.flaggedOnly ?? false}
+                onChange={(event) =>
+                  onFiltersChange({
+                    ...filters,
+                    flaggedOnly: event.target.checked,
+                  })
+                }
+                disabled={isLoading}
+                className="h-4 w-4 rounded border-input"
+                aria-label="Show only flagged exam attempts"
+              />
+              Show flagged exams only
+            </label>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Limits results to attempts with automated integrity flags.
+            </p>
+          </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">

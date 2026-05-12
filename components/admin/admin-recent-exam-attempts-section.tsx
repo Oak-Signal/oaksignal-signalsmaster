@@ -33,7 +33,13 @@ interface AdminExamsErrorResponse {
   };
 }
 
-export function AdminRecentExamAttemptsSection() {
+interface AdminRecentExamAttemptsSectionProps {
+  enforcedFilters?: Partial<AdminExamFiltersInput>;
+}
+
+export function AdminRecentExamAttemptsSection({
+  enforcedFilters,
+}: AdminRecentExamAttemptsSectionProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -68,6 +74,42 @@ export function AdminRecentExamAttemptsSection() {
     },
     [pathname, router, searchParamsString]
   );
+
+  useEffect(() => {
+    if (!enforcedFilters) {
+      return;
+    }
+
+    const nextFilters: AdminExamFiltersInput = {
+      ...queryState.filters,
+      ...enforcedFilters,
+    };
+
+    const hasFilterChanges =
+      nextFilters.range !== queryState.filters.range ||
+      nextFilters.customFrom !== queryState.filters.customFrom ||
+      nextFilters.customTo !== queryState.filters.customTo ||
+      nextFilters.passStatus !== queryState.filters.passStatus ||
+      nextFilters.scoreMin !== queryState.filters.scoreMin ||
+      nextFilters.scoreMax !== queryState.filters.scoreMax ||
+      nextFilters.flaggedOnly !== queryState.filters.flaggedOnly ||
+      nextFilters.integrityScoreMin !== queryState.filters.integrityScoreMin ||
+      nextFilters.integrityScoreMax !== queryState.filters.integrityScoreMax ||
+      nextFilters.cadetNameQuery !== queryState.filters.cadetNameQuery ||
+      nextFilters.userIdQuery !== queryState.filters.userIdQuery ||
+      nextFilters.attemptFilter !== queryState.filters.attemptFilter;
+
+    if (!hasFilterChanges) {
+      return;
+    }
+
+    setDraftFilters(nextFilters);
+    replaceQueryState({
+      page: 1,
+      limit: queryState.limit,
+      filters: nextFilters,
+    });
+  }, [enforcedFilters, queryState.filters, queryState.limit, replaceQueryState]);
 
   useEffect(() => {
     const normalizedCadetName = debouncedCadetNameQuery.trim() || undefined;
