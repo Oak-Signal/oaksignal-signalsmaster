@@ -47,7 +47,7 @@ export function ExamRulesCard({
             <span>Pass threshold: {policy.passThresholdPercent}% required.</span>
           </li>
           <li>{modeText}</li>
-          <li>Single official attempt policy applies and results are immutable.</li>
+          <li>Official exam retakes are allowed. Every completed attempt is recorded immutably.</li>
           <li>No pause or resume. The exam must be completed in one session.</li>
           <li>No returning to previous questions after proceeding.</li>
           <li>All questions must be answered before submission.</li>
