@@ -9,6 +9,7 @@ export const ADMIN_EXAMS_SUGGESTIONS_MAX_LIMIT = 15;
 export type AdminExamDateRange = "7d" | "30d" | "90d" | "custom";
 export type AdminExamPassStatus = "all" | "passed" | "failed";
 export type AdminExamAttemptFilter = "all" | "first" | "retake";
+export type AdminExamIntegritySeverity = "low" | "medium" | "high";
 
 export interface AdminRecentExamAttemptItem {
   examResultId: string;
@@ -20,6 +21,9 @@ export interface AdminRecentExamAttemptItem {
   scorePercent: number;
   passed: boolean;
   durationMs: number | null;
+  hasIntegrityFlags?: boolean;
+  integrityScore?: number;
+  integritySeverity?: AdminExamIntegritySeverity;
 }
 
 export interface AdminExamFiltersInput {
@@ -32,6 +36,9 @@ export interface AdminExamFiltersInput {
   cadetNameQuery?: string;
   userIdQuery?: string;
   attemptFilter: AdminExamAttemptFilter;
+  flaggedOnly?: boolean;
+  integrityScoreMin?: number;
+  integrityScoreMax?: number;
 }
 
 export interface AdminRecentExamAttemptsPagination {

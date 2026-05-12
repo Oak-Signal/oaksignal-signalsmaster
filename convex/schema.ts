@@ -282,6 +282,40 @@ export default defineSchema({
       incorrect: v.number(),
     }))),
 
+    // Integrity monitoring summary for suspicious-attempt analysis.
+    hasIntegrityFlags: v.optional(v.boolean()),
+    integrityScore: v.optional(v.number()),
+    integritySeverity: v.optional(v.union(
+      v.literal("low"),
+      v.literal("medium"),
+      v.literal("high")
+    )),
+    integritySignals: v.optional(v.object({
+      expectedDurationMs: v.number(),
+      actualDurationMs: v.number(),
+      averageAnswerTimeMs: v.number(),
+      answerTimeStdDevMs: v.number(),
+      maxConsecutiveSameAnswer: v.number(),
+      matchedRuleIds: v.array(v.string()),
+      flags: v.array(v.object({
+        ruleId: v.string(),
+        severity: v.union(
+          v.literal("low"),
+          v.literal("medium"),
+          v.literal("high")
+        ),
+        title: v.string(),
+        description: v.string(),
+      })),
+    })),
+
+    // Admin-entered investigation notes captured during integrity review.
+    investigationNotes: v.optional(v.object({
+      notes: v.string(),
+      updatedAt: v.number(),
+      updatedBy: v.id("users"),
+    })),
+
     // Flag corpus provenance for integrity and audit investigations.
     flagDatabaseSnapshot: v.object({
       generationVersion: v.number(),
@@ -329,7 +363,9 @@ export default defineSchema({
   .index("by_user_completedAt", ["userId", "completedAt"])
   .index("by_completedAt", ["completedAt"])
   .index("by_certificate", ["certificateNumber"])
-  .index("by_passed_completedAt", ["passed", "completedAt"]),
+  .index("by_passed_completedAt", ["passed", "completedAt"])
+  .index("by_integrity_flag_completedAt", ["hasIntegrityFlags", "completedAt"])
+  .index("by_integrity_score_completedAt", ["integrityScore", "completedAt"]),
 
   // Audit trail for all immutable result retrieval and verification accesses.
   examResultAccessLogs: defineTable({
@@ -427,6 +463,12 @@ export default defineSchema({
   examSettings: defineTable({
     modeStrategy: v.union(v.literal("alternating"), v.literal("single")),
     singleMode: v.optional(v.union(v.literal("learn"), v.literal("match"))),
+    integrityThresholds: v.optional(v.object({
+      minAverageAnswerTimeMs: v.number(),
+      maxConsecutiveSameAnswer: v.number(),
+      minExpectedDurationRatioPercent: v.number(),
+      minAnswerTimeStdDevMs: v.number(),
+    })),
     updatedBy: v.id("users"),
     updatedAt: v.number(),
     createdAt: v.number(),

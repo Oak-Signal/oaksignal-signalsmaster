@@ -261,6 +261,31 @@ export interface OfficialExamQuestionResult {
   questionChecksum: string
 }
 
+export type IntegritySeverityLevel = "low" | "medium" | "high"
+
+export interface OfficialExamIntegrityFlag {
+  ruleId: string
+  severity: IntegritySeverityLevel
+  title: string
+  description: string
+}
+
+export interface OfficialExamIntegritySignals {
+  expectedDurationMs: number
+  actualDurationMs: number
+  averageAnswerTimeMs: number
+  answerTimeStdDevMs: number
+  maxConsecutiveSameAnswer: number
+  matchedRuleIds: string[]
+  flags: OfficialExamIntegrityFlag[]
+}
+
+export interface OfficialExamInvestigationNotes {
+  notes: string
+  updatedAt: number
+  updatedBy: string
+}
+
 export interface OfficialExamResult {
   examResultId: string
   examAttemptId: string
@@ -301,6 +326,11 @@ export interface OfficialExamResult {
     correct: number
     incorrect: number
   }>
+  hasIntegrityFlags?: boolean
+  integrityScore?: number
+  integritySeverity?: IntegritySeverityLevel
+  integritySignals?: OfficialExamIntegritySignals
+  investigationNotes?: OfficialExamInvestigationNotes
   flagDatabaseSnapshot: {
     generationVersion: number
     examChecksum: string
