@@ -8,7 +8,7 @@ export {
   getAdminExamOverviewStats,
   getAdminExamActivityTimeline,
 } from "./exams/handlers/adminStats";
-export { getAdminRecentExamAttempts } from "./exams/handlers/admin-exams";
+export { getAdminRecentExamAttempts } from "./exams/handlers/admin_exams";
 export {
   getAttemptRuntimeProgress,
   getCurrentAttemptQuestion,

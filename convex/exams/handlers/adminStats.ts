@@ -5,7 +5,7 @@ import {
   buildAdminExamActivityTimeline,
   getAdminTimelineRangeDays,
   normalizeAdminTimelineTimeZone,
-} from "../services/activity-timeline";
+} from "../services/activity_timeline";
 import { roundToTwoDecimals } from "../services/time";
 
 export const getAdminExamOverviewStats = query({

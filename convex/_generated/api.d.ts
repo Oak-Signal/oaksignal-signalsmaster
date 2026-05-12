@@ -20,6 +20,7 @@ import type * as analytics_services_flagTally from "../analytics/services/flagTa
 import type * as analytics_services_sessions from "../analytics/services/sessions.js";
 import type * as exams from "../exams.js";
 import type * as exams_handlers_adminStats from "../exams/handlers/adminStats.js";
+import type * as exams_handlers_admin_exams from "../exams/handlers/admin_exams.js";
 import type * as exams_handlers_clientEvents from "../exams/handlers/clientEvents.js";
 import type * as exams_handlers_maintenance from "../exams/handlers/maintenance.js";
 import type * as exams_handlers_results from "../exams/handlers/results.js";
@@ -28,6 +29,7 @@ import type * as exams_handlers_settings from "../exams/handlers/settings.js";
 import type * as exams_handlers_start from "../exams/handlers/start.js";
 import type * as exams_handlers_startMutation from "../exams/handlers/startMutation.js";
 import type * as exams_handlers_submission from "../exams/handlers/submission.js";
+import type * as exams_services_activity_timeline from "../exams/services/activity_timeline.js";
 import type * as exams_services_audit from "../exams/services/audit.js";
 import type * as exams_services_auth from "../exams/services/auth.js";
 import type * as exams_services_config from "../exams/services/config.js";
@@ -83,6 +85,7 @@ declare const fullApi: ApiFromModules<{
   "analytics/services/sessions": typeof analytics_services_sessions;
   exams: typeof exams;
   "exams/handlers/adminStats": typeof exams_handlers_adminStats;
+  "exams/handlers/admin_exams": typeof exams_handlers_admin_exams;
   "exams/handlers/clientEvents": typeof exams_handlers_clientEvents;
   "exams/handlers/maintenance": typeof exams_handlers_maintenance;
   "exams/handlers/results": typeof exams_handlers_results;
@@ -91,6 +94,7 @@ declare const fullApi: ApiFromModules<{
   "exams/handlers/start": typeof exams_handlers_start;
   "exams/handlers/startMutation": typeof exams_handlers_startMutation;
   "exams/handlers/submission": typeof exams_handlers_submission;
+  "exams/services/activity_timeline": typeof exams_services_activity_timeline;
   "exams/services/audit": typeof exams_services_audit;
   "exams/services/auth": typeof exams_services_auth;
   "exams/services/config": typeof exams_services_config;
