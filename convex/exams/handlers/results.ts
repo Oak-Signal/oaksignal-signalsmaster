@@ -352,8 +352,23 @@ export const setOfficialResultInvestigationNotes = mutation({
       return null;
     }
 
+    const canonicalPayload = buildCanonicalOfficialResultPayload(updatedResult);
+    const canonicalJson = stableStringify(canonicalPayload);
+    const recordChecksum = await sha256Hex(canonicalJson);
+
+    await ctx.db.patch(updatedResult._id, {
+      recordChecksum,
+      signatureAlgorithm: "sha256",
+      signature: recordChecksum,
+    });
+
+    const refreshedResult = await ctx.db.get(result._id);
+    if (!refreshedResult) {
+      return null;
+    }
+
     await insertExamResultAccessLog(ctx, {
-      result: updatedResult,
+      result: refreshedResult,
       actorUser: user,
       accessType: "result_read",
       metadata: {
@@ -364,8 +379,8 @@ export const setOfficialResultInvestigationNotes = mutation({
     });
 
     return {
-      ...mapOfficialResultRecord(updatedResult),
-      percentileRanking: await buildPercentileRanking(ctx, updatedResult),
+      ...mapOfficialResultRecord(refreshedResult),
+      percentileRanking: await buildPercentileRanking(ctx, refreshedResult),
     };
   },
 });
