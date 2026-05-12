@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { ADMIN_EXAMS_SUGGESTIONS_DEFAULT_LIMIT, AdminExamCadetSuggestion } from "@/lib/admin-exams-types";
@@ -34,6 +34,8 @@ export function AdminCadetNameAutocomplete({
   const debouncedQuery = useDebouncedValue(value.trim(), 300);
   const [suggestions, setSuggestions] = useState<AdminExamCadetSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isInputFocused, setIsInputFocused] = useState<boolean>(false);
+  const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (debouncedQuery.length === 0) {
@@ -98,7 +100,44 @@ export function AdminCadetNameAutocomplete({
     };
   }, [debouncedQuery]);
 
-  const hasSuggestions = suggestions.length > 0 && value.trim().length > 0;
+  useEffect(() => {
+    return () => {
+      if (blurTimeoutRef.current) {
+        clearTimeout(blurTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const hasSuggestions = useMemo(
+    () => isInputFocused && suggestions.length > 0 && value.trim().length > 0,
+    [isInputFocused, suggestions, value]
+  );
+
+  const handleSuggestionSelect = (suggestion: AdminExamCadetSuggestion) => {
+    onSelectSuggestion(suggestion);
+    setSuggestions([]);
+    setIsInputFocused(false);
+  };
+
+  const handleInputBlur = () => {
+    blurTimeoutRef.current = setTimeout(() => {
+      setIsInputFocused(false);
+    }, 100);
+  };
+
+  const handleInputFocus = () => {
+    if (blurTimeoutRef.current) {
+      clearTimeout(blurTimeoutRef.current);
+    }
+    setIsInputFocused(true);
+  };
+
+  const handleInputKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Escape") {
+      setIsInputFocused(false);
+      setSuggestions([]);
+    }
+  };
 
   return (
     <div className="relative">
@@ -111,6 +150,9 @@ export function AdminCadetNameAutocomplete({
         placeholder="Search cadet name..."
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        onFocus={handleInputFocus}
+        onBlur={handleInputBlur}
+        onKeyDown={handleInputKeyDown}
         autoComplete="off"
         disabled={disabled}
         role="combobox"
@@ -139,7 +181,7 @@ export function AdminCadetNameAutocomplete({
                 className="flex w-full items-start justify-between rounded-sm px-2 py-1 text-left text-sm hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onMouseDown={(event) => {
                   event.preventDefault();
-                  onSelectSuggestion(suggestion);
+                  handleSuggestionSelect(suggestion);
                 }}
               >
                 <span className="font-medium">{suggestion.cadetName}</span>

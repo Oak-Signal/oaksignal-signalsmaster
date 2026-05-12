@@ -165,7 +165,7 @@ export function AdminRecentExamAttemptsSection() {
 
   const pagination = data?.pagination ?? {
     page: queryState.page,
-    limit: ADMIN_EXAMS_DEFAULT_LIMIT,
+    limit: queryState.limit,
     totalCount: 0,
     totalPages: 0,
   };
