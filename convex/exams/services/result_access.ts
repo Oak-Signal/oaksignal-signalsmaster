@@ -23,6 +23,11 @@ export function mapOfficialResultRecord(result: Doc<"examResults">) {
     examModesUsed: result.examModesUsed,
     modeStats: result.modeStats,
     categoryStats: result.categoryStats,
+    hasIntegrityFlags: result.hasIntegrityFlags,
+    integrityScore: result.integrityScore,
+    integritySeverity: result.integritySeverity,
+    integritySignals: result.integritySignals,
+    investigationNotes: result.investigationNotes,
     flagDatabaseSnapshot: result.flagDatabaseSnapshot,
     questionBreakdown: result.questionBreakdown,
     recordChecksum: result.recordChecksum,
@@ -33,7 +38,7 @@ export function mapOfficialResultRecord(result: Doc<"examResults">) {
 }
 
 export function buildCanonicalOfficialResultPayload(result: Doc<"examResults">) {
-  return {
+  const basePayload = {
     examAttemptId: result.examAttemptId,
     userId: result.userId,
     immutable: result.immutable,
@@ -55,6 +60,19 @@ export function buildCanonicalOfficialResultPayload(result: Doc<"examResults">) 
     flagDatabaseSnapshot: result.flagDatabaseSnapshot,
     questionBreakdown: result.questionBreakdown,
   };
+
+  if (result.resultVersion >= 2) {
+    return {
+      ...basePayload,
+      hasIntegrityFlags: result.hasIntegrityFlags,
+      integrityScore: result.integrityScore,
+      integritySeverity: result.integritySeverity,
+      integritySignals: result.integritySignals,
+      investigationNotes: result.investigationNotes,
+    };
+  }
+
+  return basePayload;
 }
 
 export async function buildPercentileRanking(

@@ -3,6 +3,7 @@ import { buildExamPolicySnapshot, estimateExamDurationMinutes, OFFICIAL_EXAM_MIN
 import { getExamStartBlockers } from "../../lib/exam_start_validators";
 import { ExamModeStrategy, ExamQuestionMode } from "../../lib/exam_types";
 import { AuthenticatedCtx } from "./auth";
+import { getDefaultExamIntegrityThresholdsConfig } from "./config";
 
 export interface ExamStartData {
   totalQuestions: number;
@@ -17,6 +18,13 @@ export interface ExamStartData {
 export interface ExamGenerationSettings {
   modeStrategy: ExamModeStrategy;
   singleMode?: ExamQuestionMode;
+}
+
+export interface ExamIntegrityThresholds {
+  minAverageAnswerTimeMs: number;
+  maxConsecutiveSameAnswer: number;
+  minExpectedDurationRatioPercent: number;
+  minAnswerTimeStdDevMs: number;
 }
 
 export const EXAM_START_CONSTANTS = {
@@ -47,6 +55,35 @@ export async function resolveExamGenerationSettings(
   return {
     modeStrategy: settings.modeStrategy,
     singleMode: settings.modeStrategy === "single" ? settings.singleMode : undefined,
+  };
+}
+
+export async function resolveExamIntegrityThresholds(
+  ctx: AuthenticatedCtx
+): Promise<ExamIntegrityThresholds> {
+  const defaults = getDefaultExamIntegrityThresholdsConfig();
+
+  const settings = await ctx.db
+    .query("examSettings")
+    .withIndex("by_updatedAt")
+    .order("desc")
+    .first();
+
+  const thresholds = settings?.integrityThresholds;
+  if (!thresholds) {
+    return defaults;
+  }
+
+  const minExpectedDurationRatioPercent = Math.min(
+    Math.max(Math.round(thresholds.minExpectedDurationRatioPercent), 1),
+    100
+  );
+
+  return {
+    minAverageAnswerTimeMs: Math.max(Math.round(thresholds.minAverageAnswerTimeMs), 100),
+    maxConsecutiveSameAnswer: Math.max(Math.round(thresholds.maxConsecutiveSameAnswer), 2),
+    minExpectedDurationRatioPercent,
+    minAnswerTimeStdDevMs: Math.max(Math.round(thresholds.minAnswerTimeStdDevMs), 100),
   };
 }
 
