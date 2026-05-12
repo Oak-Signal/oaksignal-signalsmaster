@@ -35,6 +35,7 @@ import type * as exams_services_audit from "../exams/services/audit.js";
 import type * as exams_services_auth from "../exams/services/auth.js";
 import type * as exams_services_config from "../exams/services/config.js";
 import type * as exams_services_hash from "../exams/services/hash.js";
+import type * as exams_services_integrity_detection from "../exams/services/integrity_detection.js";
 import type * as exams_services_query_helpers from "../exams/services/query_helpers.js";
 import type * as exams_services_result_access from "../exams/services/result_access.js";
 import type * as exams_services_result_builder from "../exams/services/result_builder.js";
@@ -101,6 +102,7 @@ declare const fullApi: ApiFromModules<{
   "exams/services/auth": typeof exams_services_auth;
   "exams/services/config": typeof exams_services_config;
   "exams/services/hash": typeof exams_services_hash;
+  "exams/services/integrity_detection": typeof exams_services_integrity_detection;
   "exams/services/query_helpers": typeof exams_services_query_helpers;
   "exams/services/result_access": typeof exams_services_result_access;
   "exams/services/result_builder": typeof exams_services_result_builder;

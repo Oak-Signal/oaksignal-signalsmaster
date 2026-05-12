@@ -1,4 +1,5 @@
 import { AdminRecentExamAttemptsSection } from "@/components/admin/admin-recent-exam-attempts-section"
+import { AdminIntegrityOpsPanel } from "@/components/admin/admin-integrity-ops-panel"
 
 export default function AdminExamManagementPage() {
   return (
@@ -9,6 +10,8 @@ export default function AdminExamManagementPage() {
           Review recent official exam attempts and monitor cadet assessment outcomes.
         </p>
       </div>
+
+      <AdminIntegrityOpsPanel />
 
       <AdminRecentExamAttemptsSection />
     </div>
