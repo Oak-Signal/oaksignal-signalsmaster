@@ -20,6 +20,7 @@ import type * as analytics_services_flagTally from "../analytics/services/flagTa
 import type * as analytics_services_sessions from "../analytics/services/sessions.js";
 import type * as exams from "../exams.js";
 import type * as exams_handlers_adminStats from "../exams/handlers/adminStats.js";
+import type * as exams_handlers_admin_exam_cadet_suggestions from "../exams/handlers/admin_exam_cadet_suggestions.js";
 import type * as exams_handlers_admin_exams from "../exams/handlers/admin_exams.js";
 import type * as exams_handlers_clientEvents from "../exams/handlers/clientEvents.js";
 import type * as exams_handlers_maintenance from "../exams/handlers/maintenance.js";
@@ -85,6 +86,7 @@ declare const fullApi: ApiFromModules<{
   "analytics/services/sessions": typeof analytics_services_sessions;
   exams: typeof exams;
   "exams/handlers/adminStats": typeof exams_handlers_adminStats;
+  "exams/handlers/admin_exam_cadet_suggestions": typeof exams_handlers_admin_exam_cadet_suggestions;
   "exams/handlers/admin_exams": typeof exams_handlers_admin_exams;
   "exams/handlers/clientEvents": typeof exams_handlers_clientEvents;
   "exams/handlers/maintenance": typeof exams_handlers_maintenance;

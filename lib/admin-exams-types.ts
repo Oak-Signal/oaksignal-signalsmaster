@@ -3,6 +3,8 @@ export const ADMIN_EXAMS_DEFAULT_LIMIT = 25;
 export const ADMIN_EXAMS_MAX_LIMIT = 100;
 export const ADMIN_EXAMS_MIN_SCORE = 0;
 export const ADMIN_EXAMS_MAX_SCORE = 100;
+export const ADMIN_EXAMS_SUGGESTIONS_DEFAULT_LIMIT = 8;
+export const ADMIN_EXAMS_SUGGESTIONS_MAX_LIMIT = 15;
 
 export type AdminExamDateRange = "7d" | "30d" | "90d" | "custom";
 export type AdminExamPassStatus = "all" | "passed" | "failed";
@@ -43,4 +45,9 @@ export interface AdminRecentExamAttemptsPayload {
   items: AdminRecentExamAttemptItem[];
   pagination: AdminRecentExamAttemptsPagination;
   generatedAt: number;
+}
+
+export interface AdminExamCadetSuggestion {
+  userId: string;
+  cadetName: string;
 }
