@@ -29,6 +29,9 @@ const examsQuerySchema = z.object({
   cadetName: z.string().trim().max(120).optional(),
   userId: z.string().trim().max(120).optional(),
   attempt: z.enum(["all", "first", "retake"]).default("all"),
+  flaggedOnly: z.coerce.boolean().optional(),
+  integrityScoreMin: z.coerce.number().min(ADMIN_EXAMS_MIN_SCORE).max(ADMIN_EXAMS_MAX_SCORE).optional(),
+  integrityScoreMax: z.coerce.number().min(ADMIN_EXAMS_MIN_SCORE).max(ADMIN_EXAMS_MAX_SCORE).optional(),
 });
 
 interface AdminExamsSuccessResponse {
@@ -148,6 +151,9 @@ export const GET = withAdminApiGuard(async (req, { convexToken }) => {
     cadetName: url.searchParams.get("cadetName") ?? undefined,
     userId: url.searchParams.get("userId") ?? undefined,
     attempt: url.searchParams.get("attempt") ?? undefined,
+    flaggedOnly: url.searchParams.get("flaggedOnly") ?? undefined,
+    integrityScoreMin: url.searchParams.get("integrityScoreMin") ?? undefined,
+    integrityScoreMax: url.searchParams.get("integrityScoreMax") ?? undefined,
   });
 
   if (!parsedQuery.success) {
@@ -159,6 +165,17 @@ export const GET = withAdminApiGuard(async (req, { convexToken }) => {
       400,
       "INVALID_QUERY",
       "scoreMin must be less than or equal to scoreMax."
+    );
+  }
+
+  const integrityScoreMin = parsedQuery.data.integrityScoreMin ?? ADMIN_EXAMS_MIN_SCORE;
+  const integrityScoreMax = parsedQuery.data.integrityScoreMax ?? ADMIN_EXAMS_MAX_SCORE;
+
+  if (integrityScoreMin > integrityScoreMax) {
+    return adminApiErrorResponse(
+      400,
+      "INVALID_QUERY",
+      "integrityScoreMin must be less than or equal to integrityScoreMax."
     );
   }
 
@@ -196,6 +213,9 @@ export const GET = withAdminApiGuard(async (req, { convexToken }) => {
       cadetNameQuery: parsedQuery.data.cadetName?.trim() || undefined,
       userIdQuery: parsedQuery.data.userId?.trim() || undefined,
       attemptFilter: resolveAttemptFilter(parsedQuery.data.attempt),
+      flaggedOnly: parsedQuery.data.flaggedOnly,
+      integrityScoreMin,
+      integrityScoreMax,
     });
 
     if (!data) {

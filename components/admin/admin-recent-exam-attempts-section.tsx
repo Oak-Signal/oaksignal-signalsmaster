@@ -86,6 +86,9 @@ export function AdminRecentExamAttemptsSection() {
       nextFilters.passStatus !== queryState.filters.passStatus ||
       nextFilters.scoreMin !== queryState.filters.scoreMin ||
       nextFilters.scoreMax !== queryState.filters.scoreMax ||
+      nextFilters.flaggedOnly !== queryState.filters.flaggedOnly ||
+      nextFilters.integrityScoreMin !== queryState.filters.integrityScoreMin ||
+      nextFilters.integrityScoreMax !== queryState.filters.integrityScoreMax ||
       nextFilters.cadetNameQuery !== queryState.filters.cadetNameQuery ||
       nextFilters.userIdQuery !== queryState.filters.userIdQuery ||
       nextFilters.attemptFilter !== queryState.filters.attemptFilter;
@@ -224,6 +227,11 @@ export function AdminRecentExamAttemptsSection() {
       } else if (chipKey === "scoreRange") {
         nextFilters.scoreMin = ADMIN_EXAMS_DEFAULT_FILTERS.scoreMin;
         nextFilters.scoreMax = ADMIN_EXAMS_DEFAULT_FILTERS.scoreMax;
+      } else if (chipKey === "flaggedOnly") {
+        nextFilters.flaggedOnly = ADMIN_EXAMS_DEFAULT_FILTERS.flaggedOnly;
+      } else if (chipKey === "integrityScoreRange") {
+        nextFilters.integrityScoreMin = ADMIN_EXAMS_DEFAULT_FILTERS.integrityScoreMin;
+        nextFilters.integrityScoreMax = ADMIN_EXAMS_DEFAULT_FILTERS.integrityScoreMax;
       } else if (chipKey === "cadetNameQuery") {
         nextFilters.cadetNameQuery = undefined;
       } else if (chipKey === "userIdQuery") {

@@ -18,6 +18,9 @@ interface NormalizedAdminExamFilters {
   passed?: boolean;
   scoreMin: number;
   scoreMax: number;
+  flaggedOnly: boolean;
+  integrityScoreMin: number;
+  integrityScoreMax: number;
   cadetNameQuery?: string;
   userIdQuery?: string;
   attemptFilter?: AttemptFilter;
@@ -69,6 +72,9 @@ function normalizeFilters(args: {
   passed?: boolean;
   scoreMin?: number;
   scoreMax?: number;
+  flaggedOnly?: boolean;
+  integrityScoreMin?: number;
+  integrityScoreMax?: number;
   cadetNameQuery?: string;
   userIdQuery?: string;
   attemptFilter?: AttemptFilter;
@@ -88,12 +94,20 @@ function normalizeFilters(args: {
       ? args.completedToMs
       : undefined;
 
+  const integrityMin = clampScore(args.integrityScoreMin ?? MIN_SCORE, MIN_SCORE);
+  const integrityMax = clampScore(args.integrityScoreMax ?? MAX_SCORE, MAX_SCORE);
+  const integrityScoreMin = Math.min(integrityMin, integrityMax);
+  const integrityScoreMax = Math.max(integrityMin, integrityMax);
+
   return {
     completedFromMs,
     completedToMs,
     passed: typeof args.passed === "boolean" ? args.passed : undefined,
     scoreMin,
     scoreMax,
+    flaggedOnly: args.flaggedOnly === true,
+    integrityScoreMin,
+    integrityScoreMax,
     cadetNameQuery: normalizeQueryText(args.cadetNameQuery),
     userIdQuery: normalizeQueryText(args.userIdQuery),
     attemptFilter: args.attemptFilter,
@@ -109,6 +123,21 @@ function matchesFilters(
   }
 
   if (result.scorePercent < filters.scoreMin || result.scorePercent > filters.scoreMax) {
+    return false;
+  }
+
+  if (filters.flaggedOnly && result.hasIntegrityFlags !== true) {
+    return false;
+  }
+
+  if (result.integrityScore !== undefined) {
+    if (
+      result.integrityScore < filters.integrityScoreMin ||
+      result.integrityScore > filters.integrityScoreMax
+    ) {
+      return false;
+    }
+  } else if (filters.integrityScoreMin > MIN_SCORE || filters.integrityScoreMax < MAX_SCORE) {
     return false;
   }
 
@@ -146,6 +175,9 @@ export const getAdminRecentExamAttempts = query({
     passed: v.optional(v.boolean()),
     scoreMin: v.optional(v.number()),
     scoreMax: v.optional(v.number()),
+    flaggedOnly: v.optional(v.boolean()),
+    integrityScoreMin: v.optional(v.number()),
+    integrityScoreMax: v.optional(v.number()),
     cadetNameQuery: v.optional(v.string()),
     userIdQuery: v.optional(v.string()),
     attemptFilter: v.optional(v.union(v.literal("first"), v.literal("retake"))),
@@ -164,6 +196,9 @@ export const getAdminRecentExamAttempts = query({
       passed: args.passed,
       scoreMin: args.scoreMin,
       scoreMax: args.scoreMax,
+      flaggedOnly: args.flaggedOnly,
+      integrityScoreMin: args.integrityScoreMin,
+      integrityScoreMax: args.integrityScoreMax,
       cadetNameQuery: args.cadetNameQuery,
       userIdQuery: args.userIdQuery,
       attemptFilter: args.attemptFilter,
@@ -211,6 +246,9 @@ export const getAdminRecentExamAttempts = query({
         scorePercent: result.scorePercent,
         passed: result.passed,
         durationMs: calculateDurationMs(result.startedAt, result.completedAt),
+        hasIntegrityFlags: result.hasIntegrityFlags,
+        integrityScore: result.integrityScore,
+        integritySeverity: result.integritySeverity,
       })),
       pagination: {
         page,

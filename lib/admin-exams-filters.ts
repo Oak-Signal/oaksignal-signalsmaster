@@ -22,6 +22,8 @@ export interface AdminExamActiveFilterChip {
     | "range"
     | "passStatus"
     | "scoreRange"
+    | "flaggedOnly"
+    | "integrityScoreRange"
     | "cadetNameQuery"
     | "userIdQuery"
     | "attemptFilter";
@@ -38,6 +40,9 @@ export const ADMIN_EXAMS_DEFAULT_FILTERS: AdminExamFiltersInput = {
   scoreMin: ADMIN_EXAMS_MIN_SCORE,
   scoreMax: ADMIN_EXAMS_MAX_SCORE,
   attemptFilter: "all",
+  flaggedOnly: false,
+  integrityScoreMin: ADMIN_EXAMS_MIN_SCORE,
+  integrityScoreMax: ADMIN_EXAMS_MAX_SCORE,
 };
 
 function clampScore(value: number): number {
@@ -96,6 +101,22 @@ function parseOptionalQuery(value: string | null): string | undefined {
   return normalized.length > 0 ? normalized : undefined;
 }
 
+function parseBoolean(value: string | null, fallback: boolean): boolean {
+  if (!value) {
+    return fallback;
+  }
+
+  if (value === "true") {
+    return true;
+  }
+
+  if (value === "false") {
+    return false;
+  }
+
+  return fallback;
+}
+
 export function parseAdminExamsQueryState(searchParams: SearchParamReader): AdminExamsQueryState {
   const scoreMinRaw = searchParams.get("scoreMin");
   const scoreMaxRaw = searchParams.get("scoreMax");
@@ -107,6 +128,16 @@ export function parseAdminExamsQueryState(searchParams: SearchParamReader): Admi
     scoreMaxRaw === null
       ? ADMIN_EXAMS_MAX_SCORE
       : clampScore(Number(scoreMaxRaw));
+  const integrityScoreMinRaw = searchParams.get("integrityScoreMin");
+  const integrityScoreMaxRaw = searchParams.get("integrityScoreMax");
+  const integrityScoreMin =
+    integrityScoreMinRaw === null
+      ? ADMIN_EXAMS_MIN_SCORE
+      : clampScore(Number(integrityScoreMinRaw));
+  const integrityScoreMax =
+    integrityScoreMaxRaw === null
+      ? ADMIN_EXAMS_MAX_SCORE
+      : clampScore(Number(integrityScoreMaxRaw));
 
   return {
     page: parsePositiveInteger(searchParams.get("page"), ADMIN_EXAMS_DEFAULT_PAGE),
@@ -118,6 +149,9 @@ export function parseAdminExamsQueryState(searchParams: SearchParamReader): Admi
       passStatus: parsePassStatus(searchParams.get("passStatus")),
       scoreMin: Math.min(scoreMin, scoreMax),
       scoreMax: Math.max(scoreMin, scoreMax),
+      flaggedOnly: parseBoolean(searchParams.get("flaggedOnly"), false),
+      integrityScoreMin: Math.min(integrityScoreMin, integrityScoreMax),
+      integrityScoreMax: Math.max(integrityScoreMin, integrityScoreMax),
       cadetNameQuery: parseOptionalQuery(searchParams.get("cadetName")),
       userIdQuery: parseOptionalQuery(searchParams.get("userId")),
       attemptFilter: parseAttemptFilter(searchParams.get("attempt")),
@@ -135,6 +169,15 @@ export function buildAdminExamsQueryParams(input: AdminExamsQueryState): URLSear
   params.set("scoreMin", String(input.filters.scoreMin));
   params.set("scoreMax", String(input.filters.scoreMax));
   params.set("attempt", input.filters.attemptFilter);
+  params.set("flaggedOnly", String(input.filters.flaggedOnly ?? false));
+  params.set(
+    "integrityScoreMin",
+    String(input.filters.integrityScoreMin ?? ADMIN_EXAMS_MIN_SCORE)
+  );
+  params.set(
+    "integrityScoreMax",
+    String(input.filters.integrityScoreMax ?? ADMIN_EXAMS_MAX_SCORE)
+  );
 
   if (input.filters.range === "custom") {
     if (input.filters.customFrom) {
@@ -197,6 +240,23 @@ export function getAdminExamActiveFilterChips(
     chips.push({
       key: "scoreRange",
       label: `Score: ${filters.scoreMin}% to ${filters.scoreMax}%`,
+    });
+  }
+
+  if (filters.flaggedOnly) {
+    chips.push({
+      key: "flaggedOnly",
+      label: "Flagged only",
+    });
+  }
+
+  if (
+    filters.integrityScoreMin !== ADMIN_EXAMS_MIN_SCORE ||
+    filters.integrityScoreMax !== ADMIN_EXAMS_MAX_SCORE
+  ) {
+    chips.push({
+      key: "integrityScoreRange",
+      label: `Integrity: ${filters.integrityScoreMin}% to ${filters.integrityScoreMax}%`,
     });
   }
 
