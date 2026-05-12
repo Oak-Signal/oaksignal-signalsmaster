@@ -24,6 +24,10 @@ export function ExamRulesCard({
     ? "Question modes alternate between Learn the Flag and Match Meaning to Flag."
     : `All questions use single mode: ${singleMode === "match" ? "Match Meaning to Flag" : "Learn the Flag"}.`
 
+  const attemptPolicyText = policy.singleAttemptOnly
+    ? "Single official attempt policy applies and results are immutable."
+    : "Official exam retakes are allowed. Every completed attempt is recorded immutably."
+
   return (
     <Card>
       <CardHeader>
@@ -47,7 +51,7 @@ export function ExamRulesCard({
             <span>Pass threshold: {policy.passThresholdPercent}% required.</span>
           </li>
           <li>{modeText}</li>
-          <li>Official exam retakes are allowed. Every completed attempt is recorded immutably.</li>
+          <li>{attemptPolicyText}</li>
           <li>No pause or resume. The exam must be completed in one session.</li>
           <li>No returning to previous questions after proceeding.</li>
           <li>All questions must be answered before submission.</li>
