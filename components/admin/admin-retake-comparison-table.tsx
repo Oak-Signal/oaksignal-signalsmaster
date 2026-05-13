@@ -25,7 +25,8 @@ export function AdminRetakeComparisonTable({ data }: AdminRetakeComparisonTableP
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-125 text-sm">
+          <table className="w-full min-w-125 text-sm" aria-label="First attempt and retake outcome comparison">
+            <caption className="sr-only">Comparison of first attempt and retake exam outcomes.</caption>
             <thead>
               <tr className="border-b text-left text-muted-foreground">
                 <th className="py-2 pr-3 font-medium">Attempt Type</th>

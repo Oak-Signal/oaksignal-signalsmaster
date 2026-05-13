@@ -33,7 +33,7 @@ function TrendTooltip({ active, payload }: TrendTooltipProps) {
       <p className="font-semibold">{point.label}</p>
       <div className="mt-2 space-y-1 text-muted-foreground">
         <p>
-          Attempts: <span className="font-medium text-foreground">{point.attempts}</span>
+          Attempts: <span className="font-medium text-foreground">{point.attempts.toLocaleString()}</span>
         </p>
         <p>
           Pass Rate: <span className="font-medium text-foreground">{point.passRatePercent.toFixed(2)}%</span>
@@ -61,7 +61,11 @@ export function AdminPassRateTrendChart({ data }: AdminPassRateTrendChartProps) 
             No trend data available for this range.
           </div>
         ) : (
-          <div className="h-90 w-full min-w-0">
+          <div
+            className="h-90 w-full min-w-0"
+            role="img"
+            aria-label="Line chart showing pass rate and average score progression over time"
+          >
             <ResponsiveContainer width="100%" height={360} minWidth={0}>
               <LineChart data={data} margin={{ top: 8, right: 10, left: -22, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted-foreground) / 0.2)" />

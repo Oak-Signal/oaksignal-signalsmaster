@@ -61,7 +61,11 @@ export function AdminFlagCategoryPerformanceChart({ data }: AdminFlagCategoryPer
             No category performance data available for this range.
           </div>
         ) : (
-          <div className="h-80 w-full min-w-0">
+          <div
+            className="h-80 w-full min-w-0"
+            role="img"
+            aria-label="Bar chart showing pass rate by flag category"
+          >
             <ResponsiveContainer width="100%" height={320} minWidth={0}>
               <BarChart data={data} margin={{ top: 8, right: 10, left: -24, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted-foreground) / 0.2)" />

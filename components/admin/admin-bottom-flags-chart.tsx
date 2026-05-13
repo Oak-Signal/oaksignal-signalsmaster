@@ -35,10 +35,10 @@ function BottomFlagTooltip({ active, payload }: BottomFlagTooltipProps) {
         Pass Rate: <span className="font-medium text-foreground">{point.passRatePercent.toFixed(2)}%</span>
       </p>
       <p className="text-muted-foreground">
-        Correct: <span className="font-medium text-foreground">{point.correct}</span>
+        Correct: <span className="font-medium text-foreground">{point.correct.toLocaleString()}</span>
       </p>
       <p className="text-muted-foreground">
-        Attempts: <span className="font-medium text-foreground">{point.attempts}</span>
+        Attempts: <span className="font-medium text-foreground">{point.attempts.toLocaleString()}</span>
       </p>
     </div>
   )
@@ -59,7 +59,11 @@ export function AdminBottomFlagsChart({ data }: AdminBottomFlagsChartProps) {
             No flag data available for this range.
           </div>
         ) : (
-          <div className="h-100 w-full min-w-0">
+          <div
+            className="h-100 w-full min-w-0"
+            role="img"
+            aria-label="Horizontal bar chart showing bottom ten flags by pass rate"
+          >
             <ResponsiveContainer width="100%" height={400} minWidth={0}>
               <BarChart
                 data={[...data].reverse()}

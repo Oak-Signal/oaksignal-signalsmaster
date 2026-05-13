@@ -32,7 +32,7 @@ function HistogramTooltip({ active, payload }: HistogramTooltipProps) {
     <div className="rounded-md border bg-background p-3 text-xs shadow-md">
       <p className="font-semibold">{point.label}</p>
       <p className="mt-2 text-muted-foreground">
-        Exams: <span className="font-medium text-foreground">{point.count}</span>
+        Exams: <span className="font-medium text-foreground">{point.count.toLocaleString()}</span>
       </p>
     </div>
   )
@@ -53,7 +53,11 @@ export function AdminCompletionTimeHistogram({ data }: AdminCompletionTimeHistog
             No completion-time data available for this range.
           </div>
         ) : (
-          <div className="h-75 w-full min-w-0">
+          <div
+            className="h-75 w-full min-w-0"
+            role="img"
+            aria-label="Histogram showing distribution of exam completion times"
+          >
             <ResponsiveContainer width="100%" height={300} minWidth={0}>
               <BarChart data={data} margin={{ top: 8, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted-foreground) / 0.2)" />

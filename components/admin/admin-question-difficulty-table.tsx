@@ -19,7 +19,8 @@ export function AdminQuestionDifficultyTable({ data }: AdminQuestionDifficultyTa
           <p className="text-sm text-muted-foreground">No question-level difficulty data is available.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-150 text-sm">
+            <table className="w-full min-w-150 text-sm" aria-label="Question difficulty pass rate table">
+              <caption className="sr-only">Question difficulty ranked by lowest pass rates.</caption>
               <thead>
                 <tr className="border-b text-left text-muted-foreground">
                   <th className="py-2 pr-3 font-medium">Question Key</th>

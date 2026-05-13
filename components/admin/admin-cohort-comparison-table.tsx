@@ -27,7 +27,8 @@ export function AdminCohortComparisonTable({
           <p className="text-sm text-muted-foreground">No cohort comparison data available.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-150 text-sm">
+            <table className="w-full min-w-150 text-sm" aria-label="Cohort comparison outcomes table">
+              <caption className="sr-only">Comparison of current and comparison cohort outcomes.</caption>
               <thead>
                 <tr className="border-b text-left text-muted-foreground">
                   <th className="py-2 pr-3 font-medium">Group</th>
