@@ -19,6 +19,7 @@ import type * as analytics_services_flagLookup from "../analytics/services/flagL
 import type * as analytics_services_flagTally from "../analytics/services/flagTally.js";
 import type * as analytics_services_sessions from "../analytics/services/sessions.js";
 import type * as exams from "../exams.js";
+import type * as exams_handlers_adminAnalytics from "../exams/handlers/adminAnalytics.js";
 import type * as exams_handlers_adminStats from "../exams/handlers/adminStats.js";
 import type * as exams_handlers_admin_exam_cadet_suggestions from "../exams/handlers/admin_exam_cadet_suggestions.js";
 import type * as exams_handlers_admin_exams from "../exams/handlers/admin_exams.js";
@@ -36,6 +37,7 @@ import type * as exams_services_auth from "../exams/services/auth.js";
 import type * as exams_services_config from "../exams/services/config.js";
 import type * as exams_services_hash from "../exams/services/hash.js";
 import type * as exams_services_integrity_detection from "../exams/services/integrity_detection.js";
+import type * as exams_services_performance_analytics from "../exams/services/performance_analytics.js";
 import type * as exams_services_query_helpers from "../exams/services/query_helpers.js";
 import type * as exams_services_result_access from "../exams/services/result_access.js";
 import type * as exams_services_result_builder from "../exams/services/result_builder.js";
@@ -86,6 +88,7 @@ declare const fullApi: ApiFromModules<{
   "analytics/services/flagTally": typeof analytics_services_flagTally;
   "analytics/services/sessions": typeof analytics_services_sessions;
   exams: typeof exams;
+  "exams/handlers/adminAnalytics": typeof exams_handlers_adminAnalytics;
   "exams/handlers/adminStats": typeof exams_handlers_adminStats;
   "exams/handlers/admin_exam_cadet_suggestions": typeof exams_handlers_admin_exam_cadet_suggestions;
   "exams/handlers/admin_exams": typeof exams_handlers_admin_exams;
@@ -103,6 +106,7 @@ declare const fullApi: ApiFromModules<{
   "exams/services/config": typeof exams_services_config;
   "exams/services/hash": typeof exams_services_hash;
   "exams/services/integrity_detection": typeof exams_services_integrity_detection;
+  "exams/services/performance_analytics": typeof exams_services_performance_analytics;
   "exams/services/query_helpers": typeof exams_services_query_helpers;
   "exams/services/result_access": typeof exams_services_result_access;
   "exams/services/result_builder": typeof exams_services_result_builder;
