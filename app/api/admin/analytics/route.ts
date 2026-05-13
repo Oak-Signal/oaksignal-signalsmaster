@@ -1,15 +1,19 @@
 import { ConvexHttpClient } from "convex/browser";
+import type { FunctionReference } from "convex/server";
 import { z } from "zod";
 
 import { adminApiErrorResponse, withAdminApiGuard } from "@/lib/api/admin-handler";
+import { api } from "@/convex/_generated/api";
 import {
   AdminAnalyticsCohortGroupBy,
   AdminAnalyticsRange,
   AdminPerformanceAnalyticsPayload,
 } from "@/lib/admin-analytics-types";
 
+const adminPerformanceAnalyticsQuery =
+  api.exams.getAdminPerformanceAnalytics as unknown as FunctionReference<"query">;
+
 const ANALYTICS_CACHE_TTL_MS = 60 * 60 * 1000;
-const ANALYTICS_FUNCTION_NAME = "exams:getAdminPerformanceAnalytics";
 
 const analyticsQuerySchema = z.object({
   range: z.enum(["7d", "30d", "90d"]).default("30d"),
@@ -107,7 +111,7 @@ export const GET = withAdminApiGuard(async (req, { convexToken }) => {
     const convex = new ConvexHttpClient(convexUrl);
     convex.setAuth(convexToken);
 
-    const data = (await convex.query(ANALYTICS_FUNCTION_NAME, {
+    const data = (await convex.query(adminPerformanceAnalyticsQuery, {
       range,
       compareRange,
       groupBy,
