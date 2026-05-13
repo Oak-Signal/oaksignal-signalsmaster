@@ -10,6 +10,12 @@ import type {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { AdminBottomFlagsChart } from "@/components/admin/admin-bottom-flags-chart"
+import { AdminCompletionTimeHistogram } from "@/components/admin/admin-completion-time-histogram"
+import { AdminFlagCategoryPerformanceChart } from "@/components/admin/admin-flag-category-performance-chart"
+import { AdminPassRateTrendChart } from "@/components/admin/admin-pass-rate-trend-chart"
+import { AdminQuestionDifficultyTable } from "@/components/admin/admin-question-difficulty-table"
+import { AdminRetakeComparisonTable } from "@/components/admin/admin-retake-comparison-table"
 
 const ANALYTICS_REFRESH_INTERVAL_MS = 60_000
 
@@ -114,72 +120,6 @@ function PerformanceSummaryCards({
         </Card>
       ))}
     </div>
-  )
-}
-
-function BottomFlagsPreview({ payload }: { payload: AdminPerformanceAnalyticsPayload | null }) {
-  return (
-    <Card className="border-border/70">
-      <CardHeader>
-        <CardTitle>Most Challenging Flags</CardTitle>
-        <CardDescription>Bottom performers by success rate (top 5 preview)</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {!payload || payload.bottomFlags.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No flag performance data in the selected range.</p>
-        ) : (
-          <ul className="space-y-2">
-            {payload.bottomFlags.slice(0, 5).map((flag) => (
-              <li key={flag.flagKey} className="flex items-center justify-between text-sm">
-                <span className="font-medium">{flag.flagName}</span>
-                <span className="text-muted-foreground">
-                  {flag.passRatePercent.toFixed(2)}% ({flag.correct}/{flag.attempts})
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </CardContent>
-    </Card>
-  )
-}
-
-function CohortPreview({ payload }: { payload: AdminPerformanceAnalyticsPayload | null }) {
-  return (
-    <Card className="border-border/70">
-      <CardHeader>
-        <CardTitle>Cohort Comparison</CardTitle>
-        <CardDescription>Current window cohort breakdown</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {!payload || payload.cohortComparison.current.rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No cohort data available for this range.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-125 text-sm">
-              <thead>
-                <tr className="border-b text-left text-muted-foreground">
-                  <th className="py-2 pr-3 font-medium">Group</th>
-                  <th className="py-2 pr-3 font-medium">Attempts</th>
-                  <th className="py-2 pr-3 font-medium">Pass Rate</th>
-                  <th className="py-2 pr-3 font-medium">Avg Score</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payload.cohortComparison.current.rows.slice(0, 8).map((row) => (
-                  <tr key={row.group} className="border-b border-border/50">
-                    <td className="py-2 pr-3 font-medium">{row.group}</td>
-                    <td className="py-2 pr-3">{row.attempts.toLocaleString()}</td>
-                    <td className="py-2 pr-3">{row.passRatePercent.toFixed(2)}%</td>
-                    <td className="py-2 pr-3">{row.averageScorePercent.toFixed(2)}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </CardContent>
-    </Card>
   )
 }
 
@@ -334,10 +274,83 @@ export function AdminPerformanceAnalyticsSection() {
           </CardHeader>
         </Card>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <BottomFlagsPreview payload={payload} />
-          <CohortPreview payload={payload} />
-        </div>
+        <>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <AdminFlagCategoryPerformanceChart data={payload?.categoryPerformance ?? []} />
+            <AdminBottomFlagsChart data={payload?.bottomFlags ?? []} />
+          </div>
+
+          <AdminPassRateTrendChart data={payload?.trend ?? []} />
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <AdminCompletionTimeHistogram data={payload?.completionHistogram ?? []} />
+            <AdminRetakeComparisonTable
+              data={payload?.retakeComparison ?? {
+                firstAttempt: {
+                  attempts: 0,
+                  passed: 0,
+                  failed: 0,
+                  passRatePercent: 0,
+                  averageScorePercent: 0,
+                },
+                retakes: {
+                  attempts: 0,
+                  passed: 0,
+                  failed: 0,
+                  passRatePercent: 0,
+                  averageScorePercent: 0,
+                },
+              }}
+            />
+          </div>
+
+          <AdminQuestionDifficultyTable data={payload?.questionDifficulty ?? []} />
+
+          <Card className="border-border/70">
+            <CardHeader>
+              <CardTitle>Cohort Comparison</CardTitle>
+              <CardDescription>
+                Compare cohort outcomes between {payload?.range ?? range} and {payload?.compareRange ?? compareRange} windows.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {payload?.cohortComparison.current.rows && payload.cohortComparison.current.rows.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-150 text-sm">
+                    <thead>
+                      <tr className="border-b text-left text-muted-foreground">
+                        <th className="py-2 pr-3 font-medium">Group</th>
+                        <th className="py-2 pr-3 font-medium">Current Attempts</th>
+                        <th className="py-2 pr-3 font-medium">Current Pass Rate</th>
+                        <th className="py-2 pr-3 font-medium">Comparison Attempts</th>
+                        <th className="py-2 pr-3 font-medium">Comparison Pass Rate</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {payload.cohortComparison.current.rows.map((currentRow) => {
+                        const comparisonRow = payload.cohortComparison.comparison.rows.find(
+                          (row) => row.group === currentRow.group
+                        )
+
+                        return (
+                          <tr key={currentRow.group} className="border-b border-border/50">
+                            <td className="py-2 pr-3 font-medium">{currentRow.group}</td>
+                            <td className="py-2 pr-3">{currentRow.attempts.toLocaleString()}</td>
+                            <td className="py-2 pr-3">{currentRow.passRatePercent.toFixed(2)}%</td>
+                            <td className="py-2 pr-3">{comparisonRow?.attempts.toLocaleString() ?? "0"}</td>
+                            <td className="py-2 pr-3">{comparisonRow ? `${comparisonRow.passRatePercent.toFixed(2)}%` : "0.00%"}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No cohort comparison data available.</p>
+              )}
+            </CardContent>
+          </Card>
+        </>
       )}
     </div>
   )
