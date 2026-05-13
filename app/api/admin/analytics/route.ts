@@ -13,7 +13,22 @@ import {
 const adminPerformanceAnalyticsQuery =
   api.exams.getAdminPerformanceAnalytics as unknown as FunctionReference<"query">;
 
-const ANALYTICS_CACHE_TTL_MS = 60 * 60 * 1000;
+const DEFAULT_ANALYTICS_CACHE_TTL_MS = 60 * 60 * 1000;
+const MAX_ANALYTICS_CACHE_ENTRIES = 100;
+
+function getAnalyticsCacheTtlMs(): number {
+  const raw = process.env.ADMIN_ANALYTICS_CACHE_TTL_MS?.trim();
+  if (!raw) {
+    return DEFAULT_ANALYTICS_CACHE_TTL_MS;
+  }
+
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 1_000) {
+    return DEFAULT_ANALYTICS_CACHE_TTL_MS;
+  }
+
+  return parsed;
+}
 
 const analyticsQuerySchema = z.object({
   range: z.enum(["7d", "30d", "90d"]).default("30d"),
@@ -36,10 +51,26 @@ const analyticsCache = new Map<
 >();
 
 function responseHeaders(cacheStatus: "hit" | "miss"): HeadersInit {
+  const ttlSeconds = Math.floor(getAnalyticsCacheTtlMs() / 1000);
+
   return {
-    "Cache-Control": "private, max-age=3600, stale-while-revalidate=300",
+    "Cache-Control": `private, max-age=${ttlSeconds}, stale-while-revalidate=300`,
     "X-Admin-Analytics-Cache": cacheStatus,
   };
+}
+
+function setCachedAnalyticsEntry(cacheKey: string, data: AdminPerformanceAnalyticsPayload, now: number): void {
+  if (analyticsCache.size >= MAX_ANALYTICS_CACHE_ENTRIES) {
+    const oldestKey = analyticsCache.keys().next().value;
+    if (oldestKey) {
+      analyticsCache.delete(oldestKey);
+    }
+  }
+
+  analyticsCache.set(cacheKey, {
+    data,
+    expiresAt: now + getAnalyticsCacheTtlMs(),
+  });
 }
 
 function isValidTimeZone(timeZone: string): boolean {
@@ -126,10 +157,7 @@ export const GET = withAdminApiGuard(async (req, { convexToken }) => {
       );
     }
 
-    analyticsCache.set(cacheKey, {
-      data,
-      expiresAt: now + ANALYTICS_CACHE_TTL_MS,
-    });
+    setCachedAnalyticsEntry(cacheKey, data, now);
 
     const body: AdminAnalyticsSuccessResponse = {
       success: true,
