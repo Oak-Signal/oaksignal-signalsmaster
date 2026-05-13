@@ -3,7 +3,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Shield, LayoutDashboard, ClipboardList, AlertTriangle } from "lucide-react"
+import { Shield, LayoutDashboard, ClipboardList, AlertTriangle, ChartColumn } from "lucide-react"
 import { UserButton } from "@clerk/nextjs"
 import { useQuery } from "convex/react"
 
@@ -28,6 +28,11 @@ const navItems = [
     href: "/admin/exams/flagged",
     label: "Flagged Exams",
     icon: AlertTriangle,
+  },
+  {
+    href: "/admin/analytics",
+    label: "Analytics",
+    icon: ChartColumn,
   },
   {
     href: "/admin/access",
@@ -60,7 +65,7 @@ export function AdminHeader() {
 
       <nav className="ml-4 hidden items-center gap-4 md:flex">
         {navItems.map(({ href, label, icon: Icon }) => {
-          const isActive = pathname === href
+          const isActive = pathname === href || pathname.startsWith(`${href}/`)
           return (
             <Link
               key={href}
