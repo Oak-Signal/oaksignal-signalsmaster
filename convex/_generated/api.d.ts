@@ -56,6 +56,7 @@ import type * as lib_flag_similarity from "../lib/flag_similarity.js";
 import type * as lib_performance from "../lib/performance.js";
 import type * as lib_randomization from "../lib/randomization.js";
 import type * as lib_types from "../lib/types.js";
+import type * as notifications from "../notifications.js";
 import type * as practice_sessions from "../practice_sessions.js";
 import type * as practice_sessions_handlers_answers from "../practice_sessions/handlers/answers.js";
 import type * as practice_sessions_handlers_queries from "../practice_sessions/handlers/queries.js";
@@ -125,6 +126,7 @@ declare const fullApi: ApiFromModules<{
   "lib/performance": typeof lib_performance;
   "lib/randomization": typeof lib_randomization;
   "lib/types": typeof lib_types;
+  notifications: typeof notifications;
   practice_sessions: typeof practice_sessions;
   "practice_sessions/handlers/answers": typeof practice_sessions_handlers_answers;
   "practice_sessions/handlers/queries": typeof practice_sessions_handlers_queries;
