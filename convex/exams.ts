@@ -11,9 +11,20 @@ export {
   getAdminExamOverviewStats,
   getAdminExamActivityTimeline,
 } from "./exams/handlers/adminStats";
+export { getAdminActionLogs } from "./exams/handlers/admin_action_logs";
 export { getAdminPerformanceAnalytics } from "./exams/handlers/adminAnalytics";
 export { getAdminRecentExamAttempts } from "./exams/handlers/admin_exams";
 export { getAdminExamCadetSuggestions } from "./exams/handlers/admin_exam_cadet_suggestions";
+export {
+  getAdminSystemConfig,
+  upsertAdminSystemConfig,
+} from "./exams/handlers/system_config";
+export {
+  listAdminExamTemplates,
+  createAdminExamTemplate,
+  updateAdminExamTemplate,
+  archiveAdminExamTemplate,
+} from "./exams/handlers/exam_templates";
 export {
   getAttemptRuntimeProgress,
   getCurrentAttemptQuestion,

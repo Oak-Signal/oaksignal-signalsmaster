@@ -490,6 +490,82 @@ export default defineSchema({
   })
   .index("by_updatedAt", ["updatedAt"]),
 
+  // Global exam system configuration for runtime controls.
+  systemConfig: defineTable({
+    configKey: v.string(),
+    examEnabled: v.boolean(),
+    questionCount: v.number(),
+    passThreshold: v.number(),
+    availabilityWindow: v.object({
+      startDate: v.string(),
+      endDate: v.string(),
+      startTime: v.string(),
+      endTime: v.string(),
+      timeZone: v.optional(v.string()),
+    }),
+    maxRetakes: v.number(),
+    retakeCooldownHours: v.number(),
+    maintenanceModeEnabled: v.boolean(),
+    maintenanceMessage: v.optional(v.string()),
+    updatedBy: v.id("users"),
+    updatedAt: v.number(),
+    createdAt: v.number(),
+  })
+  .index("by_configKey", ["configKey"])
+  .index("by_updatedAt", ["updatedAt"]),
+
+  // Admin-managed templates for quickly applying exam configurations.
+  examTemplates: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()),
+    settings: v.object({
+      examEnabled: v.boolean(),
+      questionCount: v.number(),
+      passThreshold: v.number(),
+      availabilityWindow: v.object({
+        startDate: v.string(),
+        endDate: v.string(),
+        startTime: v.string(),
+        endTime: v.string(),
+        timeZone: v.optional(v.string()),
+      }),
+      maxRetakes: v.number(),
+      retakeCooldownHours: v.number(),
+    }),
+    archivedAt: v.optional(v.number()),
+    archivedBy: v.optional(v.id("users")),
+    updatedBy: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+  .index("by_updatedAt", ["updatedAt"])
+  .index("by_archivedAt_updatedAt", ["archivedAt", "updatedAt"]),
+
+  // Searchable audit records for administrative system management actions.
+  adminActionLogs: defineTable({
+    actorUserId: v.id("users"),
+    actorRole: v.union(v.literal("admin"), v.literal("cadet"), v.literal("unknown")),
+    actionType: v.union(
+      v.literal("system_config_updated"),
+      v.literal("maintenance_mode_enabled"),
+      v.literal("maintenance_mode_disabled"),
+      v.literal("exam_template_created"),
+      v.literal("exam_template_updated"),
+      v.literal("exam_template_archived")
+    ),
+    targetType: v.union(v.literal("system_config"), v.literal("exam_template")),
+    targetId: v.optional(v.string()),
+    outcome: v.union(v.literal("success"), v.literal("failure")),
+    message: v.string(),
+    metadataJson: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+  .index("by_createdAt", ["createdAt"])
+  .index("by_actor_createdAt", ["actorUserId", "createdAt"])
+  .index("by_action_createdAt", ["actionType", "createdAt"])
+  .index("by_target_createdAt", ["targetType", "createdAt"])
+  .index("by_outcome_createdAt", ["outcome", "createdAt"]),
+
   // Audit trail for admin page and API access attempts.
   adminAccessLogs: defineTable({
     actorUserId: v.optional(v.id("users")),
