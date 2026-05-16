@@ -19,7 +19,10 @@ export const getExamStartContext = query({
     }
 
     const startData = await getExamStartData(ctx, user);
-    const examPolicy = buildExamPolicy(startData.totalQuestions);
+    const examPolicy = buildExamPolicy(
+      startData.totalQuestions,
+      startData.systemConfig.passThreshold
+    );
     const generationSettings = await resolveExamGenerationSettings(ctx);
 
     return {

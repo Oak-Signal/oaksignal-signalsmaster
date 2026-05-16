@@ -24,9 +24,22 @@ export interface ExamPolicySnapshot {
   requiresAllAnswers: boolean;
 }
 
-export function buildExamPolicySnapshot(totalQuestions: number): ExamPolicySnapshot {
+interface BuildExamPolicyOptions {
+  passThresholdPercent?: number;
+}
+
+export function buildExamPolicySnapshot(
+  totalQuestions: number,
+  options?: BuildExamPolicyOptions
+): ExamPolicySnapshot {
+  const passThresholdPercent =
+    typeof options?.passThresholdPercent === "number" &&
+    Number.isFinite(options.passThresholdPercent)
+      ? Math.min(Math.max(Math.round(options.passThresholdPercent), 1), 100)
+      : OFFICIAL_EXAM_PASS_THRESHOLD_PERCENT;
+
   return {
-    passThresholdPercent: OFFICIAL_EXAM_PASS_THRESHOLD_PERCENT,
+    passThresholdPercent,
     totalQuestions,
     isUntimed: OFFICIAL_EXAM_IS_UNTIMED,
     timeLimitMinutes: OFFICIAL_EXAM_TIME_LIMIT_MINUTES,

@@ -5,7 +5,11 @@ import {
   applyExamAttemptToQuestions,
   generateExamQuestions,
 } from "../../lib/exam_generation";
-import { generateExamSeed } from "../../lib/exam_randomization";
+import {
+  createSeededRandom,
+  generateExamSeed,
+  shuffleWithRandom,
+} from "../../lib/exam_randomization";
 import { issueExamSessionToken } from "../../lib/exam_session_token";
 import { getAuthenticatedUser } from "../services/auth";
 import { insertExamAuditLog } from "../services/audit";
@@ -51,7 +55,10 @@ export const startOfficialExamAttempt = mutation({
     }
 
     const requestReceivedAt = Date.now();
-    const examPolicy = buildExamPolicy(startData.totalQuestions);
+    const examPolicy = buildExamPolicy(
+      startData.totalQuestions,
+      startData.systemConfig.passThreshold
+    );
     const generationSettings = await resolveExamGenerationSettings(ctx);
     const allFlags = await ctx.db
       .query("flags")
@@ -71,6 +78,18 @@ export const startOfficialExamAttempt = mutation({
       userId: user._id,
     });
 
+    const selectionRandom = createSeededRandom(seed);
+    const selectedFlags = shuffleWithRandom(allFlags, selectionRandom).slice(
+      0,
+      examPolicy.totalQuestions
+    );
+
+    if (selectedFlags.length < 4) {
+      throw new Error(
+        "Exam is unavailable because configured question count exceeds available flags."
+      );
+    }
+
     const generationStartedAt = Date.now();
     let generationRetryCount = 0;
     let generated:
@@ -81,7 +100,7 @@ export const startOfficialExamAttempt = mutation({
     // Retry once with a slightly modified seed if generation fails.
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        generated = generateExamQuestions(allFlags, {
+        generated = generateExamQuestions(selectedFlags, {
           modeStrategy: generationSettings.modeStrategy,
           singleMode: generationSettings.singleMode,
           seed: seed + attempt,

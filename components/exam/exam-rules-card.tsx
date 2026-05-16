@@ -40,7 +40,7 @@ export function ExamRulesCard({
         <ul className="space-y-2 text-sm text-muted-foreground">
           <li className="flex items-start gap-2">
             <ListChecks className="mt-0.5 h-4 w-4 text-primary" />
-            <span>Total questions: {policy.totalQuestions} (all flags in database)</span>
+            <span>Total questions: {policy.totalQuestions} (configured for this exam)</span>
           </li>
           <li className="flex items-start gap-2">
             <Clock3 className="mt-0.5 h-4 w-4 text-primary" />
