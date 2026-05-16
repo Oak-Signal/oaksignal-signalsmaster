@@ -309,6 +309,18 @@ export default defineSchema({
       })),
     })),
 
+    // Administrative invalidation metadata for suspicious or voided results.
+    invalidated: v.optional(v.boolean()),
+    invalidatedAt: v.optional(v.number()),
+    invalidatedBy: v.optional(v.id("users")),
+    invalidationReason: v.optional(v.union(
+      v.literal("suspected_cheating"),
+      v.literal("technical_issue_student_request"),
+      v.literal("proctor_decision"),
+      v.literal("other")
+    )),
+    invalidationReasonDetails: v.optional(v.string()),
+
     // Admin-entered investigation notes captured during integrity review.
     investigationNotes: v.optional(v.object({
       notes: v.string(),
@@ -365,7 +377,8 @@ export default defineSchema({
   .index("by_certificate", ["certificateNumber"])
   .index("by_passed_completedAt", ["passed", "completedAt"])
   .index("by_integrity_flag_completedAt", ["hasIntegrityFlags", "completedAt"])
-  .index("by_integrity_score_completedAt", ["integrityScore", "completedAt"]),
+  .index("by_integrity_score_completedAt", ["integrityScore", "completedAt"])
+  .index("by_invalidated_completedAt", ["invalidated", "completedAt"]),
 
   // Audit trail for all immutable result retrieval and verification accesses.
   examResultAccessLogs: defineTable({
@@ -381,7 +394,9 @@ export default defineSchema({
       v.literal("result_read"),
       v.literal("result_list"),
       v.literal("result_verify"),
-      v.literal("result_access_denied")
+      v.literal("result_access_denied"),
+      v.literal("result_invalidated"),
+      v.literal("result_note_updated")
     ),
     metadataJson: v.optional(v.string()),
     createdAt: v.number(),

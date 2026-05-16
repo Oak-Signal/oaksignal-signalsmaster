@@ -238,11 +238,19 @@ export interface ExamClientSecurityEventInput {
 
 export type ResultAccessActorRole = "cadet" | "admin"
 
+export type ExamInvalidationReason =
+  | "suspected_cheating"
+  | "technical_issue_student_request"
+  | "proctor_decision"
+  | "other"
+
 export type ResultAccessType =
   | "result_read"
   | "result_list"
   | "result_verify"
   | "result_access_denied"
+  | "result_invalidated"
+  | "result_note_updated"
 
 export interface OfficialExamQuestionResult {
   questionIndex: number
@@ -330,6 +338,11 @@ export interface OfficialExamResult {
   integrityScore?: number
   integritySeverity?: IntegritySeverityLevel
   integritySignals?: OfficialExamIntegritySignals
+  invalidated?: boolean
+  invalidatedAt?: number
+  invalidatedBy?: string
+  invalidationReason?: ExamInvalidationReason
+  invalidationReasonDetails?: string
   investigationNotes?: OfficialExamInvestigationNotes
   flagDatabaseSnapshot: {
     generationVersion: number

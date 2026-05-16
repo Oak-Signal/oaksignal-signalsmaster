@@ -27,6 +27,11 @@ export function mapOfficialResultRecord(result: Doc<"examResults">) {
     integrityScore: result.integrityScore,
     integritySeverity: result.integritySeverity,
     integritySignals: result.integritySignals,
+    invalidated: result.invalidated,
+    invalidatedAt: result.invalidatedAt,
+    invalidatedBy: result.invalidatedBy,
+    invalidationReason: result.invalidationReason,
+    invalidationReasonDetails: result.invalidationReasonDetails,
     investigationNotes: result.investigationNotes,
     flagDatabaseSnapshot: result.flagDatabaseSnapshot,
     questionBreakdown: result.questionBreakdown,
@@ -62,7 +67,7 @@ export function buildCanonicalOfficialResultPayload(result: Doc<"examResults">) 
   };
 
   if (result.resultVersion >= 2) {
-    return {
+    const versionTwoPayload = {
       ...basePayload,
       hasIntegrityFlags: result.hasIntegrityFlags,
       integrityScore: result.integrityScore,
@@ -70,6 +75,19 @@ export function buildCanonicalOfficialResultPayload(result: Doc<"examResults">) 
       integritySignals: result.integritySignals,
       investigationNotes: result.investigationNotes,
     };
+
+    if (result.resultVersion >= 3) {
+      return {
+        ...versionTwoPayload,
+        invalidated: result.invalidated,
+        invalidatedAt: result.invalidatedAt,
+        invalidatedBy: result.invalidatedBy,
+        invalidationReason: result.invalidationReason,
+        invalidationReasonDetails: result.invalidationReasonDetails,
+      };
+    }
+
+    return versionTwoPayload;
   }
 
   return basePayload;
