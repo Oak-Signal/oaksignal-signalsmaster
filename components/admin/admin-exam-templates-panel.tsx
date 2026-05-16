@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 
 import {
+  AdminSystemConfig,
   AdminExamTemplate,
   ApiErrorResponse,
   ApiSuccessResponse,
@@ -53,6 +54,11 @@ interface TemplatesResponse {
 interface TemplateMutationResponse {
   success: true
   data: AdminExamTemplate
+}
+
+interface ConfigResponse {
+  success: true
+  data: AdminSystemConfig
 }
 
 export function AdminExamTemplatesPanel() {
@@ -232,6 +238,87 @@ export function AdminExamTemplatesPanel() {
       await fetchTemplates(includeArchived)
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to archive template."
+      setErrorMessage(message)
+      setStatusMessage(null)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleApplyTemplateToConfig = async (template: AdminExamTemplate) => {
+    setIsSaving(true)
+    setStatusMessage(null)
+
+    try {
+      const configResponse = await fetch("/api/admin/config", {
+        method: "GET",
+        cache: "no-store",
+        credentials: "same-origin",
+        headers: {
+          Accept: "application/json",
+        },
+      })
+
+      const configBody = (await configResponse.json()) as ConfigResponse | ApiErrorResponse
+      if (!configResponse.ok) {
+        const message =
+          configBody && "error" in configBody && configBody.error?.message
+            ? configBody.error.message
+            : "Unable to load current system configuration."
+        throw new Error(message)
+      }
+
+      if (
+        !configBody ||
+        !("success" in configBody) ||
+        !configBody.success ||
+        !("data" in configBody)
+      ) {
+        throw new Error("Unexpected system configuration response.")
+      }
+
+      const currentConfig = configBody.data
+      const applyResponse = await fetch("/api/admin/config", {
+        method: "PUT",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          examEnabled: template.settings.examEnabled,
+          questionCount: template.settings.questionCount,
+          passThreshold: template.settings.passThreshold,
+          availabilityWindow: {
+            startDate: template.settings.availabilityWindow.startDate,
+            endDate: template.settings.availabilityWindow.endDate,
+            startTime: template.settings.availabilityWindow.startTime,
+            endTime: template.settings.availabilityWindow.endTime,
+            timeZone: template.settings.availabilityWindow.timeZone,
+          },
+          maxRetakes: template.settings.maxRetakes,
+          retakeCooldownHours: template.settings.retakeCooldownHours,
+          maintenanceModeEnabled: currentConfig.maintenanceModeEnabled,
+          maintenanceMessage: currentConfig.maintenanceMessage,
+        }),
+      })
+
+      const applyBody = (await applyResponse.json()) as ConfigResponse | ApiErrorResponse
+      if (!applyResponse.ok) {
+        const message =
+          applyBody && "error" in applyBody && applyBody.error?.message
+            ? applyBody.error.message
+            : "Unable to apply template to live configuration."
+        throw new Error(message)
+      }
+
+      setErrorMessage(null)
+      setStatusMessage(`Applied template \"${template.name}\" to live configuration.`)
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to apply template to live configuration."
       setErrorMessage(message)
       setStatusMessage(null)
     } finally {
@@ -467,6 +554,18 @@ export function AdminExamTemplatesPanel() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
+                    {template.archivedAt === undefined ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void handleApplyTemplateToConfig(template)}
+                        disabled={isSaving}
+                        aria-label={`Apply template ${template.name} to live configuration`}
+                      >
+                        Apply to Config
+                      </Button>
+                    ) : null}
                     <Button
                       type="button"
                       variant="outline"
