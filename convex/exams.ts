@@ -28,6 +28,7 @@ export {
   getOfficialResultForAdminReview,
   getOfficialResultByCertificate,
   verifyOfficialResultIntegrity,
+  invalidateOfficialResult,
   setOfficialResultInvestigationNotes,
 } from "./exams/handlers/results";
 export {

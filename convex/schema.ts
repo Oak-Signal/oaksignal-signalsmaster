@@ -510,4 +510,19 @@ export default defineSchema({
   .index("by_createdAt", ["createdAt"])
   .index("by_surface_createdAt", ["surface", "createdAt"])
   .index("by_outcome_createdAt", ["outcome", "createdAt"]),
+
+  // In-app notifications for user-facing system and admin events.
+  notifications: defineTable({
+    recipientUserId: v.id("users"),
+    type: v.union(
+      v.literal("exam_invalidated")
+    ),
+    title: v.string(),
+    message: v.string(),
+    metadataJson: v.optional(v.string()),
+    readAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+  .index("by_recipient_createdAt", ["recipientUserId", "createdAt"])
+  .index("by_recipient_readAt", ["recipientUserId", "readAt"]),
 });
