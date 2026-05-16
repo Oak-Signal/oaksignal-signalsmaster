@@ -1,5 +1,9 @@
 import { AdminRecentExamAttemptsSection } from "@/components/admin/admin-recent-exam-attempts-section"
 import { AdminIntegrityOpsPanel } from "@/components/admin/admin-integrity-ops-panel"
+import { AdminSystemConfigPanel } from "@/components/admin/admin-system-config-panel"
+import { AdminExamTemplatesPanel } from "@/components/admin/admin-exam-templates-panel"
+import { AdminSystemHealthPanel } from "@/components/admin/admin-system-health-panel"
+import { AdminActionLogsPanel } from "@/components/admin/admin-action-logs-panel"
 
 export default function AdminExamManagementPage() {
   return (
@@ -7,9 +11,17 @@ export default function AdminExamManagementPage() {
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Exam Management</h2>
         <p className="text-muted-foreground">
-          Review recent official exam attempts and monitor cadet assessment outcomes.
+          Configure exam operations, monitor system health, and review official exam outcomes.
         </p>
       </div>
+
+      <AdminSystemHealthPanel />
+
+      <AdminSystemConfigPanel />
+
+      <AdminExamTemplatesPanel />
+
+      <AdminActionLogsPanel />
 
       <AdminIntegrityOpsPanel />
 
