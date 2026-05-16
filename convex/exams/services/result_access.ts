@@ -23,6 +23,16 @@ export function mapOfficialResultRecord(result: Doc<"examResults">) {
     examModesUsed: result.examModesUsed,
     modeStats: result.modeStats,
     categoryStats: result.categoryStats,
+    hasIntegrityFlags: result.hasIntegrityFlags,
+    integrityScore: result.integrityScore,
+    integritySeverity: result.integritySeverity,
+    integritySignals: result.integritySignals,
+    invalidated: result.invalidated,
+    invalidatedAt: result.invalidatedAt,
+    invalidatedBy: result.invalidatedBy,
+    invalidationReason: result.invalidationReason,
+    invalidationReasonDetails: result.invalidationReasonDetails,
+    investigationNotes: result.investigationNotes,
     flagDatabaseSnapshot: result.flagDatabaseSnapshot,
     questionBreakdown: result.questionBreakdown,
     recordChecksum: result.recordChecksum,
@@ -33,7 +43,7 @@ export function mapOfficialResultRecord(result: Doc<"examResults">) {
 }
 
 export function buildCanonicalOfficialResultPayload(result: Doc<"examResults">) {
-  return {
+  const basePayload = {
     examAttemptId: result.examAttemptId,
     userId: result.userId,
     immutable: result.immutable,
@@ -55,6 +65,32 @@ export function buildCanonicalOfficialResultPayload(result: Doc<"examResults">) 
     flagDatabaseSnapshot: result.flagDatabaseSnapshot,
     questionBreakdown: result.questionBreakdown,
   };
+
+  if (result.resultVersion >= 2) {
+    const versionTwoPayload = {
+      ...basePayload,
+      hasIntegrityFlags: result.hasIntegrityFlags,
+      integrityScore: result.integrityScore,
+      integritySeverity: result.integritySeverity,
+      integritySignals: result.integritySignals,
+      investigationNotes: result.investigationNotes,
+    };
+
+    if (result.resultVersion >= 3) {
+      return {
+        ...versionTwoPayload,
+        invalidated: result.invalidated,
+        invalidatedAt: result.invalidatedAt,
+        invalidatedBy: result.invalidatedBy,
+        invalidationReason: result.invalidationReason,
+        invalidationReasonDetails: result.invalidationReasonDetails,
+      };
+    }
+
+    return versionTwoPayload;
+  }
+
+  return basePayload;
 }
 
 export async function buildPercentileRanking(

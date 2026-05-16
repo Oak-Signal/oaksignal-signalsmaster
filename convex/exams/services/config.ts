@@ -4,6 +4,10 @@ const DEFAULT_OFFICIAL_EXAM_SUBMISSION_WINDOW_MS = 60_000;
 const DEFAULT_OFFICIAL_EXAM_SUBMISSION_MAX_PER_WINDOW = 30;
 const DEFAULT_OFFICIAL_EXAM_MIN_RESPONSE_TIME_MS = 1_500;
 const DEFAULT_OFFICIAL_EXAM_SLOW_RESPONSE_WARNING_MS = 120_000;
+const DEFAULT_INTEGRITY_MIN_AVERAGE_ANSWER_TIME_MS = 5_000;
+const DEFAULT_INTEGRITY_MAX_CONSECUTIVE_SAME_ANSWER = 5;
+const DEFAULT_INTEGRITY_MIN_EXPECTED_DURATION_RATIO_PERCENT = 50;
+const DEFAULT_INTEGRITY_MIN_ANSWER_TIME_STD_DEV_MS = 1_000;
 
 export interface ExamSubmissionRateLimitConfig {
   minIntervalMs: number;
@@ -14,6 +18,13 @@ export interface ExamSubmissionRateLimitConfig {
 export interface ExamTimingAnomalyConfig {
   minResponseTimeMs: number;
   slowResponseWarningMs: number;
+}
+
+export interface ExamIntegrityThresholdsConfig {
+  minAverageAnswerTimeMs: number;
+  maxConsecutiveSameAnswer: number;
+  minExpectedDurationRatioPercent: number;
+  minAnswerTimeStdDevMs: number;
 }
 
 function getPositiveIntegerEnv(
@@ -69,6 +80,37 @@ export function getOfficialExamTimingAnomalyConfig(): ExamTimingAnomalyConfig {
       "OFFICIAL_EXAM_SLOW_RESPONSE_WARNING_MS",
       DEFAULT_OFFICIAL_EXAM_SLOW_RESPONSE_WARNING_MS,
       5_000
+    ),
+  };
+}
+
+export function getDefaultExamIntegrityThresholdsConfig(): ExamIntegrityThresholdsConfig {
+  const minExpectedDurationRatioPercent = getPositiveIntegerEnv(
+    "OFFICIAL_EXAM_INTEGRITY_MIN_EXPECTED_DURATION_RATIO_PERCENT",
+    DEFAULT_INTEGRITY_MIN_EXPECTED_DURATION_RATIO_PERCENT,
+    1
+  );
+
+  if (minExpectedDurationRatioPercent > 100) {
+    throw new Error("OFFICIAL_EXAM_INTEGRITY_MIN_EXPECTED_DURATION_RATIO_PERCENT must be <= 100.");
+  }
+
+  return {
+    minAverageAnswerTimeMs: getPositiveIntegerEnv(
+      "OFFICIAL_EXAM_INTEGRITY_MIN_AVERAGE_ANSWER_TIME_MS",
+      DEFAULT_INTEGRITY_MIN_AVERAGE_ANSWER_TIME_MS,
+      100
+    ),
+    maxConsecutiveSameAnswer: getPositiveIntegerEnv(
+      "OFFICIAL_EXAM_INTEGRITY_MAX_CONSECUTIVE_SAME_ANSWER",
+      DEFAULT_INTEGRITY_MAX_CONSECUTIVE_SAME_ANSWER,
+      2
+    ),
+    minExpectedDurationRatioPercent,
+    minAnswerTimeStdDevMs: getPositiveIntegerEnv(
+      "OFFICIAL_EXAM_INTEGRITY_MIN_ANSWER_TIME_STD_DEV_MS",
+      DEFAULT_INTEGRITY_MIN_ANSWER_TIME_STD_DEV_MS,
+      100
     ),
   };
 }

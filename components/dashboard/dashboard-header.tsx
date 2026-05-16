@@ -2,22 +2,54 @@
 
 import Link from "next/link"
 import Image from "next/image"
+import { formatDistanceToNow } from "date-fns"
 import { Bell, MessageSquarePlus, Shield } from "lucide-react"
 import { UserButton } from "@clerk/nextjs"
-import { useQuery } from "convex/react"
+import { useMutation, useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
+import { Id } from "@/convex/_generated/dataModel"
 
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { ModeToggle } from "@/components/mode-toggle"
 
 export function DashboardHeader() {
   const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
   const user = useQuery(api.users.getCurrentUser)
+  const notifications = useQuery(api.notifications.listMyNotifications, { limit: 8 })
+  const markNotificationRead = useMutation(api.notifications.markNotificationRead)
+  const markAllNotificationsRead = useMutation(api.notifications.markAllNotificationsRead)
+
   const openFeedbackWidget = () => {
     if (typeof window !== "undefined") {
       window.uj?.showWidget?.()
     }
   }
+
+  const handleMarkAllRead = async () => {
+    try {
+      await markAllNotificationsRead({})
+    } catch {
+      // Keep interaction non-blocking for header controls.
+    }
+  }
+
+  const handleOpenNotification = async (notificationId: string) => {
+    try {
+      await markNotificationRead({ notificationId: notificationId as Id<"notifications"> })
+    } catch {
+      // Keep interaction non-blocking for header controls.
+    }
+  }
+
+  const unreadCount = notifications?.unreadCount ?? 0
 
   return (
     <header className="sticky top-0 z-30 w-full border-b bg-background px-4 py-3 sm:px-6">
@@ -76,11 +108,68 @@ export function DashboardHeader() {
             <MessageSquarePlus className="h-5 w-5" />
             <span className="sr-only">Open feedback</span>
           </Button>
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="h-5 w-5" />
-            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-destructive" />
-            <span className="sr-only">Notifications</span>
-          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="relative" aria-label="Open notifications">
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 ? (
+                  <span className="absolute right-1.5 top-1.5 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                ) : null}
+                <span className="sr-only">Notifications</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80">
+              <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+                <DropdownMenuLabel className="p-0">Notifications</DropdownMenuLabel>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => void handleMarkAllRead()}
+                  disabled={!notifications || unreadCount === 0}
+                  aria-label="Mark all notifications as read"
+                >
+                  Mark all read
+                </Button>
+              </div>
+              <DropdownMenuSeparator />
+
+              {notifications === undefined ? (
+                <div className="px-2 py-3 text-sm text-muted-foreground">Loading notifications...</div>
+              ) : notifications === null ? (
+                <div className="px-2 py-3 text-sm text-muted-foreground">Sign in to view notifications.</div>
+              ) : notifications.items.length === 0 ? (
+                <div className="px-2 py-3 text-sm text-muted-foreground">No notifications yet.</div>
+              ) : (
+                notifications.items.map((notification) => (
+                  <DropdownMenuItem
+                    key={notification.notificationId}
+                    className="items-start"
+                    onSelect={() => {
+                      void handleOpenNotification(notification.notificationId)
+                    }}
+                  >
+                    <div className="min-w-0 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium leading-tight">{notification.title}</span>
+                        {notification.readAt === undefined ? (
+                          <span className="inline-block h-2 w-2 rounded-full bg-primary" aria-hidden="true" />
+                        ) : null}
+                      </div>
+                      <p className="text-xs text-muted-foreground">{notification.message}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {formatDistanceToNow(notification.createdAt, { addSuffix: true })}
+                      </p>
+                    </div>
+                  </DropdownMenuItem>
+                ))
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <div className="ml-1 flex items-center gap-3 border-l pl-3">
             {user ? (

@@ -1,12 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import {
   ADMIN_EXAMS_DEFAULT_LIMIT,
-  ADMIN_EXAMS_DEFAULT_PAGE,
+  AdminExamFiltersInput,
   AdminRecentExamAttemptsPayload,
 } from "@/lib/admin-exams-types";
+import {
+  ADMIN_EXAMS_DEFAULT_FILTERS,
+  AdminExamActiveFilterChip,
+  buildAdminExamsQueryParams,
+  getAdminExamActiveFilterChips,
+  hasAnyActiveAdminExamFilters,
+  parseAdminExamsQueryState,
+} from "@/lib/admin-exams-filters";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { AdminActiveFilterChips } from "@/components/admin/admin-active-filter-chips";
+import { AdminExamAttemptsFilters } from "@/components/admin/admin-exam-attempts-filters";
 import { AdminRecentExamAttemptsTable } from "@/components/admin/admin-recent-exam-attempts-table";
 
 interface AdminExamsSuccessResponse {
@@ -21,20 +33,140 @@ interface AdminExamsErrorResponse {
   };
 }
 
-export function AdminRecentExamAttemptsSection() {
-  const [page, setPage] = useState<number>(ADMIN_EXAMS_DEFAULT_PAGE);
+interface AdminRecentExamAttemptsSectionProps {
+  enforcedFilters?: Partial<AdminExamFiltersInput>;
+}
+
+export function AdminRecentExamAttemptsSection({
+  enforcedFilters,
+}: AdminRecentExamAttemptsSectionProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const searchParamsString = searchParams.toString();
+
+  const queryState = useMemo(
+    () => parseAdminExamsQueryState(new URLSearchParams(searchParamsString)),
+    [searchParamsString]
+  );
+  const [draftFilters, setDraftFilters] = useState<AdminExamFiltersInput>(queryState.filters);
   const [data, setData] = useState<AdminRecentExamAttemptsPayload | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const fetchAttempts = useCallback(async (pageToLoad: number) => {
+  const debouncedCadetNameQuery = useDebouncedValue(draftFilters.cadetNameQuery ?? "", 300);
+  const debouncedUserIdQuery = useDebouncedValue(draftFilters.userIdQuery ?? "", 300);
+
+  useEffect(() => {
+    setDraftFilters(queryState.filters);
+  }, [queryState.filters]);
+
+  const replaceQueryState = useCallback(
+    (nextState: { page: number; limit: number; filters: AdminExamFiltersInput }) => {
+      const params = buildAdminExamsQueryParams(nextState);
+      const nextQueryString = params.toString();
+      const currentQueryString = searchParamsString;
+      if (nextQueryString === currentQueryString) {
+        return;
+      }
+
+      router.replace(`${pathname}?${nextQueryString}`, { scroll: false });
+    },
+    [pathname, router, searchParamsString]
+  );
+
+  useEffect(() => {
+    if (!enforcedFilters) {
+      return;
+    }
+
+    const nextFilters: AdminExamFiltersInput = {
+      ...queryState.filters,
+      ...enforcedFilters,
+    };
+
+    const hasFilterChanges =
+      nextFilters.range !== queryState.filters.range ||
+      nextFilters.customFrom !== queryState.filters.customFrom ||
+      nextFilters.customTo !== queryState.filters.customTo ||
+      nextFilters.passStatus !== queryState.filters.passStatus ||
+      nextFilters.scoreMin !== queryState.filters.scoreMin ||
+      nextFilters.scoreMax !== queryState.filters.scoreMax ||
+      nextFilters.flaggedOnly !== queryState.filters.flaggedOnly ||
+      nextFilters.integrityScoreMin !== queryState.filters.integrityScoreMin ||
+      nextFilters.integrityScoreMax !== queryState.filters.integrityScoreMax ||
+      nextFilters.cadetNameQuery !== queryState.filters.cadetNameQuery ||
+      nextFilters.userIdQuery !== queryState.filters.userIdQuery ||
+      nextFilters.attemptFilter !== queryState.filters.attemptFilter;
+
+    if (!hasFilterChanges) {
+      return;
+    }
+
+    setDraftFilters(nextFilters);
+    replaceQueryState({
+      page: 1,
+      limit: queryState.limit,
+      filters: nextFilters,
+    });
+  }, [enforcedFilters, queryState.filters, queryState.limit, replaceQueryState]);
+
+  useEffect(() => {
+    const normalizedCadetName = debouncedCadetNameQuery.trim() || undefined;
+    const normalizedUserId = debouncedUserIdQuery.trim() || undefined;
+
+    const nextFilters: AdminExamFiltersInput = {
+      ...draftFilters,
+      cadetNameQuery: normalizedCadetName,
+      userIdQuery: normalizedUserId,
+    };
+
+    const hasFilterChanges =
+      nextFilters.range !== queryState.filters.range ||
+      nextFilters.customFrom !== queryState.filters.customFrom ||
+      nextFilters.customTo !== queryState.filters.customTo ||
+      nextFilters.passStatus !== queryState.filters.passStatus ||
+      nextFilters.scoreMin !== queryState.filters.scoreMin ||
+      nextFilters.scoreMax !== queryState.filters.scoreMax ||
+      nextFilters.flaggedOnly !== queryState.filters.flaggedOnly ||
+      nextFilters.integrityScoreMin !== queryState.filters.integrityScoreMin ||
+      nextFilters.integrityScoreMax !== queryState.filters.integrityScoreMax ||
+      nextFilters.cadetNameQuery !== queryState.filters.cadetNameQuery ||
+      nextFilters.userIdQuery !== queryState.filters.userIdQuery ||
+      nextFilters.attemptFilter !== queryState.filters.attemptFilter;
+
+    if (!hasFilterChanges) {
+      return;
+    }
+
+    replaceQueryState({
+      page: 1,
+      limit: queryState.limit,
+      filters: nextFilters,
+    });
+  }, [
+    debouncedCadetNameQuery,
+    debouncedUserIdQuery,
+    draftFilters,
+    queryState.filters,
+    queryState.limit,
+    replaceQueryState,
+  ]);
+
+  const fetchAttempts = useCallback(async () => {
+    if (queryState.filters.range === "custom") {
+      if (!queryState.filters.customFrom || !queryState.filters.customTo) {
+        setData(null);
+        setErrorMessage("Select both custom start and end dates to apply this filter.");
+        setIsLoading(false);
+        return;
+      }
+    }
+
     setIsLoading(true);
 
     try {
-      const params = new URLSearchParams({
-        page: String(pageToLoad),
-        limit: String(ADMIN_EXAMS_DEFAULT_LIMIT),
-      });
+      const params = buildAdminExamsQueryParams(queryState);
 
       const response = await fetch(`/api/admin/exams?${params.toString()}`, {
         method: "GET",
@@ -70,18 +202,23 @@ export function AdminRecentExamAttemptsSection() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [queryState]);
 
   useEffect(() => {
-    void fetchAttempts(page);
-  }, [fetchAttempts, page]);
+    void fetchAttempts();
+  }, [fetchAttempts]);
 
   const pagination = data?.pagination ?? {
-    page,
-    limit: ADMIN_EXAMS_DEFAULT_LIMIT,
+    page: queryState.page,
+    limit: queryState.limit,
     totalCount: 0,
     totalPages: 0,
   };
+
+  const activeFilterChips = useMemo<AdminExamActiveFilterChip[]>(
+    () => getAdminExamActiveFilterChips(queryState.filters),
+    [queryState.filters]
+  );
 
   const handlePageChange = useCallback(
     (nextPage: number) => {
@@ -93,17 +230,86 @@ export function AdminRecentExamAttemptsSection() {
         return;
       }
 
-      if (nextPage === page) {
+      if (nextPage === queryState.page) {
         return;
       }
 
-      setPage(nextPage);
+      replaceQueryState({
+        page: nextPage,
+        limit: queryState.limit,
+        filters: queryState.filters,
+      });
     },
-    [page, pagination.totalPages]
+    [pagination.totalPages, queryState.filters, queryState.limit, queryState.page, replaceQueryState]
+  );
+
+  const handleFiltersChange = useCallback((nextFilters: AdminExamFiltersInput) => {
+    setDraftFilters(nextFilters);
+  }, []);
+
+  const handleClearAllFilters = useCallback(() => {
+    setDraftFilters(ADMIN_EXAMS_DEFAULT_FILTERS);
+    replaceQueryState({
+      page: 1,
+      limit: queryState.limit,
+      filters: ADMIN_EXAMS_DEFAULT_FILTERS,
+    });
+  }, [queryState.limit, replaceQueryState]);
+
+  const handleClearFilterChip = useCallback(
+    (chipKey: AdminExamActiveFilterChip["key"]) => {
+      const nextFilters: AdminExamFiltersInput = { ...queryState.filters };
+
+      if (chipKey === "range") {
+        nextFilters.range = ADMIN_EXAMS_DEFAULT_FILTERS.range;
+        nextFilters.customFrom = undefined;
+        nextFilters.customTo = undefined;
+      } else if (chipKey === "passStatus") {
+        nextFilters.passStatus = ADMIN_EXAMS_DEFAULT_FILTERS.passStatus;
+      } else if (chipKey === "scoreRange") {
+        nextFilters.scoreMin = ADMIN_EXAMS_DEFAULT_FILTERS.scoreMin;
+        nextFilters.scoreMax = ADMIN_EXAMS_DEFAULT_FILTERS.scoreMax;
+      } else if (chipKey === "flaggedOnly") {
+        nextFilters.flaggedOnly = ADMIN_EXAMS_DEFAULT_FILTERS.flaggedOnly;
+      } else if (chipKey === "integrityScoreRange") {
+        nextFilters.integrityScoreMin = ADMIN_EXAMS_DEFAULT_FILTERS.integrityScoreMin;
+        nextFilters.integrityScoreMax = ADMIN_EXAMS_DEFAULT_FILTERS.integrityScoreMax;
+      } else if (chipKey === "cadetNameQuery") {
+        nextFilters.cadetNameQuery = undefined;
+      } else if (chipKey === "userIdQuery") {
+        nextFilters.userIdQuery = undefined;
+      } else if (chipKey === "attemptFilter") {
+        nextFilters.attemptFilter = ADMIN_EXAMS_DEFAULT_FILTERS.attemptFilter;
+      }
+
+      setDraftFilters(nextFilters);
+      replaceQueryState({
+        page: 1,
+        limit: queryState.limit,
+        filters: nextFilters,
+      });
+    },
+    [queryState.filters, queryState.limit, replaceQueryState]
   );
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
+      <AdminExamAttemptsFilters
+        filters={draftFilters}
+        isLoading={isLoading}
+        onFiltersChange={handleFiltersChange}
+        onClearAllFilters={handleClearAllFilters}
+      />
+
+      <AdminActiveFilterChips
+        chips={activeFilterChips}
+        onClearChip={handleClearFilterChip}
+      />
+
+      {!hasAnyActiveAdminExamFilters(queryState.filters) ? (
+        <p className="text-xs text-muted-foreground">No active filters. Showing default recent activity.</p>
+      ) : null}
+
       {errorMessage ? (
         <p className="text-sm text-destructive" role="status" aria-live="polite">
           {errorMessage}

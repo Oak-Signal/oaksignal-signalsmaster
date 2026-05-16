@@ -9,6 +9,32 @@ import {
   mapOfficialResultRecord,
 } from "../services/result_access";
 
+const MAX_INVESTIGATION_NOTES_LENGTH = 2000;
+const MAX_INVALIDATION_REASON_DETAILS_LENGTH = 300;
+
+const INVALIDATION_REASONS = [
+  "suspected_cheating",
+  "technical_issue_student_request",
+  "proctor_decision",
+  "other",
+] as const;
+
+type InvalidationReason = typeof INVALIDATION_REASONS[number];
+
+function sanitizeInvestigationNotes(rawNotes: string): string {
+  return rawNotes
+    .replace(/[\u0000-\u001F\u007F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function sanitizeInvalidationReasonDetails(rawDetails: string): string {
+  return rawDetails
+    .replace(/[\u0000-\u001F\u007F]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export const getMyOfficialResult = mutation({
   args: {
     examAttemptId: v.id("examAttempts"),
@@ -303,6 +329,180 @@ export const verifyOfficialResultIntegrity = mutation({
       recomputedChecksum,
       signatureAlgorithm: result.signatureAlgorithm,
       verifiedAt: Date.now(),
+    };
+  },
+});
+
+export const invalidateOfficialResult = mutation({
+  args: {
+    examResultId: v.id("examResults"),
+    reason: v.union(
+      v.literal("suspected_cheating"),
+      v.literal("technical_issue_student_request"),
+      v.literal("proctor_decision"),
+      v.literal("other")
+    ),
+    reasonDetails: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const adminUser = await getAuthenticatedUser(ctx);
+    if (!adminUser || adminUser.role !== "admin") {
+      return null;
+    }
+
+    if (!INVALIDATION_REASONS.includes(args.reason)) {
+      throw new Error("Invalid invalidation reason.");
+    }
+
+    const result = await ctx.db.get(args.examResultId);
+    if (!result) {
+      throw new Error("Official exam result not found.");
+    }
+
+    if (result.invalidated === true) {
+      throw new Error("Official exam result has already been invalidated.");
+    }
+
+    const sanitizedReasonDetails = sanitizeInvalidationReasonDetails(args.reasonDetails ?? "");
+    if (args.reason === "other" && sanitizedReasonDetails.length === 0) {
+      throw new Error("An explanation is required when reason is set to other.");
+    }
+
+    if (sanitizedReasonDetails.length > MAX_INVALIDATION_REASON_DETAILS_LENGTH) {
+      throw new Error(
+        `Invalidation reason details must be ${MAX_INVALIDATION_REASON_DETAILS_LENGTH} characters or less.`
+      );
+    }
+
+    const invalidatedAt = Date.now();
+    const nextResultVersion = result.resultVersion >= 3 ? result.resultVersion : 3;
+
+    await ctx.db.patch(result._id, {
+      resultVersion: nextResultVersion,
+      invalidated: true,
+      invalidatedAt,
+      invalidatedBy: adminUser._id,
+      invalidationReason: args.reason,
+      invalidationReasonDetails: sanitizedReasonDetails.length > 0 ? sanitizedReasonDetails : undefined,
+    });
+
+    const updatedResult = await ctx.db.get(result._id);
+    if (!updatedResult) {
+      throw new Error("Official exam result not found after invalidation update.");
+    }
+
+    const canonicalPayload = buildCanonicalOfficialResultPayload(updatedResult);
+    const canonicalJson = stableStringify(canonicalPayload);
+    const recordChecksum = await sha256Hex(canonicalJson);
+
+    await ctx.db.patch(updatedResult._id, {
+      recordChecksum,
+      signatureAlgorithm: "sha256",
+      signature: recordChecksum,
+    });
+
+    const refreshedResult = await ctx.db.get(updatedResult._id);
+    if (!refreshedResult) {
+      throw new Error("Official exam result not found after checksum refresh.");
+    }
+
+    await insertExamResultAccessLog(ctx, {
+      result: refreshedResult,
+      actorUser: adminUser,
+      accessType: "result_invalidated",
+      metadata: {
+        endpoint: "invalidateOfficialResult",
+        requestedResultId: args.examResultId,
+        reason: args.reason,
+        reasonDetailsLength: sanitizedReasonDetails.length,
+      },
+    });
+
+    await ctx.db.insert("notifications", {
+      recipientUserId: refreshedResult.userId,
+      type: "exam_invalidated",
+      title: "Official Exam Result Invalidated",
+      message: "An administrator has invalidated one of your official exam results. Contact your instructor for details.",
+      metadataJson: JSON.stringify({
+        examResultId: refreshedResult._id,
+        examAttemptId: refreshedResult.examAttemptId,
+        reason: args.reason,
+      }),
+      createdAt: invalidatedAt,
+    });
+
+    return {
+      ...mapOfficialResultRecord(refreshedResult),
+      percentileRanking: await buildPercentileRanking(ctx, refreshedResult),
+    };
+  },
+});
+
+export const setOfficialResultInvestigationNotes = mutation({
+  args: {
+    examResultId: v.id("examResults"),
+    notes: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await getAuthenticatedUser(ctx);
+    if (!user || user.role !== "admin") {
+      return null;
+    }
+
+    const result = await ctx.db.get(args.examResultId);
+    if (!result) {
+      return null;
+    }
+
+    const sanitizedNotes = sanitizeInvestigationNotes(args.notes);
+    if (sanitizedNotes.length > MAX_INVESTIGATION_NOTES_LENGTH) {
+      throw new Error(`Investigation notes must be ${MAX_INVESTIGATION_NOTES_LENGTH} characters or less.`);
+    }
+
+    const updatedAt = Date.now();
+
+    await ctx.db.patch(result._id, {
+      investigationNotes: {
+        notes: sanitizedNotes,
+        updatedAt,
+        updatedBy: user._id,
+      },
+    });
+
+    const updatedResult = await ctx.db.get(result._id);
+    if (!updatedResult) {
+      return null;
+    }
+
+    const canonicalPayload = buildCanonicalOfficialResultPayload(updatedResult);
+    const canonicalJson = stableStringify(canonicalPayload);
+    const recordChecksum = await sha256Hex(canonicalJson);
+
+    await ctx.db.patch(updatedResult._id, {
+      recordChecksum,
+      signatureAlgorithm: "sha256",
+      signature: recordChecksum,
+    });
+
+    const refreshedResult = await ctx.db.get(result._id);
+    if (!refreshedResult) {
+      return null;
+    }
+
+    await insertExamResultAccessLog(ctx, {
+      result: refreshedResult,
+      actorUser: user,
+      accessType: "result_note_updated",
+      metadata: {
+        endpoint: "setOfficialResultInvestigationNotes",
+        requestedResultId: args.examResultId,
+        notesLength: sanitizedNotes.length,
+      },
+    });
+
+    return {
+      ...mapOfficialResultRecord(refreshedResult),
+      percentileRanking: await buildPercentileRanking(ctx, refreshedResult),
     };
   },
 });

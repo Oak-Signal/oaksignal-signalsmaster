@@ -20,12 +20,17 @@ import {
   roundToTwoDecimals,
 } from "../services/time";
 import { sha256Hex, stableStringify } from "../services/hash";
-import { getAttemptQuestions } from "../services/query_helpers";
+import {
+  getAttemptQuestions,
+  resolveExamIntegrityThresholds,
+} from "../services/query_helpers";
 import {
   buildCertificateNumber,
   buildCompletedExamStats,
   buildQuestionBreakdownFromAttempt,
 } from "../services/result_builder";
+import { OFFICIAL_EXAM_ESTIMATED_SECONDS_PER_QUESTION } from "../../lib/exam_policy";
+import { evaluateOfficialExamIntegrity } from "../services/integrity_detection";
 
 export const submitExamAnswer = mutation({
   args: {
@@ -387,13 +392,32 @@ export const submitExamAnswer = mutation({
         examAttemptId: String(attempt._id),
       });
 
+      const expectedDurationMs = Math.max(
+        0,
+        totalQuestions * OFFICIAL_EXAM_ESTIMATED_SECONDS_PER_QUESTION * 1000
+      );
+      const integrityThresholds = await resolveExamIntegrityThresholds(ctx);
+      const securityEvents = await ctx.db
+        .query("examAuditLogs")
+        .withIndex("by_attempt_createdAt", (q) => q.eq("examAttemptId", args.examAttemptId))
+        .collect();
+      const integrityAssessment = evaluateOfficialExamIntegrity({
+        startedAt: attempt.startedAt,
+        completedAt: submittedAt,
+        expectedDurationMs,
+        questionBreakdown,
+        thresholds: integrityThresholds,
+        attempt,
+        auditEvents: securityEvents.map((event) => event.eventType),
+      });
+
       const canonicalResultPayload = {
         examAttemptId: attempt._id,
         userId: user._id,
         immutable: true,
         immutableAt: submittedAt,
         certificateNumber,
-        resultVersion: 1,
+        resultVersion: 2,
         userSnapshot: {
           userId: user._id,
           fullName: user.name?.trim() || user.email,
@@ -410,6 +434,10 @@ export const submitExamAnswer = mutation({
         examModesUsed,
         modeStats,
         categoryStats,
+        hasIntegrityFlags: integrityAssessment.hasIntegrityFlags,
+        integrityScore: integrityAssessment.integrityScore,
+        integritySeverity: integrityAssessment.integritySeverity,
+        integritySignals: integrityAssessment.integritySignals,
         flagDatabaseSnapshot: {
           generationVersion: generationSnapshot?.generationVersion ?? 1,
           examChecksum: generationSnapshot?.examChecksum ?? "unknown",

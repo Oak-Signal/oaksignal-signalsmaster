@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { format } from "date-fns";
+import { AlertTriangle } from "lucide-react";
 
 import {
   AdminRecentExamAttemptItem,
@@ -43,6 +44,26 @@ function formatDuration(durationMs: number | null): string {
   return `${minutes}m ${seconds}s`;
 }
 
+function formatIntegrityScore(score: number | undefined): string {
+  if (typeof score !== "number" || !Number.isFinite(score)) {
+    return "N/A";
+  }
+
+  return `${score.toFixed(0)}%`;
+}
+
+function getIntegritySeverityBadgeClass(severity: "low" | "medium" | "high" | undefined): string {
+  if (severity === "high") {
+    return "border-red-200 bg-red-100 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200";
+  }
+
+  if (severity === "medium") {
+    return "border-amber-200 bg-amber-100 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200";
+  }
+
+  return "border-slate-200 bg-slate-100 text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200";
+}
+
 function getPageNumbers(currentPage: number, totalPages: number): number[] {
   if (totalPages <= 7) {
     return Array.from({ length: totalPages }, (_, index) => index + 1);
@@ -60,6 +81,7 @@ function LoadingRows() {
           <td className="px-4 py-3"><Skeleton className="h-4 w-32" /></td>
           <td className="px-4 py-3"><Skeleton className="h-4 w-40" /></td>
           <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
+          <td className="px-4 py-3"><Skeleton className="h-6 w-28 rounded-full" /></td>
           <td className="px-4 py-3"><Skeleton className="h-6 w-20 rounded-full" /></td>
           <td className="px-4 py-3"><Skeleton className="h-4 w-14" /></td>
         </tr>
@@ -89,12 +111,13 @@ export function AdminRecentExamAttemptsTable({
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="overflow-x-auto rounded-md border" aria-busy={isLoading}>
-          <table className="w-full min-w-[760px] text-sm" aria-label="Recent exam attempts">
+          <table className="w-full min-w-190 text-sm" aria-label="Recent exam attempts">
             <thead className="bg-muted/50">
               <tr>
                 <th scope="col" className="px-4 py-3 text-left font-medium">Cadet</th>
                 <th scope="col" className="px-4 py-3 text-left font-medium">Date/Time</th>
                 <th scope="col" className="px-4 py-3 text-left font-medium">Score</th>
+                <th scope="col" className="px-4 py-3 text-left font-medium">Integrity</th>
                 <th scope="col" className="px-4 py-3 text-left font-medium">Status</th>
                 <th scope="col" className="px-4 py-3 text-left font-medium">Duration</th>
               </tr>
@@ -117,6 +140,19 @@ export function AdminRecentExamAttemptsTable({
                     <td className="px-4 py-3 text-muted-foreground">{formatCompletedAt(item.completedAt)}</td>
                     <td className="px-4 py-3">{formatScorePercent(item.scorePercent)}</td>
                     <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        {item.hasIntegrityFlags ? (
+                          <AlertTriangle className="h-4 w-4 text-amber-600" aria-hidden="true" />
+                        ) : null}
+                        <span className="font-medium">{formatIntegrityScore(item.integrityScore)}</span>
+                        <Badge className={getIntegritySeverityBadgeClass(item.integritySeverity)}>
+                          {item.hasIntegrityFlags
+                            ? (item.integritySeverity ?? "medium").toUpperCase()
+                            : "CLEAR"}
+                        </Badge>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
                       <Badge
                         className={
                           item.passed
@@ -132,7 +168,7 @@ export function AdminRecentExamAttemptsTable({
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
+                  <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
                     No exams found.
                   </td>
                 </tr>

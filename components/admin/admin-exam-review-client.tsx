@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { useMutation } from "convex/react";
+import { AlertTriangle, ShieldCheck } from "lucide-react";
 
 import { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
@@ -12,10 +13,52 @@ import { OfficialExamResult } from "@/lib/exam-types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 interface AdminExamReviewClientProps {
   examResultId: Id<"examResults">;
 }
+
+type InvalidationReasonValue =
+  | "suspected_cheating"
+  | "technical_issue_student_request"
+  | "proctor_decision"
+  | "other";
+
+interface InvalidateExamApiSuccessResponse {
+  success: true;
+  data: {
+    examResultId: string;
+    invalidated: true;
+    invalidatedAt: number;
+    invalidatedBy: string;
+    invalidationReason: InvalidationReasonValue;
+    invalidationReasonDetails?: string;
+  };
+}
+
+interface InvalidateExamApiErrorResponse {
+  success: false;
+  error: {
+    code: string;
+    message: string;
+  };
+}
+
+const INVALIDATION_REASON_OPTIONS: Array<{ value: InvalidationReasonValue; label: string }> = [
+  { value: "suspected_cheating", label: "Suspected cheating" },
+  { value: "technical_issue_student_request", label: "Technical issue (student request)" },
+  { value: "proctor_decision", label: "Proctor decision" },
+  { value: "other", label: "Other" },
+];
 
 function formatDateTime(value: number): string {
   return format(value, "PPp");
@@ -76,21 +119,57 @@ function getOptionLabel(
   return option.label?.trim() ? option.label : option.value;
 }
 
+function formatInvalidationReason(reason: InvalidationReasonValue | undefined): string {
+  if (!reason) {
+    return "Not provided";
+  }
+
+  const match = INVALIDATION_REASON_OPTIONS.find((option) => option.value === reason);
+  return match?.label ?? "Not provided";
+}
+
 export function AdminExamReviewClient({ examResultId }: AdminExamReviewClientProps) {
   const getOfficialResultForAdminReview = useMutation(api.exams.getOfficialResultForAdminReview);
+  const setOfficialResultInvestigationNotes = useMutation(
+    api.exams.setOfficialResultInvestigationNotes
+  );
   const [result, setResult] = useState<OfficialExamResult | null | undefined>(undefined);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const [selectedInvalidationReason, setSelectedInvalidationReason] = useState<InvalidationReasonValue>(
+    "suspected_cheating"
+  );
+  const [invalidationReasonDetails, setInvalidationReasonDetails] = useState("");
+  const [invalidationStatusMessage, setInvalidationStatusMessage] = useState<string | null>(null);
+  const [isInvalidateConfirmOpen, setIsInvalidateConfirmOpen] = useState(false);
+  const [isInvalidating, setIsInvalidating] = useState(false);
+
+  const [notesDraft, setNotesDraft] = useState<string>("");
+  const [notesStatusMessage, setNotesStatusMessage] = useState<string | null>(null);
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
+
+  const loadOfficialResult = async (targetExamResultId: Id<"examResults">) => {
+    const data = await getOfficialResultForAdminReview({ examResultId: targetExamResultId });
+    const nextResult = (data as OfficialExamResult | null) ?? null;
+
+    setResult(nextResult);
+    setNotesDraft(nextResult?.investigationNotes?.notes ?? "");
+    setErrorMessage(null);
+
+    return nextResult;
+  };
 
   useEffect(() => {
     let cancelled = false;
 
-    void getOfficialResultForAdminReview({ examResultId })
+    void loadOfficialResult(examResultId)
       .then((data) => {
         if (cancelled) {
           return;
         }
 
-        setResult((data as OfficialExamResult | null) ?? null);
+        setNotesStatusMessage(null);
+        setInvalidationStatusMessage(null);
         setErrorMessage(null);
       })
       .catch(() => {
@@ -105,6 +184,95 @@ export function AdminExamReviewClient({ examResultId }: AdminExamReviewClientPro
       cancelled = true;
     };
   }, [examResultId, getOfficialResultForAdminReview]);
+
+  const handleSaveInvestigationNotes = async () => {
+    if (!result || isSavingNotes) {
+      return;
+    }
+
+    setIsSavingNotes(true);
+    setNotesStatusMessage(null);
+
+    try {
+      const updated = await setOfficialResultInvestigationNotes({
+        examResultId,
+        notes: notesDraft,
+      });
+
+      if (!updated) {
+        setNotesStatusMessage("Unable to save notes. Administrator access is required.");
+        return;
+      }
+
+      const nextResult = updated as OfficialExamResult;
+      setResult(nextResult);
+      setNotesDraft(nextResult.investigationNotes?.notes ?? "");
+      setNotesStatusMessage("Investigation notes saved.");
+    } catch {
+      setNotesStatusMessage("Failed to save investigation notes.");
+    } finally {
+      setIsSavingNotes(false);
+    }
+  };
+
+  const handleConfirmInvalidate = async () => {
+    if (!result || isInvalidating || result.invalidated === true) {
+      return;
+    }
+
+    const normalizedReasonDetails = invalidationReasonDetails.trim();
+    if (selectedInvalidationReason === "other" && normalizedReasonDetails.length === 0) {
+      setInvalidationStatusMessage("Explanation is required when reason is set to Other.");
+      return;
+    }
+
+    setIsInvalidating(true);
+    setInvalidationStatusMessage(null);
+
+    try {
+      const response = await fetch(`/api/admin/exams/${examResultId}/invalidate`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          reason: selectedInvalidationReason,
+          reasonDetails: normalizedReasonDetails.length > 0 ? normalizedReasonDetails : undefined,
+        }),
+      });
+
+      const body = (await response.json()) as
+        | InvalidateExamApiSuccessResponse
+        | InvalidateExamApiErrorResponse;
+
+      if (!response.ok) {
+        const message =
+          "error" in body && body.error?.message
+            ? body.error.message
+            : "Failed to invalidate official exam result.";
+        throw new Error(message);
+      }
+
+      await loadOfficialResult(examResultId);
+      setIsInvalidateConfirmOpen(false);
+      setInvalidationStatusMessage("Official exam result has been invalidated.");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to invalidate official exam result.";
+      setInvalidationStatusMessage(message);
+    } finally {
+      setIsInvalidating(false);
+    }
+  };
+
+  const integritySeverityClass =
+    result?.integritySeverity === "high"
+      ? "border-red-200 bg-red-100 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
+      : result?.integritySeverity === "medium"
+        ? "border-amber-200 bg-amber-100 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200"
+        : "border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200";
 
   if (result === undefined) {
     return (
@@ -198,6 +366,57 @@ export function AdminExamReviewClient({ examResultId }: AdminExamReviewClientPro
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border bg-background p-3">
+            <div>
+              <p className="text-sm font-medium">Result Integrity Control</p>
+              <p className="text-xs text-muted-foreground">
+                Invalidation is permanent and cannot be reversed.
+              </p>
+            </div>
+            {result.invalidated ? (
+              <Badge className="border-red-200 bg-red-100 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
+                Invalidated
+              </Badge>
+            ) : (
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => setIsInvalidateConfirmOpen(true)}
+                aria-label="Open invalidate exam confirmation"
+              >
+                Invalidate Exam
+              </Button>
+            )}
+          </div>
+
+          {result.invalidated ? (
+            <div className="rounded-md border border-red-300 bg-red-50 p-4 text-sm dark:border-red-800 dark:bg-red-950/30">
+              <p className="font-semibold text-red-800 dark:text-red-200">This exam result is invalidated.</p>
+              <div className="mt-2 grid gap-2 text-xs text-red-900 dark:text-red-100 md:grid-cols-2">
+                <p>
+                  <span className="font-medium">Reason:</span>{" "}
+                  {formatInvalidationReason(result.invalidationReason)}
+                </p>
+                <p>
+                  <span className="font-medium">Invalidated At:</span>{" "}
+                  {typeof result.invalidatedAt === "number" ? formatDateTime(result.invalidatedAt) : "Unknown"}
+                </p>
+                {result.invalidationReasonDetails ? (
+                  <p className="md:col-span-2">
+                    <span className="font-medium">Explanation:</span>{" "}
+                    {result.invalidationReasonDetails}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          {invalidationStatusMessage ? (
+            <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
+              {invalidationStatusMessage}
+            </p>
+          ) : null}
+
           <div className="grid gap-3 rounded-md border bg-muted/20 p-4 text-sm md:grid-cols-2 xl:grid-cols-4">
             <div>
               <p className="text-muted-foreground">Cadet</p>
@@ -311,6 +530,182 @@ export function AdminExamReviewClient({ examResultId }: AdminExamReviewClientPro
             })}
         </CardContent>
       </Card>
+
+      <Card className="border-border/70">
+        <CardHeader>
+          <CardTitle className="text-lg">Integrity Investigation</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 rounded-md border bg-background p-4 text-sm md:grid-cols-4">
+            <div>
+              <p className="text-muted-foreground">Integrity Score</p>
+              <p className="text-lg font-semibold">
+                {typeof result.integrityScore === "number" ? `${result.integrityScore.toFixed(0)}%` : "N/A"}
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Severity</p>
+              <Badge className={integritySeverityClass}>
+                {result.hasIntegrityFlags
+                  ? (result.integritySeverity ?? "medium").toUpperCase()
+                  : "CLEAR"}
+              </Badge>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Avg Answer Time</p>
+              <p className="font-medium">
+                {typeof result.integritySignals?.averageAnswerTimeMs === "number"
+                  ? `${(result.integritySignals.averageAnswerTimeMs / 1000).toFixed(2)}s`
+                  : "N/A"}
+              </p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Timing Std Dev</p>
+              <p className="font-medium">
+                {typeof result.integritySignals?.answerTimeStdDevMs === "number"
+                  ? `${(result.integritySignals.answerTimeStdDevMs / 1000).toFixed(2)}s`
+                  : "N/A"}
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-md border bg-background p-4">
+            <p className="mb-2 text-sm font-medium">Automated Flags</p>
+            {result.integritySignals?.flags?.length ? (
+              <div className="space-y-2">
+                {result.integritySignals.flags.map((flag) => (
+                  <div key={flag.ruleId} className="rounded border p-2 text-sm">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {flag.severity === "high" || flag.severity === "medium" ? (
+                        <AlertTriangle className="h-4 w-4 text-amber-600" aria-hidden="true" />
+                      ) : (
+                        <ShieldCheck className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+                      )}
+                      <span className="font-medium">{flag.title}</span>
+                      <Badge variant="outline" className="uppercase">
+                        {flag.severity}
+                      </Badge>
+                    </div>
+                    <p className="mt-1 text-muted-foreground">{flag.description}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No automated integrity flags were raised for this attempt.
+              </p>
+            )}
+          </div>
+
+          <div className="rounded-md border bg-background p-4">
+            <div className="space-y-2">
+              <Label htmlFor="investigation-notes">Manual Investigation Notes</Label>
+              <textarea
+                id="investigation-notes"
+                value={notesDraft}
+                onChange={(event) => setNotesDraft(event.target.value)}
+                className="min-h-28 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm"
+                placeholder="Add findings, follow-up actions, or context for this attempt..."
+                disabled={isSavingNotes}
+                aria-label="Manual investigation notes"
+              />
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-muted-foreground">
+                  {result.investigationNotes
+                    ? `Last updated ${formatDateTime(result.investigationNotes.updatedAt)}`
+                    : "No notes saved yet."}
+                </p>
+                <Button
+                  type="button"
+                  variant="default"
+                  onClick={() => void handleSaveInvestigationNotes()}
+                  disabled={isSavingNotes}
+                  aria-label="Save investigation notes"
+                >
+                  {isSavingNotes ? "Saving..." : "Save Notes"}
+                </Button>
+              </div>
+              {notesStatusMessage ? (
+                <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
+                  {notesStatusMessage}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={isInvalidateConfirmOpen} onOpenChange={setIsInvalidateConfirmOpen}>
+        <DialogContent aria-describedby="invalidate-exam-description">
+          <DialogHeader>
+            <DialogTitle>Invalidate Official Exam Result</DialogTitle>
+            <DialogDescription id="invalidate-exam-description">
+              This action is irreversible. Once invalidated, this exam result cannot be re-validated.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="invalidation-reason">Reason</Label>
+              <select
+                id="invalidation-reason"
+                className="border-input h-9 w-full rounded-md border bg-transparent px-3 py-1 text-sm"
+                value={selectedInvalidationReason}
+                onChange={(event) => setSelectedInvalidationReason(event.target.value as InvalidationReasonValue)}
+                disabled={isInvalidating}
+                aria-label="Invalidation reason"
+              >
+                {INVALIDATION_REASON_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="invalidation-reason-details">
+                Explanation {selectedInvalidationReason === "other" ? "(required)" : "(optional)"}
+              </Label>
+              <textarea
+                id="invalidation-reason-details"
+                value={invalidationReasonDetails}
+                onChange={(event) => setInvalidationReasonDetails(event.target.value)}
+                className="min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm"
+                placeholder="Add context for this invalidation action..."
+                maxLength={300}
+                disabled={isInvalidating}
+                aria-label="Invalidation explanation"
+              />
+              <p className="text-xs text-muted-foreground">{invalidationReasonDetails.length}/300</p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsInvalidateConfirmOpen(false)}
+              disabled={isInvalidating}
+              aria-label="Cancel exam invalidation"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => void handleConfirmInvalidate()}
+              disabled={
+                isInvalidating ||
+                (selectedInvalidationReason === "other" && invalidationReasonDetails.trim().length === 0)
+              }
+              aria-label="Confirm irreversible exam invalidation"
+            >
+              {isInvalidating ? "Invalidating..." : "Confirm Invalidation"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -87,11 +87,19 @@ export type ExamAuditEventType =
 
 export type ResultAccessActorRole = "cadet" | "admin";
 
+export type ExamInvalidationReason =
+  | "suspected_cheating"
+  | "technical_issue_student_request"
+  | "proctor_decision"
+  | "other";
+
 export type ResultAccessType =
   | "result_read"
   | "result_list"
   | "result_verify"
-  | "result_access_denied";
+  | "result_access_denied"
+  | "result_invalidated"
+  | "result_note_updated";
 
 export interface OfficialExamQuestionResultRecord {
   questionIndex: number;
@@ -149,6 +157,11 @@ export interface OfficialExamResultRecord {
     correct: number;
     incorrect: number;
   }>;
+  invalidated?: boolean;
+  invalidatedAt?: number;
+  invalidatedBy?: Id<"users">;
+  invalidationReason?: ExamInvalidationReason;
+  invalidationReasonDetails?: string;
   flagDatabaseSnapshot: {
     generationVersion: number;
     examChecksum: string;

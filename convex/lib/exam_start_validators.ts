@@ -1,10 +1,18 @@
 import { OFFICIAL_EXAM_MIN_PRACTICE_SESSIONS } from "./exam_policy";
 
 interface ExamStartBlockersInput {
-  userRole: "cadet" | "admin";
-  totalQuestions: number;
+  availableFlagsCount: number;
+  configuredQuestionCount: number;
   userPracticeSessions: number;
-  hasOfficialAttempt: boolean;
+  examEnabled: boolean;
+  maintenanceModeEnabled: boolean;
+  maintenanceMessage?: string;
+  isWithinAvailabilityWindow: boolean;
+  maxRetakes: number;
+  completedOfficialAttempts: number;
+  retakeCooldownHours: number;
+  latestCompletedAttemptAt?: number;
+  nowMs: number;
 }
 
 interface ExamAcknowledgementInput {
@@ -17,17 +25,38 @@ interface ExamAcknowledgementInput {
 export function getExamStartBlockers(input: ExamStartBlockersInput): string[] {
   const blockers: string[] = [];
 
-  if (input.userRole !== "cadet") {
-    blockers.push("Only cadets can start an official exam attempt.");
+  if (!input.examEnabled) {
+    blockers.push("Exam is currently disabled by an administrator.");
   }
 
-  if (input.totalQuestions === 0) {
+  if (input.maintenanceModeEnabled) {
+    blockers.push(
+      input.maintenanceMessage?.trim() ||
+        "Exam access is temporarily unavailable due to scheduled maintenance."
+    );
+  }
+
+  if (!input.isWithinAvailabilityWindow) {
+    blockers.push("Exam is currently outside the configured availability window.");
+  }
+
+  if (input.availableFlagsCount === 0) {
     blockers.push("Exam is unavailable because no flags are currently loaded.");
   }
 
-  if (input.totalQuestions > 0 && input.totalQuestions < 4) {
+  if (input.availableFlagsCount > 0 && input.availableFlagsCount < 4) {
     blockers.push(
       "Exam is unavailable because at least 4 flags are required for multiple-choice questions."
+    );
+  }
+
+  if (input.configuredQuestionCount < 4) {
+    blockers.push("Exam configuration is invalid because question count must be at least 4.");
+  }
+
+  if (input.configuredQuestionCount > input.availableFlagsCount) {
+    blockers.push(
+      "Exam is unavailable because configured question count exceeds available flags."
     );
   }
 
@@ -37,8 +66,26 @@ export function getExamStartBlockers(input: ExamStartBlockersInput): string[] {
     );
   }
 
-  if (input.hasOfficialAttempt) {
-    blockers.push("You already have an official exam attempt on record.");
+  const totalAllowedAttempts = input.maxRetakes + 1;
+  if (input.completedOfficialAttempts >= totalAllowedAttempts) {
+    blockers.push(
+      `Exam retake limit reached. Maximum allowed attempts: ${totalAllowedAttempts}.`
+    );
+  }
+
+  if (
+    input.retakeCooldownHours > 0 &&
+    typeof input.latestCompletedAttemptAt === "number" &&
+    Number.isFinite(input.latestCompletedAttemptAt)
+  ) {
+    const cooldownMs = input.retakeCooldownHours * 60 * 60 * 1000;
+    const nextAllowedAt = input.latestCompletedAttemptAt + cooldownMs;
+    if (input.nowMs < nextAllowedAt) {
+      const remainingMinutes = Math.ceil((nextAllowedAt - input.nowMs) / (60 * 1000));
+      blockers.push(
+        `Retake cooldown active. Try again in approximately ${remainingMinutes} minute${remainingMinutes === 1 ? "" : "s"}.`
+      );
+    }
   }
 
   return blockers;

@@ -282,6 +282,52 @@ export default defineSchema({
       incorrect: v.number(),
     }))),
 
+    // Integrity monitoring summary for suspicious-attempt analysis.
+    hasIntegrityFlags: v.optional(v.boolean()),
+    integrityScore: v.optional(v.number()),
+    integritySeverity: v.optional(v.union(
+      v.literal("low"),
+      v.literal("medium"),
+      v.literal("high")
+    )),
+    integritySignals: v.optional(v.object({
+      expectedDurationMs: v.number(),
+      actualDurationMs: v.number(),
+      averageAnswerTimeMs: v.number(),
+      answerTimeStdDevMs: v.number(),
+      maxConsecutiveSameAnswer: v.number(),
+      matchedRuleIds: v.array(v.string()),
+      flags: v.array(v.object({
+        ruleId: v.string(),
+        severity: v.union(
+          v.literal("low"),
+          v.literal("medium"),
+          v.literal("high")
+        ),
+        title: v.string(),
+        description: v.string(),
+      })),
+    })),
+
+    // Administrative invalidation metadata for suspicious or voided results.
+    invalidated: v.optional(v.boolean()),
+    invalidatedAt: v.optional(v.number()),
+    invalidatedBy: v.optional(v.id("users")),
+    invalidationReason: v.optional(v.union(
+      v.literal("suspected_cheating"),
+      v.literal("technical_issue_student_request"),
+      v.literal("proctor_decision"),
+      v.literal("other")
+    )),
+    invalidationReasonDetails: v.optional(v.string()),
+
+    // Admin-entered investigation notes captured during integrity review.
+    investigationNotes: v.optional(v.object({
+      notes: v.string(),
+      updatedAt: v.number(),
+      updatedBy: v.id("users"),
+    })),
+
     // Flag corpus provenance for integrity and audit investigations.
     flagDatabaseSnapshot: v.object({
       generationVersion: v.number(),
@@ -329,7 +375,10 @@ export default defineSchema({
   .index("by_user_completedAt", ["userId", "completedAt"])
   .index("by_completedAt", ["completedAt"])
   .index("by_certificate", ["certificateNumber"])
-  .index("by_passed_completedAt", ["passed", "completedAt"]),
+  .index("by_passed_completedAt", ["passed", "completedAt"])
+  .index("by_integrity_flag_completedAt", ["hasIntegrityFlags", "completedAt"])
+  .index("by_integrity_score_completedAt", ["integrityScore", "completedAt"])
+  .index("by_invalidated_completedAt", ["invalidated", "completedAt"]),
 
   // Audit trail for all immutable result retrieval and verification accesses.
   examResultAccessLogs: defineTable({
@@ -345,7 +394,9 @@ export default defineSchema({
       v.literal("result_read"),
       v.literal("result_list"),
       v.literal("result_verify"),
-      v.literal("result_access_denied")
+      v.literal("result_access_denied"),
+      v.literal("result_invalidated"),
+      v.literal("result_note_updated")
     ),
     metadataJson: v.optional(v.string()),
     createdAt: v.number(),
@@ -427,11 +478,93 @@ export default defineSchema({
   examSettings: defineTable({
     modeStrategy: v.union(v.literal("alternating"), v.literal("single")),
     singleMode: v.optional(v.union(v.literal("learn"), v.literal("match"))),
+    integrityThresholds: v.optional(v.object({
+      minAverageAnswerTimeMs: v.number(),
+      maxConsecutiveSameAnswer: v.number(),
+      minExpectedDurationRatioPercent: v.number(),
+      minAnswerTimeStdDevMs: v.number(),
+    })),
     updatedBy: v.id("users"),
     updatedAt: v.number(),
     createdAt: v.number(),
   })
   .index("by_updatedAt", ["updatedAt"]),
+
+  // Global exam system configuration for runtime controls.
+  systemConfig: defineTable({
+    configKey: v.string(),
+    examEnabled: v.boolean(),
+    questionCount: v.number(),
+    passThreshold: v.number(),
+    availabilityWindow: v.object({
+      startDate: v.string(),
+      endDate: v.string(),
+      startTime: v.string(),
+      endTime: v.string(),
+      timeZone: v.optional(v.string()),
+    }),
+    maxRetakes: v.number(),
+    retakeCooldownHours: v.number(),
+    maintenanceModeEnabled: v.boolean(),
+    maintenanceMessage: v.optional(v.string()),
+    updatedBy: v.id("users"),
+    updatedAt: v.number(),
+    createdAt: v.number(),
+  })
+  .index("by_configKey", ["configKey"])
+  .index("by_updatedAt", ["updatedAt"]),
+
+  // Admin-managed templates for quickly applying exam configurations.
+  examTemplates: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()),
+    settings: v.object({
+      examEnabled: v.boolean(),
+      questionCount: v.number(),
+      passThreshold: v.number(),
+      availabilityWindow: v.object({
+        startDate: v.string(),
+        endDate: v.string(),
+        startTime: v.string(),
+        endTime: v.string(),
+        timeZone: v.optional(v.string()),
+      }),
+      maxRetakes: v.number(),
+      retakeCooldownHours: v.number(),
+    }),
+    archivedAt: v.optional(v.number()),
+    archivedBy: v.optional(v.id("users")),
+    updatedBy: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+  .index("by_updatedAt", ["updatedAt"])
+  .index("by_archivedAt_updatedAt", ["archivedAt", "updatedAt"]),
+
+  // Searchable audit records for administrative system management actions.
+  adminActionLogs: defineTable({
+    actorUserId: v.id("users"),
+    actorRole: v.union(v.literal("admin"), v.literal("cadet"), v.literal("unknown")),
+    actionType: v.union(
+      v.literal("system_config_updated"),
+      v.literal("maintenance_mode_enabled"),
+      v.literal("maintenance_mode_disabled"),
+      v.literal("exam_template_created"),
+      v.literal("exam_template_updated"),
+      v.literal("exam_template_archived")
+    ),
+    targetType: v.union(v.literal("system_config"), v.literal("exam_template")),
+    targetId: v.optional(v.string()),
+    outcome: v.union(v.literal("success"), v.literal("failure")),
+    message: v.string(),
+    metadataJson: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+  .index("by_createdAt", ["createdAt"])
+  .index("by_actor_createdAt", ["actorUserId", "createdAt"])
+  .index("by_action_createdAt", ["actionType", "createdAt"])
+  .index("by_target_createdAt", ["targetType", "createdAt"])
+  .index("by_outcome_createdAt", ["outcome", "createdAt"]),
 
   // Audit trail for admin page and API access attempts.
   adminAccessLogs: defineTable({
@@ -453,4 +586,19 @@ export default defineSchema({
   .index("by_createdAt", ["createdAt"])
   .index("by_surface_createdAt", ["surface", "createdAt"])
   .index("by_outcome_createdAt", ["outcome", "createdAt"]),
+
+  // In-app notifications for user-facing system and admin events.
+  notifications: defineTable({
+    recipientUserId: v.id("users"),
+    type: v.union(
+      v.literal("exam_invalidated")
+    ),
+    title: v.string(),
+    message: v.string(),
+    metadataJson: v.optional(v.string()),
+    readAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+  .index("by_recipient_createdAt", ["recipientUserId", "createdAt"])
+  .index("by_recipient_readAt", ["recipientUserId", "readAt"]),
 });

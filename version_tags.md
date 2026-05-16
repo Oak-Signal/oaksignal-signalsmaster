@@ -187,5 +187,7 @@ v0.1.0 - Exam Start and Rules
 
 v0.2.0 - Pre-Verification: Secure Exam Interface
 
+v0.3.0 - Admin System Management (Configuration, Templates, Health, Action Logs)
+
 
 

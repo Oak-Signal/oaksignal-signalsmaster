@@ -238,11 +238,19 @@ export interface ExamClientSecurityEventInput {
 
 export type ResultAccessActorRole = "cadet" | "admin"
 
+export type ExamInvalidationReason =
+  | "suspected_cheating"
+  | "technical_issue_student_request"
+  | "proctor_decision"
+  | "other"
+
 export type ResultAccessType =
   | "result_read"
   | "result_list"
   | "result_verify"
   | "result_access_denied"
+  | "result_invalidated"
+  | "result_note_updated"
 
 export interface OfficialExamQuestionResult {
   questionIndex: number
@@ -259,6 +267,31 @@ export interface OfficialExamQuestionResult {
   answeredAt?: number
   responseTimeMs?: number
   questionChecksum: string
+}
+
+export type IntegritySeverityLevel = "low" | "medium" | "high"
+
+export interface OfficialExamIntegrityFlag {
+  ruleId: string
+  severity: IntegritySeverityLevel
+  title: string
+  description: string
+}
+
+export interface OfficialExamIntegritySignals {
+  expectedDurationMs: number
+  actualDurationMs: number
+  averageAnswerTimeMs: number
+  answerTimeStdDevMs: number
+  maxConsecutiveSameAnswer: number
+  matchedRuleIds: string[]
+  flags: OfficialExamIntegrityFlag[]
+}
+
+export interface OfficialExamInvestigationNotes {
+  notes: string
+  updatedAt: number
+  updatedBy: string
 }
 
 export interface OfficialExamResult {
@@ -301,6 +334,16 @@ export interface OfficialExamResult {
     correct: number
     incorrect: number
   }>
+  hasIntegrityFlags?: boolean
+  integrityScore?: number
+  integritySeverity?: IntegritySeverityLevel
+  integritySignals?: OfficialExamIntegritySignals
+  invalidated?: boolean
+  invalidatedAt?: number
+  invalidatedBy?: string
+  invalidationReason?: ExamInvalidationReason
+  invalidationReasonDetails?: string
+  investigationNotes?: OfficialExamInvestigationNotes
   flagDatabaseSnapshot: {
     generationVersion: number
     examChecksum: string

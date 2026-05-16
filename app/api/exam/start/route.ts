@@ -158,10 +158,13 @@ export async function POST(req: Request) {
     const message =
       error instanceof Error ? error.message : "Unable to start official exam attempt.";
     const conflictSignals = [
-      "Only cadets can start",
       "Exam is unavailable",
+      "Exam is currently disabled",
+      "maintenance",
+      "availability window",
+      "retake limit",
+      "retake cooldown",
       "Complete at least",
-      "already have an official exam attempt",
       "acknowledge",
       "review the examination rules",
     ];

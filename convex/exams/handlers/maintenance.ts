@@ -4,12 +4,18 @@ import { assertAdminUser } from "../services/auth";
 import { insertExamAuditLog } from "../services/audit";
 import { stableStringify, sha256Hex } from "../services/hash";
 import { roundToTwoDecimals } from "../services/time";
-import { getAttemptQuestions } from "../services/query_helpers";
+import {
+  getAttemptQuestions,
+  resolveExamIntegrityThresholds,
+} from "../services/query_helpers";
 import {
   buildCertificateNumber,
   buildCompletedExamStats,
   buildQuestionBreakdownFromAttempt,
 } from "../services/result_builder";
+import { OFFICIAL_EXAM_ESTIMATED_SECONDS_PER_QUESTION } from "../../lib/exam_policy";
+import { evaluateOfficialExamIntegrity } from "../services/integrity_detection";
+import { buildCanonicalOfficialResultPayload } from "../services/result_access";
 
 export const backfillImmutableResults = mutation({
   args: {
@@ -147,6 +153,108 @@ export const backfillImmutableResults = mutation({
       }
 
       summary.created += 1;
+    }
+
+    return summary;
+  },
+});
+
+export const reanalyzeOfficialResultIntegrity = mutation({
+  args: {
+    limit: v.optional(v.number()),
+    dryRun: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const adminUser = await assertAdminUser(ctx);
+
+    const limit = args.limit ?? 50;
+    if (!Number.isInteger(limit) || limit < 1 || limit > 500) {
+      throw new Error("Limit must be an integer between 1 and 500");
+    }
+
+    const dryRun = args.dryRun ?? false;
+    const thresholds = await resolveExamIntegrityThresholds(ctx);
+    const results = await ctx.db
+      .query("examResults")
+      .withIndex("by_completedAt")
+      .order("desc")
+      .take(limit);
+
+    const summary = {
+      scanned: results.length,
+      updated: 0,
+      skippedMissingAttempt: 0,
+      dryRun,
+    };
+
+    for (const result of results) {
+      const attempt = await ctx.db.get(result.examAttemptId);
+      if (!attempt) {
+        summary.skippedMissingAttempt += 1;
+        continue;
+      }
+
+      const expectedDurationMs = Math.max(
+        0,
+        result.totalQuestions * OFFICIAL_EXAM_ESTIMATED_SECONDS_PER_QUESTION * 1000
+      );
+
+      const securityEvents = await ctx.db
+        .query("examAuditLogs")
+        .withIndex("by_attempt_createdAt", (q) => q.eq("examAttemptId", attempt._id))
+        .collect();
+
+      const integrityAssessment = evaluateOfficialExamIntegrity({
+        startedAt: result.startedAt,
+        completedAt: result.completedAt,
+        expectedDurationMs,
+        questionBreakdown: result.questionBreakdown.map((question) => ({
+          selectedAnswer: question.selectedAnswer,
+          responseTimeMs: question.responseTimeMs,
+        })),
+        thresholds,
+        attempt,
+        auditEvents: securityEvents.map((event) => event.eventType),
+      });
+
+      if (!dryRun) {
+        await ctx.db.patch(result._id, {
+          hasIntegrityFlags: integrityAssessment.hasIntegrityFlags,
+          integrityScore: integrityAssessment.integrityScore,
+          integritySeverity: integrityAssessment.integritySeverity,
+          integritySignals: integrityAssessment.integritySignals,
+        });
+
+        const updatedResult = await ctx.db.get(result._id);
+        if (!updatedResult) {
+          continue;
+        }
+
+        const canonicalPayload = buildCanonicalOfficialResultPayload(updatedResult);
+        const canonicalJson = stableStringify(canonicalPayload);
+        const recordChecksum = await sha256Hex(canonicalJson);
+
+        await ctx.db.patch(result._id, {
+          recordChecksum,
+          signatureAlgorithm: "sha256",
+          signature: recordChecksum,
+        });
+
+        await insertExamAuditLog(ctx, {
+          examAttemptId: attempt._id,
+          userId: adminUser._id,
+          eventType: "result_backfilled",
+          message: "Reanalyzed official result integrity signals.",
+          metadata: {
+            source: "reanalyzeOfficialResultIntegrity",
+            examResultId: result._id,
+            hasIntegrityFlags: integrityAssessment.hasIntegrityFlags,
+            integrityScore: integrityAssessment.integrityScore,
+          },
+        });
+      }
+
+      summary.updated += 1;
     }
 
     return summary;

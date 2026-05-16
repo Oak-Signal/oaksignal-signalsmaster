@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ClipboardList, ShieldCheck } from "lucide-react"
+import { ClipboardList, ShieldCheck, ChartColumn } from "lucide-react"
 
 import { AdminExamActivityTimelineSection } from "@/components/admin/admin-exam-activity-timeline-section"
 import { AdminStatsOverviewSection } from "@/components/admin/admin-stats-overview-section"
@@ -21,6 +21,13 @@ const sections = [
     href: "/admin/access",
     icon: ClipboardList,
     cta: "Open Access Logs",
+  },
+  {
+    title: "Performance Analytics",
+    description: "Explore trends, difficult flags, completion times, and cohort comparisons for official exam outcomes.",
+    href: "/admin/analytics",
+    icon: ChartColumn,
+    cta: "Open Analytics Dashboard",
   },
 ] as const
 
