@@ -217,6 +217,21 @@ export function AdminActionLogsPanel() {
             <Button
               type="button"
               variant="outline"
+              onClick={() => {
+                setQueryText("")
+                setActionType("all")
+                setTargetType("all")
+                setOutcome("all")
+                setPage(1)
+              }}
+              disabled={isLoading}
+              aria-label="Clear log filters"
+            >
+              Clear Filters
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => void fetchLogs()}
               disabled={isLoading}
               aria-label="Refresh admin logs"
@@ -263,6 +278,9 @@ export function AdminActionLogsPanel() {
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">
               Page {logs.pagination.page} of {Math.max(1, totalPages)} • {logs.pagination.totalCount} total
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Updated {format(logs.generatedAt, "PPp")}
             </p>
             <div className="flex items-center gap-2">
               <Button

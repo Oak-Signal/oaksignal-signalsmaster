@@ -88,7 +88,7 @@ export function AdminSystemHealthPanel() {
         <div>
           <CardTitle className="text-xl">System Health</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Realtime API and database probe visibility for admin operations.
+            Real-time API and database probe visibility for admin operations.
           </p>
         </div>
         <Button
