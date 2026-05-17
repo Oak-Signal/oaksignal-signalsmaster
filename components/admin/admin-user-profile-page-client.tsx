@@ -21,6 +21,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -78,6 +86,7 @@ export function AdminUserProfilePageClient({ userId }: AdminUserProfilePageClien
   const [roleReason, setRoleReason] = useState("");
   const [roleNotifyUser, setRoleNotifyUser] = useState(false);
   const [isRoleSubmitting, setIsRoleSubmitting] = useState(false);
+  const [isRoleConfirmOpen, setIsRoleConfirmOpen] = useState(false);
 
   const [statusNextValue, setStatusNextValue] = useState<AdminUserStatus>("active");
   const [statusReason, setStatusReason] = useState("");
@@ -85,6 +94,7 @@ export function AdminUserProfilePageClient({ userId }: AdminUserProfilePageClien
   const [statusInternalNotes, setStatusInternalNotes] = useState("");
   const [statusNotifyUser, setStatusNotifyUser] = useState(false);
   const [isStatusSubmitting, setIsStatusSubmitting] = useState(false);
+  const [isStatusConfirmOpen, setIsStatusConfirmOpen] = useState(false);
 
   const [newAdminNote, setNewAdminNote] = useState("");
   const [newAdminNotePinned, setNewAdminNotePinned] = useState(false);
@@ -134,14 +144,9 @@ export function AdminUserProfilePageClient({ userId }: AdminUserProfilePageClien
     void fetchProfile();
   }, [fetchProfile]);
 
-  const handleSubmitRoleChange = async () => {
+  const confirmRoleChange = async () => {
     if (roleReason.trim().length === 0) {
       setActionMessage("Role change reason is required.");
-      return;
-    }
-
-    const confirmed = window.confirm("Confirm role update for this user?");
-    if (!confirmed) {
       return;
     }
 
@@ -175,6 +180,7 @@ export function AdminUserProfilePageClient({ userId }: AdminUserProfilePageClien
       }
 
       setRoleReason("");
+      setIsRoleConfirmOpen(false);
       setActionMessage("Role updated successfully.");
       await fetchProfile();
     } catch (error) {
@@ -185,14 +191,18 @@ export function AdminUserProfilePageClient({ userId }: AdminUserProfilePageClien
     }
   };
 
-  const handleSubmitStatusChange = async () => {
-    if (statusReason.trim().length === 0) {
-      setActionMessage("Status change reason is required.");
+  const handleSubmitRoleChange = () => {
+    if (roleReason.trim().length === 0) {
+      setActionMessage("Role change reason is required.");
       return;
     }
 
-    const confirmed = window.confirm("Confirm account status update for this user?");
-    if (!confirmed) {
+    setIsRoleConfirmOpen(true);
+  };
+
+  const confirmStatusChange = async () => {
+    if (statusReason.trim().length === 0) {
+      setActionMessage("Status change reason is required.");
       return;
     }
 
@@ -232,6 +242,7 @@ export function AdminUserProfilePageClient({ userId }: AdminUserProfilePageClien
       setStatusReason("");
       setStatusInternalNotes("");
       setStatusDurationUntil("");
+      setIsStatusConfirmOpen(false);
       setActionMessage("Status updated successfully.");
       await fetchProfile();
     } catch (error) {
@@ -240,6 +251,28 @@ export function AdminUserProfilePageClient({ userId }: AdminUserProfilePageClien
     } finally {
       setIsStatusSubmitting(false);
     }
+  };
+
+  const handleSubmitStatusChange = () => {
+    if (statusReason.trim().length === 0) {
+      setActionMessage("Status change reason is required.");
+      return;
+    }
+
+    if (statusNextValue === "suspended") {
+      if (!statusDurationUntil) {
+        setActionMessage("Suspended status requires an end date/time.");
+        return;
+      }
+
+      const suspensionEndsAt = new Date(statusDurationUntil).getTime();
+      if (!Number.isFinite(suspensionEndsAt) || suspensionEndsAt <= Date.now()) {
+        setActionMessage("Suspension end date/time must be in the future.");
+        return;
+      }
+    }
+
+    setIsStatusConfirmOpen(true);
   };
 
   const handleSubmitNote = async () => {
@@ -464,6 +497,45 @@ export function AdminUserProfilePageClient({ userId }: AdminUserProfilePageClien
           ) : null}
         </CardContent>
       </Card>
+
+      <Dialog open={isRoleConfirmOpen} onOpenChange={setIsRoleConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Role Change</DialogTitle>
+            <DialogDescription>
+              This action will change the user role to {roleNextValue === "admin" ? "Administrator" : "Cadet"}.
+              Reason: {roleReason.trim() || "N/A"}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsRoleConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={() => void confirmRoleChange()} disabled={isRoleSubmitting}>
+              {isRoleSubmitting ? "Applying..." : "Confirm"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isStatusConfirmOpen} onOpenChange={setIsStatusConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Status Update</DialogTitle>
+            <DialogDescription>
+              This action will set account status to {statusNextValue}. Reason: {statusReason.trim() || "N/A"}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsStatusConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={() => void confirmStatusChange()} disabled={isStatusSubmitting}>
+              {isStatusSubmitting ? "Applying..." : "Confirm"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <Card>

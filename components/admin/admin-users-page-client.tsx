@@ -26,6 +26,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -172,8 +180,10 @@ export function AdminUsersPageClient() {
   const [isLoading, setIsLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [isBulkSubmitting, setIsBulkSubmitting] = useState(false);
+  const [isBulkConfirmOpen, setIsBulkConfirmOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [bulkActionMessage, setBulkActionMessage] = useState<string | null>(null);
+  const [bulkFailures, setBulkFailures] = useState<Array<{ targetUserId: string; reason: string }>>([]);
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
 
@@ -305,17 +315,7 @@ export function AdminUsersPageClient() {
     setSelectedUserIds((current) => current.filter((id) => id !== userId));
   };
 
-  const handleSubmitBulkAction = async () => {
-    if (selectedUserIds.length === 0) {
-      setBulkActionMessage("Select at least one user for bulk actions.");
-      return;
-    }
-
-    if (bulkReason.trim().length === 0) {
-      setBulkActionMessage("Reason is required for bulk actions.");
-      return;
-    }
-
+  const executeBulkAction = async () => {
     const payload: AdminUserBulkActionRequest = {
       targetUserIds: selectedUserIds,
       operation: bulkOperation,
@@ -327,6 +327,7 @@ export function AdminUsersPageClient() {
 
     setIsBulkSubmitting(true);
     setBulkActionMessage(null);
+    setBulkFailures([]);
 
     try {
       const response = await fetch("/api/admin/users/bulk", {
@@ -352,7 +353,9 @@ export function AdminUsersPageClient() {
           : `Bulk action completed for ${body.data.changed} users.`;
 
       setBulkActionMessage(summaryMessage);
+      setBulkFailures(body.data.failures ?? []);
       setSelectedUserIds([]);
+      setIsBulkConfirmOpen(false);
       await fetchUsers();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Bulk action failed.";
@@ -360,6 +363,20 @@ export function AdminUsersPageClient() {
     } finally {
       setIsBulkSubmitting(false);
     }
+  };
+
+  const handleSubmitBulkAction = () => {
+    if (selectedUserIds.length === 0) {
+      setBulkActionMessage("Select at least one user for bulk actions.");
+      return;
+    }
+
+    if (bulkReason.trim().length === 0) {
+      setBulkActionMessage("Reason is required for bulk actions.");
+      return;
+    }
+
+    setIsBulkConfirmOpen(true);
   };
 
   const handleSort = (column: AdminUsersSortBy) => {
@@ -924,8 +941,41 @@ export function AdminUsersPageClient() {
               {bulkActionMessage}
             </p>
           ) : null}
+
+          {bulkFailures.length > 0 ? (
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/30">
+              <p className="text-sm font-medium">Bulk failures</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+                {bulkFailures.map((failure) => (
+                  <li key={`${failure.targetUserId}-${failure.reason}`}>
+                    {failure.targetUserId}: {failure.reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
+
+      <Dialog open={isBulkConfirmOpen} onOpenChange={setIsBulkConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Bulk Action</DialogTitle>
+            <DialogDescription>
+              Apply {bulkOperation === "set_role" ? "role" : "status"} updates to {selectedUserIds.length} selected users.
+              This action will be logged.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsBulkConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={() => void executeBulkAction()} disabled={isBulkSubmitting}>
+              {isBulkSubmitting ? "Applying..." : "Confirm"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
 
