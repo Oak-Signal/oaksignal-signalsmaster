@@ -5,13 +5,24 @@ import { format } from "date-fns";
 import { useCallback, useEffect, useState } from "react";
 
 import {
+  AdminUserNoteCreateRequest,
+  AdminUserNoteCreateResponse,
   AdminUserProfilePayload,
   AdminUserProfileResponse,
+  AdminUserRole,
+  AdminUserRoleUpdateRequest,
+  AdminUserRoleUpdateResponse,
+  AdminUserStatus,
+  AdminUserStatusUpdateRequest,
+  AdminUserStatusUpdateResponse,
   AdminUsersApiErrorResponse,
 } from "@/lib/admin-user-management-types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface AdminUserProfilePageClientProps {
   userId: string;
@@ -61,6 +72,23 @@ export function AdminUserProfilePageClient({ userId }: AdminUserProfilePageClien
   const [profileState, setProfileState] = useState<AdminUserProfilePayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+
+  const [roleNextValue, setRoleNextValue] = useState<AdminUserRole>("cadet");
+  const [roleReason, setRoleReason] = useState("");
+  const [roleNotifyUser, setRoleNotifyUser] = useState(false);
+  const [isRoleSubmitting, setIsRoleSubmitting] = useState(false);
+
+  const [statusNextValue, setStatusNextValue] = useState<AdminUserStatus>("active");
+  const [statusReason, setStatusReason] = useState("");
+  const [statusDurationUntil, setStatusDurationUntil] = useState("");
+  const [statusInternalNotes, setStatusInternalNotes] = useState("");
+  const [statusNotifyUser, setStatusNotifyUser] = useState(false);
+  const [isStatusSubmitting, setIsStatusSubmitting] = useState(false);
+
+  const [newAdminNote, setNewAdminNote] = useState("");
+  const [newAdminNotePinned, setNewAdminNotePinned] = useState(false);
+  const [isNoteSubmitting, setIsNoteSubmitting] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     setIsLoading(true);
@@ -90,6 +118,8 @@ export function AdminUserProfilePageClient({ userId }: AdminUserProfilePageClien
       }
 
       setProfileState(body.data);
+      setRoleNextValue(body.data.profile.role === "admin" ? "cadet" : "admin");
+      setStatusNextValue(body.data.profile.status);
       setErrorMessage(null);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unable to load user profile.";
@@ -103,6 +133,160 @@ export function AdminUserProfilePageClient({ userId }: AdminUserProfilePageClien
   useEffect(() => {
     void fetchProfile();
   }, [fetchProfile]);
+
+  const handleSubmitRoleChange = async () => {
+    if (roleReason.trim().length === 0) {
+      setActionMessage("Role change reason is required.");
+      return;
+    }
+
+    const confirmed = window.confirm("Confirm role update for this user?");
+    if (!confirmed) {
+      return;
+    }
+
+    const payload: AdminUserRoleUpdateRequest = {
+      nextRole: roleNextValue,
+      reason: roleReason.trim(),
+      notifyUser: roleNotifyUser,
+    };
+
+    setIsRoleSubmitting(true);
+    setActionMessage(null);
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/role`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const body = (await response.json()) as AdminUserRoleUpdateResponse | AdminUsersApiErrorResponse;
+      if (!response.ok || !("success" in body) || !body.success) {
+        const message =
+          body && "error" in body && body.error?.message
+            ? body.error.message
+            : "Failed to update role.";
+        throw new Error(message);
+      }
+
+      setRoleReason("");
+      setActionMessage("Role updated successfully.");
+      await fetchProfile();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to update role.";
+      setActionMessage(message);
+    } finally {
+      setIsRoleSubmitting(false);
+    }
+  };
+
+  const handleSubmitStatusChange = async () => {
+    if (statusReason.trim().length === 0) {
+      setActionMessage("Status change reason is required.");
+      return;
+    }
+
+    const confirmed = window.confirm("Confirm account status update for this user?");
+    if (!confirmed) {
+      return;
+    }
+
+    const durationMs = statusDurationUntil ? new Date(statusDurationUntil).getTime() : undefined;
+
+    const payload: AdminUserStatusUpdateRequest = {
+      nextStatus: statusNextValue,
+      reason: statusReason.trim(),
+      durationUntil: statusNextValue === "suspended" ? durationMs : undefined,
+      internalNotes: statusInternalNotes.trim() || undefined,
+      notifyUser: statusNotifyUser,
+    };
+
+    setIsStatusSubmitting(true);
+    setActionMessage(null);
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/status`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const body = (await response.json()) as AdminUserStatusUpdateResponse | AdminUsersApiErrorResponse;
+      if (!response.ok || !("success" in body) || !body.success) {
+        const message =
+          body && "error" in body && body.error?.message
+            ? body.error.message
+            : "Failed to update status.";
+        throw new Error(message);
+      }
+
+      setStatusReason("");
+      setStatusInternalNotes("");
+      setStatusDurationUntil("");
+      setActionMessage("Status updated successfully.");
+      await fetchProfile();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to update status.";
+      setActionMessage(message);
+    } finally {
+      setIsStatusSubmitting(false);
+    }
+  };
+
+  const handleSubmitNote = async () => {
+    if (newAdminNote.trim().length === 0) {
+      setActionMessage("Admin note cannot be empty.");
+      return;
+    }
+
+    const payload: AdminUserNoteCreateRequest = {
+      note: newAdminNote.trim(),
+      isPinned: newAdminNotePinned,
+    };
+
+    setIsNoteSubmitting(true);
+    setActionMessage(null);
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}/notes`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const body = (await response.json()) as AdminUserNoteCreateResponse | AdminUsersApiErrorResponse;
+      if (!response.ok || !("success" in body) || !body.success) {
+        const message =
+          body && "error" in body && body.error?.message
+            ? body.error.message
+            : "Failed to add admin note.";
+        throw new Error(message);
+      }
+
+      setNewAdminNote("");
+      setNewAdminNotePinned(false);
+      setActionMessage("Admin note added.");
+      await fetchProfile();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to add admin note.";
+      setActionMessage(message);
+    } finally {
+      setIsNoteSubmitting(false);
+    }
+  };
 
   if (isLoading) {
     return <p className="text-sm text-muted-foreground">Loading user profile...</p>;
@@ -142,6 +326,144 @@ export function AdminUserProfilePageClient({ userId }: AdminUserProfilePageClien
           </Button>
         </div>
       </div>
+
+      <Card className="border-border/70">
+        <CardHeader>
+          <CardTitle className="text-base">Account Actions</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 xl:grid-cols-3">
+            <div className="space-y-2 rounded-md border p-3">
+              <Label htmlFor="profile-next-role">Role Assignment</Label>
+              <select
+                id="profile-next-role"
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                value={roleNextValue}
+                onChange={(event) => setRoleNextValue(event.target.value as AdminUserRole)}
+                disabled={isRoleSubmitting}
+                aria-label="Select next role"
+              >
+                <option value="admin">Administrator</option>
+                <option value="cadet">Cadet</option>
+              </select>
+              <Input
+                value={roleReason}
+                onChange={(event) => setRoleReason(event.target.value)}
+                placeholder="Reason for role change"
+                disabled={isRoleSubmitting}
+                aria-label="Role change reason"
+              />
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={roleNotifyUser}
+                  onCheckedChange={(checked) => setRoleNotifyUser(checked === true)}
+                  disabled={isRoleSubmitting}
+                  aria-label="Notify user for role change"
+                />
+                Notify user
+              </label>
+              <Button
+                type="button"
+                onClick={() => void handleSubmitRoleChange()}
+                disabled={isRoleSubmitting}
+                aria-label="Submit role change"
+              >
+                {isRoleSubmitting ? "Updating..." : "Update Role"}
+              </Button>
+            </div>
+
+            <div className="space-y-2 rounded-md border p-3">
+              <Label htmlFor="profile-next-status">Status Management</Label>
+              <select
+                id="profile-next-status"
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                value={statusNextValue}
+                onChange={(event) => setStatusNextValue(event.target.value as AdminUserStatus)}
+                disabled={isStatusSubmitting}
+                aria-label="Select next status"
+              >
+                <option value="active">Active</option>
+                <option value="suspended">Suspended</option>
+                <option value="banned">Banned</option>
+                <option value="pending_verification">Pending verification</option>
+              </select>
+              <Input
+                value={statusReason}
+                onChange={(event) => setStatusReason(event.target.value)}
+                placeholder="Reason for status update"
+                disabled={isStatusSubmitting}
+                aria-label="Status change reason"
+              />
+              <Input
+                type="datetime-local"
+                value={statusDurationUntil}
+                onChange={(event) => setStatusDurationUntil(event.target.value)}
+                disabled={isStatusSubmitting || statusNextValue !== "suspended"}
+                aria-label="Suspension duration end date"
+              />
+              <Input
+                value={statusInternalNotes}
+                onChange={(event) => setStatusInternalNotes(event.target.value)}
+                placeholder="Internal notes"
+                disabled={isStatusSubmitting}
+                aria-label="Internal status notes"
+              />
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={statusNotifyUser}
+                  onCheckedChange={(checked) => setStatusNotifyUser(checked === true)}
+                  disabled={isStatusSubmitting}
+                  aria-label="Notify user for status change"
+                />
+                Notify user
+              </label>
+              <Button
+                type="button"
+                onClick={() => void handleSubmitStatusChange()}
+                disabled={isStatusSubmitting}
+                aria-label="Submit status update"
+              >
+                {isStatusSubmitting ? "Updating..." : "Update Status"}
+              </Button>
+            </div>
+
+            <div className="space-y-2 rounded-md border p-3">
+              <Label htmlFor="profile-new-note">Add Admin Note</Label>
+              <Input
+                id="profile-new-note"
+                value={newAdminNote}
+                onChange={(event) => setNewAdminNote(event.target.value)}
+                placeholder="Private admin note"
+                disabled={isNoteSubmitting}
+                aria-label="New admin note"
+              />
+              <label className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={newAdminNotePinned}
+                  onCheckedChange={(checked) => setNewAdminNotePinned(checked === true)}
+                  disabled={isNoteSubmitting}
+                  aria-label="Pin note"
+                />
+                Pin note
+              </label>
+              <Button
+                type="button"
+                onClick={() => void handleSubmitNote()}
+                disabled={isNoteSubmitting}
+                aria-label="Submit admin note"
+              >
+                {isNoteSubmitting ? "Saving..." : "Add Note"}
+              </Button>
+            </div>
+          </div>
+
+          {actionMessage ? (
+            <p className="text-sm text-muted-foreground" role="status" aria-live="polite">
+              {actionMessage}
+            </p>
+          ) : null}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <Card>

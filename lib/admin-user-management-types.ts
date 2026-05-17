@@ -196,3 +196,79 @@ export interface AdminUsersApiErrorResponse {
     message?: string;
   };
 }
+
+export interface AdminUserRoleUpdateRequest {
+  nextRole: AdminUserRole;
+  reason: string;
+  notifyUser?: boolean;
+}
+
+export interface AdminUserRoleUpdateResponse {
+  success: true;
+  data: {
+    targetUserId: string;
+    changed: boolean;
+    previousRole: AdminUserRole;
+    newRole: AdminUserRole;
+    changedAt: number;
+  };
+}
+
+export interface AdminUserStatusUpdateRequest {
+  nextStatus: AdminUserStatus;
+  reason: string;
+  durationUntil?: number;
+  internalNotes?: string;
+  notifyUser?: boolean;
+}
+
+export interface AdminUserStatusUpdateResponse {
+  success: true;
+  data: {
+    targetUserId: string;
+    changed: boolean;
+    previousStatus: AdminUserStatus;
+    newStatus: AdminUserStatus;
+    changedAt: number;
+  };
+}
+
+export interface AdminUserNoteCreateRequest {
+  note: string;
+  isPinned?: boolean;
+}
+
+export interface AdminUserNoteCreateResponse {
+  success: true;
+  data: {
+    noteId: string;
+    targetUserId: string;
+    createdAt: number;
+  };
+}
+
+export interface AdminUserBulkActionRequest {
+  targetUserIds: string[];
+  operation: "set_role" | "set_status";
+  nextRole?: AdminUserRole;
+  nextStatus?: AdminUserStatus;
+  reason: string;
+  durationUntil?: number;
+  internalNotes?: string;
+  notifyUser?: boolean;
+}
+
+export interface AdminUserBulkActionResponse {
+  success: true;
+  data: {
+    operation: "set_role" | "set_status";
+    processed: number;
+    changed: number;
+    failed: number;
+    failures: Array<{
+      targetUserId: string;
+      reason: string;
+    }>;
+    generatedAt: number;
+  };
+}
