@@ -73,6 +73,8 @@ import type * as seed_numbers from "../seed/numbers.js";
 import type * as seed_reset from "../seed/reset.js";
 import type * as seed_special from "../seed/special.js";
 import type * as seed_flags from "../seed_flags.js";
+import type * as user_management from "../user_management.js";
+import type * as user_management_handlers_migrations from "../user_management/handlers/migrations.js";
 import type * as users from "../users.js";
 
 import type {
@@ -147,6 +149,8 @@ declare const fullApi: ApiFromModules<{
   "seed/reset": typeof seed_reset;
   "seed/special": typeof seed_special;
   seed_flags: typeof seed_flags;
+  user_management: typeof user_management;
+  "user_management/handlers/migrations": typeof user_management_handlers_migrations;
   users: typeof users;
 }>;
 
