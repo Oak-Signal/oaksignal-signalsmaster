@@ -7,12 +7,260 @@ export default defineSchema({
     email: v.string(),
     name: v.optional(v.string()),
     role: v.union(v.literal("cadet"), v.literal("admin")),
+    status: v.optional(
+      v.union(
+        v.literal("active"),
+        v.literal("suspended"),
+        v.literal("banned"),
+        v.literal("pending_verification")
+      )
+    ),
     rank: v.optional(v.string()),
+    profileImageUrl: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    contactEmail: v.optional(v.string()),
+    emailVerifiedAt: v.optional(v.number()),
+    lastLoginAt: v.optional(v.number()),
+    lastActiveAt: v.optional(v.number()),
+    statusUpdatedAt: v.optional(v.number()),
+    suspendedReason: v.optional(v.string()),
+    suspendedUntil: v.optional(v.number()),
+    suspensionNotes: v.optional(v.string()),
+    suspensionUpdatedBy: v.optional(v.id("users")),
+    isFlaggedForReview: v.optional(v.boolean()),
+    flaggedForReviewReason: v.optional(v.string()),
+    flaggedForReviewAt: v.optional(v.number()),
+    flaggedForReviewBy: v.optional(v.id("users")),
+    userManagementMigrationVersion: v.optional(v.number()),
+    deletedAt: v.optional(v.number()),
+    deletedBy: v.optional(v.id("users")),
+    deletionReason: v.optional(v.string()),
+    mergedIntoUserId: v.optional(v.id("users")),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
   .index("by_clerkId", ["clerkId"])
-  .index("by_email", ["email"]),
+  .index("by_email", ["email"])
+  .index("by_createdAt", ["createdAt"])
+  .index("by_lastActiveAt", ["lastActiveAt"])
+  .index("by_role_createdAt", ["role", "createdAt"])
+  .index("by_status_createdAt", ["status", "createdAt"])
+  .index("by_status_lastActiveAt", ["status", "lastActiveAt"])
+  .index("by_deletedAt", ["deletedAt"]),
+
+  // Audit trail for role assignment and role transition events.
+  userRoleChangeLogs: defineTable({
+    targetUserId: v.id("users"),
+    actorUserId: v.id("users"),
+    previousRole: v.union(v.literal("cadet"), v.literal("admin")),
+    newRole: v.union(v.literal("cadet"), v.literal("admin")),
+    reason: v.string(),
+    metadataJson: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+  .index("by_target_createdAt", ["targetUserId", "createdAt"])
+  .index("by_actor_createdAt", ["actorUserId", "createdAt"]),
+
+  // Account lifecycle status history (suspend/reactivate/ban/etc).
+  userStatusHistory: defineTable({
+    targetUserId: v.id("users"),
+    actorUserId: v.id("users"),
+    previousStatus: v.union(
+      v.literal("active"),
+      v.literal("suspended"),
+      v.literal("banned"),
+      v.literal("pending_verification")
+    ),
+    newStatus: v.union(
+      v.literal("active"),
+      v.literal("suspended"),
+      v.literal("banned"),
+      v.literal("pending_verification")
+    ),
+    reason: v.string(),
+    durationUntil: v.optional(v.number()),
+    internalNotes: v.optional(v.string()),
+    metadataJson: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+  .index("by_target_createdAt", ["targetUserId", "createdAt"])
+  .index("by_actor_createdAt", ["actorUserId", "createdAt"])
+  .index("by_newStatus_createdAt", ["newStatus", "createdAt"]),
+
+  // Private administrator notes attached to user profiles.
+  userAdminNotes: defineTable({
+    targetUserId: v.id("users"),
+    authorUserId: v.id("users"),
+    note: v.string(),
+    isPinned: v.optional(v.boolean()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+  .index("by_target_createdAt", ["targetUserId", "createdAt"])
+  .index("by_author_createdAt", ["authorUserId", "createdAt"]),
+
+  // Timeline events for user-facing and admin-triggered activity actions.
+  userActivityEvents: defineTable({
+    targetUserId: v.id("users"),
+    actorUserId: v.optional(v.id("users")),
+    eventType: v.union(
+      v.literal("login"),
+      v.literal("logout"),
+      v.literal("practice_completed"),
+      v.literal("exam_completed"),
+      v.literal("ranked_run_completed"),
+      v.literal("role_changed"),
+      v.literal("status_changed"),
+      v.literal("admin_note_added"),
+      v.literal("profile_updated"),
+      v.literal("notification_sent"),
+      v.literal("account_flagged"),
+      v.literal("account_unflagged"),
+      v.literal("data_export_requested")
+    ),
+    metadataJson: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+  .index("by_target_createdAt", ["targetUserId", "createdAt"])
+  .index("by_eventType_createdAt", ["eventType", "createdAt"]),
+
+  // Login/session history for support and account-security investigations.
+  userLoginEvents: defineTable({
+    targetUserId: v.id("users"),
+    eventType: v.union(
+      v.literal("login_success"),
+      v.literal("login_failed"),
+      v.literal("session_started"),
+      v.literal("session_ended")
+    ),
+    ipAddress: v.optional(v.string()),
+    device: v.optional(v.string()),
+    userAgent: v.optional(v.string()),
+    sessionId: v.optional(v.string()),
+    metadataJson: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+  .index("by_target_createdAt", ["targetUserId", "createdAt"])
+  .index("by_eventType_createdAt", ["eventType", "createdAt"]),
+
+  // Saved admin filter combinations for user list workflows.
+  userFilterPresets: defineTable({
+    ownerUserId: v.id("users"),
+    name: v.string(),
+    filtersJson: v.string(),
+    isShared: v.optional(v.boolean()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+  .index("by_owner_updatedAt", ["ownerUserId", "updatedAt"])
+  .index("by_shared_updatedAt", ["isShared", "updatedAt"]),
+
+  // Admin-defined groups/cohorts for bulk actions.
+  userCohorts: defineTable({
+    name: v.string(),
+    description: v.optional(v.string()),
+    createdBy: v.id("users"),
+    updatedBy: v.id("users"),
+    archivedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+  .index("by_archived_updatedAt", ["archivedAt", "updatedAt"])
+  .index("by_updatedAt", ["updatedAt"]),
+
+  // Membership links between users and admin-defined cohorts.
+  userCohortMembers: defineTable({
+    cohortId: v.id("userCohorts"),
+    userId: v.id("users"),
+    addedBy: v.id("users"),
+    addedAt: v.number(),
+  })
+  .index("by_cohort_addedAt", ["cohortId", "addedAt"])
+  .index("by_user_addedAt", ["userId", "addedAt"])
+  .index("by_cohort_user", ["cohortId", "userId"]),
+
+  // GDPR data export request lifecycle records.
+  gdprExportRequests: defineTable({
+    requestedByUserId: v.id("users"),
+    targetUserId: v.id("users"),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("processing"),
+      v.literal("completed"),
+      v.literal("failed"),
+      v.literal("expired"),
+      v.literal("cancelled")
+    ),
+    reason: v.optional(v.string()),
+    exportUrl: v.optional(v.string()),
+    expiresAt: v.optional(v.number()),
+    metadataJson: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+  .index("by_status_createdAt", ["status", "createdAt"])
+  .index("by_target_createdAt", ["targetUserId", "createdAt"])
+  .index("by_requester_createdAt", ["requestedByUserId", "createdAt"]),
+
+  // GDPR deletion request and approval workflow records.
+  gdprDeletionRequests: defineTable({
+    requestedByUserId: v.id("users"),
+    targetUserId: v.id("users"),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("approved"),
+      v.literal("rejected"),
+      v.literal("scheduled"),
+      v.literal("completed"),
+      v.literal("cancelled")
+    ),
+    reason: v.optional(v.string()),
+    internalNotes: v.optional(v.string()),
+    scheduledFor: v.optional(v.number()),
+    processedAt: v.optional(v.number()),
+    metadataJson: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+  .index("by_status_createdAt", ["status", "createdAt"])
+  .index("by_target_createdAt", ["targetUserId", "createdAt"])
+  .index("by_requester_createdAt", ["requestedByUserId", "createdAt"]),
+
+  // Duplicate-account merge job lifecycle records.
+  userMergeJobs: defineTable({
+    requestedByUserId: v.id("users"),
+    primaryUserId: v.id("users"),
+    duplicateUserId: v.id("users"),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("running"),
+      v.literal("completed"),
+      v.literal("failed"),
+      v.literal("cancelled")
+    ),
+    dryRun: v.optional(v.boolean()),
+    reason: v.optional(v.string()),
+    summaryJson: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+  .index("by_status_createdAt", ["status", "createdAt"])
+  .index("by_primary_createdAt", ["primaryUserId", "createdAt"])
+  .index("by_duplicate_createdAt", ["duplicateUserId", "createdAt"]),
+
+  // Historical record of completed user merge operations.
+  userMergeHistory: defineTable({
+    mergedUserId: v.id("users"),
+    survivingUserId: v.id("users"),
+    mergeJobId: v.optional(v.id("userMergeJobs")),
+    mergedBy: v.id("users"),
+    metadataJson: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+  .index("by_surviving_createdAt", ["survivingUserId", "createdAt"])
+  .index("by_merged_createdAt", ["mergedUserId", "createdAt"]),
 
   // New Flags Table
   flags: defineTable({
@@ -591,7 +839,13 @@ export default defineSchema({
   notifications: defineTable({
     recipientUserId: v.id("users"),
     type: v.union(
-      v.literal("exam_invalidated")
+      v.literal("exam_invalidated"),
+      v.literal("role_changed"),
+      v.literal("account_suspended"),
+      v.literal("account_reactivated"),
+      v.literal("account_banned"),
+      v.literal("account_pending_verification"),
+      v.literal("admin_message")
     ),
     title: v.string(),
     message: v.string(),
