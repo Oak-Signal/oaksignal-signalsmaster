@@ -68,6 +68,10 @@ import type * as practice_sessions_handlers_sessionMutations from "../practice_s
 import type * as practice_sessions_services_auth from "../practice_sessions/services/auth.js";
 import type * as practice_sessions_services_feedback from "../practice_sessions/services/feedback.js";
 import type * as practice_sessions_services_generation from "../practice_sessions/services/generation.js";
+import type * as ranked from "../ranked.js";
+import type * as ranked_constants from "../ranked/constants.js";
+import type * as ranked_handlers_migrations from "../ranked/handlers/migrations.js";
+import type * as ranked_services_rank_tiers from "../ranked/services/rank_tiers.js";
 import type * as seed_letters from "../seed/letters.js";
 import type * as seed_numbers from "../seed/numbers.js";
 import type * as seed_reset from "../seed/reset.js";
@@ -147,6 +151,10 @@ declare const fullApi: ApiFromModules<{
   "practice_sessions/services/auth": typeof practice_sessions_services_auth;
   "practice_sessions/services/feedback": typeof practice_sessions_services_feedback;
   "practice_sessions/services/generation": typeof practice_sessions_services_generation;
+  ranked: typeof ranked;
+  "ranked/constants": typeof ranked_constants;
+  "ranked/handlers/migrations": typeof ranked_handlers_migrations;
+  "ranked/services/rank_tiers": typeof ranked_services_rank_tiers;
   "seed/letters": typeof seed_letters;
   "seed/numbers": typeof seed_numbers;
   "seed/reset": typeof seed_reset;
