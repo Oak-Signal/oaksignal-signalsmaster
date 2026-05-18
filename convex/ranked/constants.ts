@@ -1,8 +1,20 @@
 export const RANKED_DEFAULT_CONFIG_KEY = "default";
 export const RANKED_MIGRATION_V1_CONFIRMATION = "ROLLBACK_RANKED_MODE_V1";
+export const RANKED_START_CONFIRMATION_TOKEN = "BEGIN_RANKED_RUN";
 export const RANKED_DEFAULT_COOLDOWN_MINUTES = 5;
 export const RANKED_DEFAULT_DAILY_ATTEMPT_LIMIT = 10;
 export const RANKED_DEFAULT_WEEKLY_ATTEMPT_LIMIT = 40;
+export const RANKED_ESTIMATED_MS_PER_FLAG = 3500;
+
+export const RANKED_RULES = [
+  "All signal flags are included in each ranked run.",
+  "Speed and accuracy both contribute to your score.",
+  "Scoring is based on a combined time and accuracy formula.",
+  "Timing is validated server-side to prevent cheating.",
+  "Anti-cheat monitoring is active during every run.",
+  "Ranked results are permanent and can be reviewed.",
+  "Suspicious runs are flagged for manual review.",
+] as const;
 
 export const FLEET_RANKS = [
   {
