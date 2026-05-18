@@ -69,6 +69,9 @@ export function DashboardHeader() {
           <Link href="/dashboard/exam" className="text-muted-foreground transition-colors hover:text-primary">
             Exam
           </Link>
+          <Link href="/dashboard/ranked" className="text-muted-foreground transition-colors hover:text-primary">
+            Ranked
+          </Link>
           <Link href="/dashboard/analytics" className="text-muted-foreground transition-colors hover:text-primary">
             Analytics
           </Link>
@@ -194,6 +197,9 @@ export function DashboardHeader() {
         </Button>
         <Button asChild variant="outline" size="sm" className="shrink-0">
           <Link href="/dashboard/exam">Exam</Link>
+        </Button>
+        <Button asChild variant="outline" size="sm" className="shrink-0">
+          <Link href="/dashboard/ranked">Ranked</Link>
         </Button>
         <Button asChild variant="outline" size="sm" className="shrink-0">
           <Link href="/dashboard/analytics">Analytics</Link>

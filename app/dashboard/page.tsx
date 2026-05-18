@@ -29,6 +29,9 @@ export default function DashboardPage() {
           <Button asChild>
             <Link href="/dashboard/practice">Quick Start Practice</Link>
           </Button>
+          <Button asChild variant="outline">
+            <Link href="/dashboard/ranked">Enter Ranked Mode</Link>
+          </Button>
         </div>
       </div>
 
@@ -51,11 +54,12 @@ export default function DashboardPage() {
           ctaText="Begin Exam"
         />
         <ModuleCard
-          title="Ranked Challenge"
-          description="Reflex-based competitive mode. Climb the leaderboard."
+          title="Ranked Mode"
+          description="Competitive mode with secure timing, rank progression, and leaderboard position."
           icon={Trophy}
           href="/dashboard/ranked"
-          ctaText="Enter Arena"
+          ctaText="Enter Ranked"
+          variant="featured"
         />
         <ModuleCard
           title="Reference Guide"

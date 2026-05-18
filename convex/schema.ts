@@ -855,4 +855,85 @@ export default defineSchema({
   })
   .index("by_recipient_createdAt", ["recipientUserId", "createdAt"])
   .index("by_recipient_readAt", ["recipientUserId", "readAt"]),
+
+  // Ranked mode season metadata and lifecycle configuration.
+  rankedSeasons: defineTable({
+    slug: v.string(),
+    name: v.string(),
+    startsAt: v.number(),
+    endsAt: v.optional(v.number()),
+    status: v.union(
+      v.literal("upcoming"),
+      v.literal("active"),
+      v.literal("completed"),
+      v.literal("archived")
+    ),
+    description: v.optional(v.string()),
+    createdBy: v.id("users"),
+    updatedBy: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+  .index("by_slug", ["slug"])
+  .index("by_status_startsAt", ["status", "startsAt"])
+  .index("by_startsAt", ["startsAt"]),
+
+  // Runtime ranked mode controls and anti-spam policies.
+  rankedSystemConfig: defineTable({
+    configKey: v.string(),
+    rankedModeEnabled: v.boolean(),
+    requiresPassedExam: v.boolean(),
+    cooldownMinutes: v.number(),
+    dailyAttemptLimit: v.optional(v.number()),
+    weeklyAttemptLimit: v.optional(v.number()),
+    updatedBy: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+  .index("by_configKey", ["configKey"])
+  .index("by_updatedAt", ["updatedAt"]),
+
+  // Immutable per-attempt records for ranked leaderboard and integrity review.
+  rankedRuns: defineTable({
+    userId: v.id("users"),
+    seasonId: v.id("rankedSeasons"),
+    status: v.union(
+      v.literal("started"),
+      v.literal("completed"),
+      v.literal("abandoned"),
+      v.literal("flagged")
+    ),
+    startedAt: v.number(),
+    completedAt: v.optional(v.number()),
+    runDurationMs: v.optional(v.number()),
+    flagCount: v.number(),
+    correctCount: v.number(),
+    accuracyPercent: v.number(),
+    score: v.number(),
+    pointsFromTime: v.number(),
+    pointsFromAccuracy: v.number(),
+    antiCheatStatus: v.union(
+      v.literal("clear"),
+      v.literal("flagged"),
+      v.literal("reviewing"),
+      v.literal("disqualified")
+    ),
+    reviewStatus: v.union(
+      v.literal("none"),
+      v.literal("pending"),
+      v.literal("confirmed"),
+      v.literal("dismissed")
+    ),
+    suspiciousReason: v.optional(v.string()),
+    metadataJson: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+  .index("by_user_completedAt", ["userId", "completedAt"])
+  .index("by_user_startedAt", ["userId", "startedAt"])
+  .index("by_season_score", ["seasonId", "score"])
+  .index("by_season_completedAt", ["seasonId", "completedAt"])
+  .index("by_season_user_completedAt", ["seasonId", "userId", "completedAt"])
+  .index("by_status_startedAt", ["status", "startedAt"])
+  .index("by_anticheat_completedAt", ["antiCheatStatus", "completedAt"]),
 });
