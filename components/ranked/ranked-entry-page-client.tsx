@@ -3,8 +3,11 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  AlertTriangle,
   Anchor,
   ArrowRight,
+  Calendar,
+  CheckCircle2,
   Compass,
   Crown,
   Loader2,
@@ -35,12 +38,42 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+const FLEET_RANK_ROWS = [
+  { label: "#1", title: "Fleet Master: Signals Master" },
+  { label: "#2", title: "Signals Champion" },
+  { label: "#3", title: "Signals Guardian" },
+  { label: "#4", title: "Signals Centurion" },
+  { label: "#5-10", title: "Fleet Specialists" },
+  { label: "#11+", title: "Fleet Practitioners" },
+] as const;
+
 function formatMs(ms: number | null): string {
-  if (!ms || ms <= 0) {
+  if (!ms || ms <= 0 || ms >= Number.MAX_SAFE_INTEGER) {
     return "N/A";
   }
 
   const totalSeconds = Math.round(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  if (minutes <= 0) {
+    return `${seconds}s`;
+  }
+
+  return `${minutes}m ${seconds.toString().padStart(2, "0")}s`;
+}
+
+function formatRelativeFuture(timestamp: number | null): string {
+  if (!timestamp) {
+    return "N/A";
+  }
+
+  const deltaMs = timestamp - Date.now();
+  if (deltaMs <= 0) {
+    return "Available now";
+  }
+
+  const totalSeconds = Math.ceil(deltaMs / 1000);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
 
@@ -92,6 +125,34 @@ function badgeClassForAccent(accent: string): string {
   }
 }
 
+function isRowCurrentRank(position: number | null, rowLabel: string): boolean {
+  if (!position) {
+    return rowLabel === "#11+";
+  }
+
+  if (position === 1) {
+    return rowLabel === "#1";
+  }
+
+  if (position === 2) {
+    return rowLabel === "#2";
+  }
+
+  if (position === 3) {
+    return rowLabel === "#3";
+  }
+
+  if (position === 4) {
+    return rowLabel === "#4";
+  }
+
+  if (position >= 5 && position <= 10) {
+    return rowLabel === "#5-10";
+  }
+
+  return rowLabel === "#11+";
+}
+
 function RankedLoadingState() {
   return (
     <div className="space-y-6">
@@ -125,6 +186,7 @@ export function RankedEntryPageClient() {
   const [isStarting, setIsStarting] = useState(false);
 
   const canConfirmStart = (context?.canEnterRankedMode ?? false) && !isStarting;
+  const isBlocked = context ? !context.canEnterRankedMode : false;
 
   const attemptsLabel = useMemo(() => {
     if (!context) {
@@ -217,6 +279,37 @@ export function RankedEntryPageClient() {
         </p>
       </div>
 
+      <Card className={isBlocked ? "border-destructive/40" : "border-emerald-300/40"}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            {isBlocked ? (
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+            ) : (
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+            )}
+            {isBlocked ? "Ranked Entry Blocked" : "Ready for Ranked Entry"}
+          </CardTitle>
+          <CardDescription>
+            {isBlocked
+              ? "Resolve the unmet checks below before starting."
+              : "All requirements are met and a ranked run can be started."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="text-sm">
+          {isBlocked ? (
+            <ul className="list-disc pl-5 space-y-1 text-destructive">
+              {[...context.entryRequirements.unmetRequirements, ...context.attemptPolicy.reasons].map((reason) => (
+                <li key={reason}>{reason}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-emerald-700">
+              Ranked checks complete. Confirm in the modal to begin your timed run.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card>
           <CardHeader>
@@ -275,7 +368,10 @@ export function RankedEntryPageClient() {
             </p>
             <p>{attemptsLabel}</p>
             {context.attemptPolicy.nextAllowedAt ? (
-              <p>Next attempt available: {formatDate(context.attemptPolicy.nextAllowedAt)}</p>
+              <p>
+                Next attempt available: {formatDate(context.attemptPolicy.nextAllowedAt)}
+                <span className="ml-2 text-muted-foreground">({formatRelativeFuture(context.attemptPolicy.nextAllowedAt)})</span>
+              </p>
             ) : null}
             {context.entryRequirements.unmetRequirements.length > 0 ? (
               <ul className="list-disc pl-5 text-destructive">
@@ -311,12 +407,24 @@ export function RankedEntryPageClient() {
             <CardDescription>Promotion tiers by leaderboard position</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <p>#1 Fleet Master: Signals Master</p>
-            <p>#2 Signals Champion</p>
-            <p>#3 Signals Guardian</p>
-            <p>#4 Signals Centurion</p>
-            <p>#5-10 Fleet Specialists</p>
-            <p>#11+ Fleet Practitioners</p>
+            {FLEET_RANK_ROWS.map((row) => {
+              const isCurrent = isRowCurrentRank(
+                context.rank.leaderboardPosition,
+                row.label
+              );
+
+              return (
+                <div
+                  key={row.label}
+                  className={`flex items-center justify-between rounded-md border px-3 py-2 ${
+                    isCurrent ? "border-primary/50 bg-primary/5" : "border-border"
+                  }`}
+                >
+                  <span className="font-medium">{row.label}</span>
+                  <span className="text-muted-foreground">{row.title}</span>
+                </div>
+              );
+            })}
           </CardContent>
         </Card>
       </div>
@@ -381,6 +489,10 @@ export function RankedEntryPageClient() {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+          <Calendar className="h-4 w-4" />
+          <span>
+            Season window: {context.season ? `${formatDate(context.season.startsAt)} - ${formatDate(context.season.endsAt)}` : "Unavailable"}
+          </span>
           <Timer className="h-4 w-4" />
           <span>
             Estimated duration: {formatMs(context.runOverview.estimatedDurationMs)}
@@ -416,11 +528,19 @@ export function RankedEntryPageClient() {
           </DialogHeader>
 
           <div className="space-y-2 text-sm">
-            <p>
+            <p className="flex items-center gap-2">
+              {context.canEnterRankedMode ? (
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              ) : (
+                <AlertTriangle className="h-4 w-4 text-destructive" />
+              )}
               Eligibility: {context.canEnterRankedMode ? "Ready" : "Blocked"}
             </p>
             <p>Estimated duration: {formatMs(context.runOverview.estimatedDurationMs)}</p>
             <p>Flags included: {context.runOverview.flagCount}</p>
+            <p>
+              Cooldown status: {context.attemptPolicy.isInCooldown ? "Active" : "Clear"}
+            </p>
             {context.entryRequirements.unmetRequirements.length > 0 ? (
               <ul className="list-disc pl-5 text-destructive">
                 {context.entryRequirements.unmetRequirements.map((reason) => (
