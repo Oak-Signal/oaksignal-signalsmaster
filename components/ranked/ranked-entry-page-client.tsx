@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Anchor,
@@ -222,11 +223,16 @@ export function RankedEntryPageClient() {
     return Math.max(5, Math.min(100, Math.round(ratio)));
   }, [context]);
 
+  const router = useRouter();
+
   const handleConfirmStart = async () => {
     setIsStarting(true);
     try {
-      await startRun();
+      const result = await startRun();
       setIsModalOpen(false);
+      if (result?.runId) {
+        router.push(`/dashboard/ranked/run/${result.runId}`);
+      }
     } finally {
       setIsStarting(false);
     }

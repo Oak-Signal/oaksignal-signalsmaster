@@ -14,9 +14,14 @@ interface DashboardShellProps {
 }
 
 const EXAM_ATTEMPT_ROUTE_PATTERN = /^\/dashboard\/exam\/attempt\/([^/]+)\/?$/
+const RANKED_RUN_ROUTE_PATTERN = /^\/dashboard\/ranked\/run\/([^/]+)\/?$/
 
 interface ExamAttemptRuntimeStatus {
   status: "started" | "completed" | "abandoned"
+}
+
+interface RankedRunRuntimeStatus {
+  status: "started" | "completed" | "abandoned" | "flagged"
 }
 
 interface StandardDashboardShellProps {
@@ -64,6 +69,23 @@ function ExamAttemptShellResolver({ attemptId, children }: ExamAttemptShellResol
   return <StandardDashboardShell>{children}</StandardDashboardShell>
 }
 
+interface RankedRunShellResolverProps {
+  runId: string
+  children: React.ReactNode
+}
+
+function RankedRunShellResolver({ runId, children }: RankedRunShellResolverProps) {
+  const runtimeProgress = useQuery(api.ranked.getRankedRunState, {
+    runId: runId as Id<"rankedRuns">,
+  }) as RankedRunRuntimeStatus | null | undefined
+
+  if (runtimeProgress?.status === "started" || runtimeProgress === undefined) {
+    return <FocusedExamShell>{children}</FocusedExamShell>
+  }
+
+  return <StandardDashboardShell>{children}</StandardDashboardShell>
+}
+
 export function DashboardShell({ children }: DashboardShellProps) {
   const pathname = usePathname()
   const examAttemptMatch = pathname?.match(EXAM_ATTEMPT_ROUTE_PATTERN)
@@ -74,6 +96,17 @@ export function DashboardShell({ children }: DashboardShellProps) {
       <ExamAttemptShellResolver attemptId={examAttemptId}>
         {children}
       </ExamAttemptShellResolver>
+    )
+  }
+
+  const rankedRunMatch = pathname?.match(RANKED_RUN_ROUTE_PATTERN)
+  const rankedRunId = rankedRunMatch?.[1]
+
+  if (rankedRunId) {
+    return (
+      <RankedRunShellResolver runId={rankedRunId}>
+        {children}
+      </RankedRunShellResolver>
     )
   }
 

@@ -10,6 +10,7 @@ import {
   getRankedSystemConfig,
   getResolvedPolicyConfig,
 } from "../services/runtime";
+import { generateExamQuestions } from "../../lib/exam_generation";
 
 export const startRankedRun = mutation({
   args: {
@@ -68,12 +69,19 @@ export const startRankedRun = mutation({
 
     const now = Date.now();
 
+    // Generate questions for all available flags in alternating mode strategy
+    const generated = generateExamQuestions(flags, {
+      modeStrategy: "alternating",
+      seed: now + user._id.charCodeAt(0),
+      generationVersion: 1,
+    });
+
     const runId = await ctx.db.insert("rankedRuns", {
       userId: user._id,
       seasonId: season._id,
       status: "started",
       startedAt: now,
-      flagCount: flags.length,
+      flagCount: generated.questions.length,
       correctCount: 0,
       accuracyPercent: 0,
       score: 0,
@@ -88,11 +96,28 @@ export const startRankedRun = mutation({
       updatedAt: now,
     });
 
+    // Bulk insert the generated questions
+    for (const question of generated.questions) {
+      await ctx.db.insert("rankedQuestions", {
+        runId,
+        userId: user._id,
+        questionIndex: question.questionIndex,
+        flagId: question.flagId,
+        flagKey: question.flagKey,
+        mode: question.mode,
+        options: question.options,
+        correctAnswer: question.correctAnswer,
+        userAnswer: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
     return {
       runId,
       seasonId: season._id,
       startedAt: now,
-      flagCount: flags.length,
+      flagCount: generated.questions.length,
     };
   },
 });

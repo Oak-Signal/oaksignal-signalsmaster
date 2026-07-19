@@ -72,6 +72,7 @@ import type * as ranked from "../ranked.js";
 import type * as ranked_constants from "../ranked/constants.js";
 import type * as ranked_handlers_entry from "../ranked/handlers/entry.js";
 import type * as ranked_handlers_migrations from "../ranked/handlers/migrations.js";
+import type * as ranked_handlers_runtime from "../ranked/handlers/runtime.js";
 import type * as ranked_handlers_start from "../ranked/handlers/start.js";
 import type * as ranked_services_attempt_policy from "../ranked/services/attempt_policy.js";
 import type * as ranked_services_eligibility from "../ranked/services/eligibility.js";
@@ -161,6 +162,7 @@ declare const fullApi: ApiFromModules<{
   "ranked/constants": typeof ranked_constants;
   "ranked/handlers/entry": typeof ranked_handlers_entry;
   "ranked/handlers/migrations": typeof ranked_handlers_migrations;
+  "ranked/handlers/runtime": typeof ranked_handlers_runtime;
   "ranked/handlers/start": typeof ranked_handlers_start;
   "ranked/services/attempt_policy": typeof ranked_services_attempt_policy;
   "ranked/services/eligibility": typeof ranked_services_eligibility;
