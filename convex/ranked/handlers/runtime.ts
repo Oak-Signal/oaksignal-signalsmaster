@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { requireAuthenticatedUser } from "../../lib/auth";
 import { getResolvedSecurityPolicyConfig } from "../services/runtime";
 import { Id } from "../../_generated/dataModel";
+import { issueRankedResultToken } from "../services/result_signature";
 
 async function insertRankedTimingAudit(
   ctx: MutationCtx,
@@ -464,6 +465,17 @@ export const completeRankedRun = mutation({
     const pointsFromTime = -timePenaltyPoints;
     const finalScore = Math.round((pointsFromAccuracy + pointsFromTime) * 100) / 100;
 
+    if (!securityPolicy.resultSigning.enabled) {
+      throw new Error("Ranked result signing is not configured. Contact an administrator.");
+    }
+
+    const signedResult = await issueRankedResultToken({
+      runId: run._id,
+      userId: user._id,
+      score: finalScore,
+      timestamp: completedAt,
+    });
+
     // Anti-cheat timing checks are computed from server-side timings only.
     let antiCheatStatus: "clear" | "flagged" = "clear";
     let suspiciousReason: string | undefined = undefined;
@@ -494,6 +506,11 @@ export const completeRankedRun = mutation({
       score: finalScore,
       pointsFromTime,
       pointsFromAccuracy,
+      resultTokenHash: signedResult.tokenHash,
+      resultSignatureHash: signedResult.signatureHash,
+      resultSalt: signedResult.salt,
+      signatureVersion: signedResult.version,
+      signatureIssuedAt: signedResult.issuedAt,
       antiCheatStatus,
       suspiciousReason,
       updatedAt: now,
@@ -514,6 +531,8 @@ export const completeRankedRun = mutation({
         correctCount,
         flagCount: run.flagCount,
         antiCheatStatus,
+        signatureVersion: signedResult.version,
+        signatureIssuedAt: signedResult.issuedAt,
       },
     });
 
@@ -527,6 +546,7 @@ export const completeRankedRun = mutation({
         accuracyPercent,
         durationMs: runDurationMs,
         antiCheatStatus,
+        signatureVersion: signedResult.version,
       }),
       createdAt: now,
     });
@@ -538,6 +558,9 @@ export const completeRankedRun = mutation({
       accuracyPercent,
       runDurationMs,
       antiCheatStatus,
+      resultToken: signedResult.token,
+      signatureVersion: signedResult.version,
+      signatureIssuedAt: signedResult.issuedAt,
     };
   },
 });
