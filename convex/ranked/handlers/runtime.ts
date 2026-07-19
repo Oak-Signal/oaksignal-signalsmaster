@@ -1,6 +1,73 @@
-import { query, mutation } from "../../_generated/server";
+import { MutationCtx, query, mutation } from "../../_generated/server";
 import { v } from "convex/values";
 import { requireAuthenticatedUser } from "../../lib/auth";
+import { getResolvedSecurityPolicyConfig } from "../services/runtime";
+import { Id } from "../../_generated/dataModel";
+
+async function insertRankedTimingAudit(
+  ctx: MutationCtx,
+  input: {
+    runId: Id<"rankedRuns">;
+    userId: Id<"users">;
+    questionIndex?: number;
+    eventType:
+      | "submission_received"
+      | "submission_accepted"
+      | "submission_rejected"
+      | "rate_limited"
+      | "timing_flagged"
+      | "run_finalized"
+      | "replay_flagged";
+    requestReceivedAt: number;
+    referenceTimestamp?: number;
+    elapsedMs?: number;
+    reason?: string;
+    metadata?: Record<string, unknown>;
+  }
+): Promise<void> {
+  await ctx.db.insert("rankedTimingAudit", {
+    runId: input.runId,
+    userId: input.userId,
+    questionIndex: input.questionIndex,
+    eventType: input.eventType,
+    requestReceivedAt: input.requestReceivedAt,
+    referenceTimestamp: input.referenceTimestamp,
+    elapsedMs: input.elapsedMs,
+    reason: input.reason,
+    metadataJson: input.metadata ? JSON.stringify(input.metadata) : undefined,
+    createdAt: input.requestReceivedAt,
+  });
+}
+
+async function rejectRankedSubmission(
+  ctx: MutationCtx,
+  input: {
+    runId: Id<"rankedRuns">;
+    userId: Id<"users">;
+    questionIndex: number;
+    eventType: "submission_rejected" | "rate_limited" | "timing_flagged";
+    reason: string;
+    throwMessage: string;
+    requestReceivedAt: number;
+    referenceTimestamp?: number;
+    elapsedMs?: number;
+    metadata?: Record<string, unknown>;
+  }
+): Promise<never> {
+  await insertRankedTimingAudit(ctx, {
+    runId: input.runId,
+    userId: input.userId,
+    questionIndex: input.questionIndex,
+    eventType: input.eventType,
+    requestReceivedAt: input.requestReceivedAt,
+    referenceTimestamp: input.referenceTimestamp,
+    elapsedMs: input.elapsedMs,
+    reason: input.reason,
+    metadata: input.metadata,
+  });
+
+  throw new Error(input.throwMessage);
+}
 
 export const getRankedRunState = query({
   args: {
@@ -83,13 +150,60 @@ export const submitRankedAnswer = mutation({
   handler: async (ctx, args) => {
     const user = await requireAuthenticatedUser(ctx, "Authentication required to submit answer.");
     const run = await ctx.db.get(args.runId);
+    const now = Date.now();
+
+    await insertRankedTimingAudit(ctx, {
+      runId: args.runId,
+      userId: user._id,
+      questionIndex: args.questionIndex,
+      eventType: "submission_received",
+      requestReceivedAt: now,
+    });
 
     if (!run || run.userId !== user._id) {
-      throw new Error("Ranked run not found or access denied.");
+      return rejectRankedSubmission(ctx, {
+        runId: args.runId,
+        userId: user._id,
+        questionIndex: args.questionIndex,
+        eventType: "submission_rejected",
+        reason: "run_not_found_or_access_denied",
+        throwMessage: "Ranked run not found or access denied.",
+        requestReceivedAt: now,
+      });
     }
 
     if (run.status !== "started") {
-      throw new Error("Ranked run is no longer active.");
+      return rejectRankedSubmission(ctx, {
+        runId: run._id,
+        userId: user._id,
+        questionIndex: args.questionIndex,
+        eventType: "submission_rejected",
+        reason: "run_not_active",
+        throwMessage: "Ranked run is no longer active.",
+        requestReceivedAt: now,
+        metadata: {
+          status: run.status,
+        },
+      });
+    }
+
+    const securityPolicy = getResolvedSecurityPolicyConfig();
+    const expectedQuestionIndex = run.nextExpectedQuestionIndex ?? 0;
+
+    if (args.questionIndex !== expectedQuestionIndex) {
+      return rejectRankedSubmission(ctx, {
+        runId: run._id,
+        userId: user._id,
+        questionIndex: args.questionIndex,
+        eventType: "submission_rejected",
+        reason: "out_of_order_submission",
+        throwMessage: `Question index mismatch. Expected ${expectedQuestionIndex}, got ${args.questionIndex}.`,
+        requestReceivedAt: now,
+        metadata: {
+          expectedQuestionIndex,
+          receivedQuestionIndex: args.questionIndex,
+        },
+      });
     }
 
     const question = await ctx.db
@@ -98,17 +212,131 @@ export const submitRankedAnswer = mutation({
       .unique();
 
     if (!question) {
-      throw new Error("Question not found.");
+      return rejectRankedSubmission(ctx, {
+        runId: run._id,
+        userId: user._id,
+        questionIndex: args.questionIndex,
+        eventType: "submission_rejected",
+        reason: "question_not_found",
+        throwMessage: "Question not found.",
+        requestReceivedAt: now,
+      });
     }
 
     if (question.userAnswer !== null) {
-      throw new Error("Question has already been answered.");
+      return rejectRankedSubmission(ctx, {
+        runId: run._id,
+        userId: user._id,
+        questionIndex: args.questionIndex,
+        eventType: "submission_rejected",
+        reason: "duplicate_submission",
+        throwMessage: "Question has already been answered.",
+        requestReceivedAt: now,
+      });
     }
 
-    const now = Date.now();
+    const optionIds = question.options.map((option) => option.id);
+    if (!optionIds.includes(args.selectedAnswer)) {
+      return rejectRankedSubmission(ctx, {
+        runId: run._id,
+        userId: user._id,
+        questionIndex: args.questionIndex,
+        eventType: "submission_rejected",
+        reason: "invalid_option_id",
+        throwMessage: "Invalid answer option submitted.",
+        requestReceivedAt: now,
+        metadata: {
+          selectedAnswer: args.selectedAnswer,
+          validOptionIds: optionIds,
+        },
+      });
+    }
+
     const responseWindowStartAt = run.lastAnsweredAt ?? run.startedAt;
     const elapsedFromPreviousMs = Math.max(0, now - responseWindowStartAt);
     const elapsedFromStartMs = Math.max(0, now - run.startedAt);
+
+    if (elapsedFromPreviousMs <= 0 || elapsedFromPreviousMs < securityPolicy.timingAnomaly.minResponseTimeMs) {
+      return rejectRankedSubmission(ctx, {
+        runId: run._id,
+        userId: user._id,
+        questionIndex: args.questionIndex,
+        eventType: "timing_flagged",
+        reason: "suspicious_timing_too_fast",
+        throwMessage: "Submission rejected due to suspicious response timing.",
+        requestReceivedAt: now,
+        referenceTimestamp: responseWindowStartAt,
+        elapsedMs: elapsedFromPreviousMs,
+        metadata: {
+          minResponseTimeMs: securityPolicy.timingAnomaly.minResponseTimeMs,
+        },
+      });
+    }
+
+    if (run.lastAnsweredAt !== undefined) {
+      const intervalSinceLastSubmissionMs = now - run.lastAnsweredAt;
+      if (intervalSinceLastSubmissionMs < securityPolicy.submissionRateLimit.minIntervalMs) {
+        return rejectRankedSubmission(ctx, {
+          runId: run._id,
+          userId: user._id,
+          questionIndex: args.questionIndex,
+          eventType: "rate_limited",
+          reason: "rate_limited_min_interval",
+          throwMessage: "Submitting too quickly. Please wait a moment and try again.",
+          requestReceivedAt: now,
+          referenceTimestamp: run.lastAnsweredAt,
+          elapsedMs: intervalSinceLastSubmissionMs,
+          metadata: {
+            minIntervalMs: securityPolicy.submissionRateLimit.minIntervalMs,
+          },
+        });
+      }
+    }
+
+    const recentAuditRows = await ctx.db
+      .query("rankedTimingAudit")
+      .withIndex("by_run_createdAt", (q) => q.eq("runId", run._id))
+      .order("desc")
+      .take(500);
+
+    const recentSubmissionCount = recentAuditRows.filter(
+      (row) =>
+        row.eventType === "submission_accepted" &&
+        now - row.createdAt <= securityPolicy.submissionRateLimit.windowMs
+    ).length;
+
+    if (recentSubmissionCount >= securityPolicy.submissionRateLimit.maxPerWindow) {
+      return rejectRankedSubmission(ctx, {
+        runId: run._id,
+        userId: user._id,
+        questionIndex: args.questionIndex,
+        eventType: "rate_limited",
+        reason: "rate_limited_window",
+        throwMessage: "Too many submissions in a short period. Please wait and try again.",
+        requestReceivedAt: now,
+        metadata: {
+          windowMs: securityPolicy.submissionRateLimit.windowMs,
+          maxPerWindow: securityPolicy.submissionRateLimit.maxPerWindow,
+          recentSubmissionCount,
+        },
+      });
+    }
+
+    if (elapsedFromPreviousMs >= securityPolicy.timingAnomaly.slowResponseWarningMs) {
+      await insertRankedTimingAudit(ctx, {
+        runId: run._id,
+        userId: user._id,
+        questionIndex: args.questionIndex,
+        eventType: "timing_flagged",
+        requestReceivedAt: now,
+        referenceTimestamp: responseWindowStartAt,
+        elapsedMs: elapsedFromPreviousMs,
+        reason: "slow_response_warning",
+        metadata: {
+          slowResponseWarningMs: securityPolicy.timingAnomaly.slowResponseWarningMs,
+        },
+      });
+    }
 
     const isCorrect = args.selectedAnswer === question.correctAnswer;
     
@@ -130,6 +358,10 @@ export const submitRankedAnswer = mutation({
       elapsedFromPreviousMs,
       elapsedFromStartMs,
       submissionSequenceValid: true,
+      timingAnomalyCode:
+        elapsedFromPreviousMs >= securityPolicy.timingAnomaly.slowResponseWarningMs
+          ? "slow_response_warning"
+          : undefined,
       responseTimeMs: elapsedFromPreviousMs,
       isCorrect: isCorrect,
       updatedAt: now,
@@ -155,6 +387,16 @@ export const submitRankedAnswer = mutation({
       pointsFromTime: newPointsFromTime,
       pointsFromAccuracy: newPointsFromAccuracy,
       updatedAt: now,
+    });
+
+    await insertRankedTimingAudit(ctx, {
+      runId: run._id,
+      userId: user._id,
+      questionIndex: args.questionIndex,
+      eventType: "submission_accepted",
+      requestReceivedAt: now,
+      referenceTimestamp: responseWindowStartAt,
+      elapsedMs: elapsedFromPreviousMs,
     });
 
     return {
