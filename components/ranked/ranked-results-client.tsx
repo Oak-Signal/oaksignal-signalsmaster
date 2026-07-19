@@ -197,7 +197,7 @@ export function RankedResultsClient({ runId }: RankedResultsClientProps) {
             <p className="text-slate-400 mb-1 flex items-center gap-1"><Fingerprint className="h-3 w-3" /> Signature</p>
             <p className="font-semibold text-slate-100">
               {hasVerification
-                ? `${run.signatureVersion} • ${new Date(run.signatureIssuedAt).toLocaleTimeString()}`
+                ? `${run.signatureVersion} • ${new Date(run.signatureIssuedAt ?? 0).toLocaleTimeString()}`
                 : "Unavailable"}
             </p>
           </div>
