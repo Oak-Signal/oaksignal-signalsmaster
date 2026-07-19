@@ -317,7 +317,7 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
       const result = await completeRunMutation({ runId: runId as Id<"rankedRuns"> });
       toast({
         title: "Ranked Run Complete",
-        description: `Your run was completed with a score of ${result.score}.`,
+        description: `Your run was completed with a score of ${result.score}. Signed result ${result.signatureVersion} issued.`,
       });
       startTransition(() => {
         router.replace(`/dashboard/ranked/run/${runId}/results`);

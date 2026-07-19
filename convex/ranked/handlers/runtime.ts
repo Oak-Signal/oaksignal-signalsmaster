@@ -36,6 +36,23 @@ function getLongestConsecutiveSameAnswer(answers: string[]): number {
   return longest;
 }
 
+function parseSuspiciousFlags(value: string | undefined): string[] {
+  if (!value) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.filter((item): item is string => typeof item === "string");
+  } catch {
+    return [];
+  }
+}
+
 async function insertRankedTimingAudit(
   ctx: MutationCtx,
   input: {
@@ -118,13 +135,22 @@ export const getRankedRunState = query({
       status: run.status,
       startedAt: run.startedAt,
       completedAt: run.completedAt ?? null,
+      finalizedAt: run.finalizedAt ?? null,
+      immutableAt: run.immutableAt ?? null,
       runDurationMs: run.runDurationMs ?? null,
+      totalElapsedMs: run.totalElapsedMs ?? null,
       flagCount: run.flagCount,
       correctCount: run.correctCount,
       accuracyPercent: run.accuracyPercent,
       score: run.score,
       pointsFromTime: run.pointsFromTime,
       pointsFromAccuracy: run.pointsFromAccuracy,
+      signatureVersion: run.signatureVersion ?? null,
+      signatureIssuedAt: run.signatureIssuedAt ?? null,
+      hasSignedResult: Boolean(run.resultSignatureHash && run.resultTokenHash),
+      runChecksum: run.runChecksum ?? null,
+      replayFingerprintHash: run.replayFingerprintHash ?? null,
+      suspiciousFlags: parseSuspiciousFlags(run.suspiciousFlagsJson),
       antiCheatStatus: run.antiCheatStatus,
       reviewStatus: run.reviewStatus,
       suspiciousReason: run.suspiciousReason ?? null,

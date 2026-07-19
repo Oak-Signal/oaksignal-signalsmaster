@@ -93,3 +93,41 @@ export interface RankedEntryContext {
   leaderboardPreview: RankedLeaderboardPreviewItem[];
   recentHistory: RankedRecentHistoryItem[];
 }
+
+export interface RankedRunState {
+  runId: string;
+  status: "started" | "completed" | "abandoned" | "flagged";
+  startedAt: number;
+  completedAt: number | null;
+  finalizedAt: number | null;
+  immutableAt: number | null;
+  runDurationMs: number | null;
+  totalElapsedMs: number | null;
+  flagCount: number;
+  correctCount: number;
+  accuracyPercent: number;
+  score: number;
+  pointsFromTime: number;
+  pointsFromAccuracy: number;
+  antiCheatStatus: "clear" | "flagged" | "reviewing" | "disqualified";
+  reviewStatus: "none" | "pending" | "confirmed" | "dismissed";
+  suspiciousReason: string | null;
+  suspiciousFlags: string[];
+  runChecksum: string | null;
+  replayFingerprintHash: string | null;
+  signatureVersion: string | null;
+  signatureIssuedAt: number | null;
+  hasSignedResult: boolean;
+}
+
+export interface RankedCompletionResult {
+  runId: string;
+  status: "completed";
+  score: number;
+  accuracyPercent: number;
+  runDurationMs: number;
+  antiCheatStatus: "clear" | "flagged";
+  resultToken: string;
+  signatureVersion: string;
+  signatureIssuedAt: number;
+}
