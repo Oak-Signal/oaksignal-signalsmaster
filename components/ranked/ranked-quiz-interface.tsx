@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -37,7 +38,7 @@ function playSound(type: "correct" | "incorrect" | "click") {
   if (typeof window === "undefined") return;
   try {
     if (!audioCtx) {
-      audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioCtx = new (window.AudioContext || (window as Window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
     }
     if (audioCtx.state === "suspended") {
       audioCtx.resume();
@@ -94,7 +95,7 @@ function triggerHaptic(type: "correct" | "incorrect" | "click") {
 export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   // Queries & Mutations
   const runState = useQuery(api.ranked.getRankedRunState, {
@@ -108,25 +109,30 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
   const completeRunMutation = useMutation(api.ranked.completeRankedRun);
   const abandonRunMutation = useMutation(api.ranked.abandonRankedRun);
 
-  // Interface Settings State
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [focusMode, setFocusMode] = useState(false);
-  const [performanceMode, setPerformanceMode] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [hapticEnabled, setHapticEnabled] = useState(true);
+  const [focusMode, setFocusMode] = useState<boolean>(
+    () => typeof window !== "undefined" && localStorage.getItem("ranked_focus_mode") === "true"
+  );
+  const [performanceMode, setPerformanceMode] = useState<boolean>(
+    () => typeof window !== "undefined" && localStorage.getItem("ranked_perf_mode") === "true"
+  );
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(
+    () => typeof window !== "undefined" ? localStorage.getItem("ranked_sound_enabled") !== "false" : true
+  );
+  const [hapticEnabled, setHapticEnabled] = useState<boolean>(
+    () => typeof window !== "undefined" ? localStorage.getItem("ranked_haptic_enabled") !== "false" : true
+  );
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Quiz Navigation State
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [localStreak, setLocalStreak] = useState(0);
-  const [isLocalAnswerCorrect, setIsLocalAnswerCorrect] = useState<boolean | null>(null);
 
   // Time metrics
   const [totalElapsed, setTotalElapsed] = useState(0);
   const [questionTime, setQuestionTime] = useState(0);
-  const questionLoadedAtRef = useRef<number>(Date.now());
-  const runStartedAtRef = useRef<number>(Date.now());
+  const questionLoadedAtRef = useRef<number>(0);
+  const runStartedAtRef = useRef<number>(0);
 
   // Connection dot state
   const [isOnline, setIsOnline] = useState(true);
@@ -148,14 +154,8 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
     }
   };
 
-  // Preload settings from localStorage
+  // Register event listeners only (localStorage now initializes state lazily above)
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    setFocusMode(localStorage.getItem("ranked_focus_mode") === "true");
-    setPerformanceMode(localStorage.getItem("ranked_perf_mode") === "true");
-    setSoundEnabled(localStorage.getItem("ranked_sound_enabled") !== "false");
-    setHapticEnabled(localStorage.getItem("ranked_haptic_enabled") !== "false");
-
     const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", handleFsChange);
 
@@ -223,9 +223,6 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
     // Resume from first unanswered question
     const firstUnanswered = questions.findIndex((q) => q.userAnswer === null);
     if (firstUnanswered !== -1) {
-      setCurrentIndex(firstUnanswered);
-      
-      // Calculate streak from answered questions
       let activeStreak = 0;
       for (let i = 0; i < firstUnanswered; i++) {
         if (questions[i].userAnswer === questions[i].correctAnswer) {
@@ -234,12 +231,14 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
           activeStreak = 0;
         }
       }
-      setLocalStreak(activeStreak);
+      startTransition(() => {
+        setCurrentIndex(firstUnanswered);
+        setLocalStreak(activeStreak);
+      });
     } else if (questions.length > 0) {
-      // All answered, wait for finalized mutation triggers
-      setCurrentIndex(questions.length);
+      startTransition(() => setCurrentIndex(questions.length));
     }
-  }, [questions]);
+  }, [questions, startTransition]);
 
   // Run timer updates
   useEffect(() => {
@@ -260,21 +259,10 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
   // Handle question loaded timer resets
   useEffect(() => {
     questionLoadedAtRef.current = Date.now();
-    setQuestionTime(0);
-  }, [currentIndex]);
+    startTransition(() => setQuestionTime(0));
+  }, [currentIndex, startTransition]);
 
-  // Final completion watchdog
-  useEffect(() => {
-    if (!questions || questions.length === 0) return;
-    if (currentIndex >= questions.length && runState?.status === "started" && !finalizingRun) {
-      // Check if background mutations are still in-flight
-      if (pendingSubmissionsRef.current.size === 0) {
-        handleFinalizeRun();
-      }
-    }
-  }, [currentIndex, questions, pendingSubmissionsCount, runState]);
-
-  const handleFinalizeRun = async () => {
+  const handleFinalizeRun = useCallback(async () => {
     setFinalizingRun(true);
     try {
       const result = await completeRunMutation({ runId: runId as Id<"rankedRuns"> });
@@ -293,7 +281,18 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
       });
       setFinalizingRun(false);
     }
-  };
+  }, [completeRunMutation, runId, router, toast]);
+
+  // Final completion watchdog
+  useEffect(() => {
+    if (!questions || questions.length === 0) return;
+    if (currentIndex >= questions.length && runState?.status === "started" && !finalizingRun) {
+      // Check if background mutations are still in-flight
+      if (pendingSubmissionsRef.current.size === 0) {
+        startTransition(() => { handleFinalizeRun(); });
+      }
+    }
+  }, [currentIndex, questions, pendingSubmissionsCount, runState, finalizingRun, handleFinalizeRun, startTransition]);
 
   const handleAbandonRun = async () => {
     if (!confirm("Are you sure you want to exit? Your ranked run progress will be lost and count as an attempt.")) {
@@ -312,7 +311,7 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
     }
   };
 
-  const handleOptionSelect = (optionId: string) => {
+  const handleOptionSelect = useCallback((optionId: string) => {
     if (selectedAnswer !== null || !questions) return;
     const currentQuestion = questions[currentIndex];
     if (!currentQuestion) return;
@@ -330,7 +329,6 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
 
     // Local state updates
     setSelectedAnswer(optionId);
-    setIsLocalAnswerCorrect(isCorrect);
     setLocalStreak((prev) => (isCorrect ? prev + 1 : 0));
 
     // Submit answer in background
@@ -365,7 +363,7 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
       setIsLocalAnswerCorrect(null);
       setCurrentIndex((prev) => prev + 1);
     }, transitionDelay);
-  };
+  }, [selectedAnswer, questions, currentIndex, soundEnabled, hapticEnabled, submitAnswerMutation, runId, toast]);
 
   // Keyboard events listener
   useEffect(() => {
@@ -389,7 +387,7 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentIndex, questions, selectedAnswer, soundEnabled, hapticEnabled]);
+  }, [currentIndex, questions, selectedAnswer, soundEnabled, hapticEnabled, handleOptionSelect]);
 
   // Loading indicator for query loads
   if (runState === undefined || questions === undefined) {
@@ -677,10 +675,11 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
                       <div className="flex flex-col items-center gap-4">
                         <div className="bg-[#111827] border border-slate-800 rounded-xl p-4 shadow-[0_4px_30px_rgba(0,0,0,0.4)] relative flex items-center justify-center w-[260px] h-[180px] sm:w-[320px] sm:h-[220px]">
                           {currentQuestion.imagePath ? (
-                            <img
+                            <Image
                               src={currentQuestion.imagePath}
                               alt="Signal Flag Prompt"
-                              className="max-w-full max-h-full object-contain filter drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
+                              fill
+                              className="object-contain filter drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
                               draggable={false}
                             />
                           ) : (
@@ -727,10 +726,11 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
                               {currentQuestion.mode === "match" ? (
                                 <div className="flex items-center justify-center w-24 h-12 bg-[#111827] rounded border border-slate-800/80 p-1">
                                   {option.imagePath ? (
-                                    <img
+                                    <Image
                                       src={option.imagePath}
                                       alt="Match Choice"
-                                      className="max-w-full max-h-full object-contain"
+                                      fill
+                                      className="object-contain"
                                       draggable={false}
                                     />
                                   ) : (

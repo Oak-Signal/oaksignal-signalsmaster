@@ -179,7 +179,7 @@ export const completeRankedRun = mutation({
       .collect();
 
     // Fill in any unanswered questions as incorrect
-    let correctCount = run.correctCount;
+    const correctCount = run.correctCount;
     for (const q of questions) {
       if (q.userAnswer === null) {
         await ctx.db.patch(q._id, {
