@@ -936,4 +936,34 @@ export default defineSchema({
   .index("by_season_user_completedAt", ["seasonId", "userId", "completedAt"])
   .index("by_status_startedAt", ["status", "startedAt"])
   .index("by_anticheat_completedAt", ["antiCheatStatus", "completedAt"]),
+
+  // Generated ranked question instances per timed run attempt.
+  rankedQuestions: defineTable({
+    runId: v.id("rankedRuns"),
+    userId: v.id("users"),
+    questionIndex: v.number(),
+    flagId: v.id("flags"),
+    flagKey: v.string(),
+    mode: v.union(v.literal("learn"), v.literal("match")),
+
+    options: v.array(v.object({
+      id: v.string(),
+      label: v.string(),
+      value: v.string(),
+      imagePath: v.optional(v.string()),
+    })),
+
+    // Server-trusted answer fields.
+    correctAnswer: v.string(),
+    userAnswer: v.union(v.string(), v.null()),
+    answeredAt: v.optional(v.number()),
+    isCorrect: v.optional(v.boolean()),
+    responseTimeMs: v.optional(v.number()),
+
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+  .index("by_run", ["runId"])
+  .index("by_run_question", ["runId", "questionIndex"])
+  .index("by_user_run", ["userId", "runId"]),
 });
