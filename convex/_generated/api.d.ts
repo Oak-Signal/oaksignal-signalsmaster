@@ -79,6 +79,7 @@ import type * as ranked_services_eligibility from "../ranked/services/eligibilit
 import type * as ranked_services_leaderboard from "../ranked/services/leaderboard.js";
 import type * as ranked_services_rank_tiers from "../ranked/services/rank_tiers.js";
 import type * as ranked_services_runtime from "../ranked/services/runtime.js";
+import type * as ranked_services_security_config from "../ranked/services/security_config.js";
 import type * as seed_letters from "../seed/letters.js";
 import type * as seed_numbers from "../seed/numbers.js";
 import type * as seed_reset from "../seed/reset.js";
@@ -169,6 +170,7 @@ declare const fullApi: ApiFromModules<{
   "ranked/services/leaderboard": typeof ranked_services_leaderboard;
   "ranked/services/rank_tiers": typeof ranked_services_rank_tiers;
   "ranked/services/runtime": typeof ranked_services_runtime;
+  "ranked/services/security_config": typeof ranked_services_security_config;
   "seed/letters": typeof seed_letters;
   "seed/numbers": typeof seed_numbers;
   "seed/reset": typeof seed_reset;

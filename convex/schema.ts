@@ -904,8 +904,15 @@ export default defineSchema({
       v.literal("flagged")
     ),
     startedAt: v.number(),
+    // Last accepted answer timestamp (server generated) for sequence/timing checks.
+    lastAnsweredAt: v.optional(v.number()),
+    // Expected next question index to enforce strict in-order submissions.
+    nextExpectedQuestionIndex: v.optional(v.number()),
     completedAt: v.optional(v.number()),
+    finalizedAt: v.optional(v.number()),
+    immutableAt: v.optional(v.number()),
     runDurationMs: v.optional(v.number()),
+    totalElapsedMs: v.optional(v.number()),
     flagCount: v.number(),
     correctCount: v.number(),
     accuracyPercent: v.number(),
@@ -924,7 +931,17 @@ export default defineSchema({
       v.literal("confirmed"),
       v.literal("dismissed")
     ),
+    suspiciousFlagsJson: v.optional(v.string()),
     suspiciousReason: v.optional(v.string()),
+    runChecksum: v.optional(v.string()),
+    replayFingerprintHash: v.optional(v.string()),
+    resultSignatureHash: v.optional(v.string()),
+    resultTokenHash: v.optional(v.string()),
+    resultSalt: v.optional(v.string()),
+    signatureVersion: v.optional(v.string()),
+    signatureIssuedAt: v.optional(v.number()),
+    // Best-effort server-estimated network latency telemetry.
+    averageNetworkLatencyEstimateMs: v.optional(v.number()),
     metadataJson: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -956,9 +973,16 @@ export default defineSchema({
     // Server-trusted answer fields.
     correctAnswer: v.string(),
     userAnswer: v.union(v.string(), v.null()),
+    serverReceivedAt: v.optional(v.number()),
     answeredAt: v.optional(v.number()),
+    elapsedFromPreviousMs: v.optional(v.number()),
+    elapsedFromStartMs: v.optional(v.number()),
+    submissionSequenceValid: v.optional(v.boolean()),
+    timingAnomalyCode: v.optional(v.string()),
+    networkLatencyEstimateMs: v.optional(v.number()),
     isCorrect: v.optional(v.boolean()),
     responseTimeMs: v.optional(v.number()),
+    responseIntegrityHash: v.optional(v.string()),
 
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -966,4 +990,52 @@ export default defineSchema({
   .index("by_run", ["runId"])
   .index("by_run_question", ["runId", "questionIndex"])
   .index("by_user_run", ["userId", "runId"]),
+
+  // Immutable server-side timing and integrity event logs for ranked submissions.
+  rankedTimingAudit: defineTable({
+    runId: v.id("rankedRuns"),
+    userId: v.id("users"),
+    questionIndex: v.optional(v.number()),
+    eventType: v.union(
+      v.literal("submission_received"),
+      v.literal("submission_accepted"),
+      v.literal("submission_rejected"),
+      v.literal("rate_limited"),
+      v.literal("timing_flagged"),
+      v.literal("run_finalized"),
+      v.literal("replay_flagged")
+    ),
+    requestReceivedAt: v.number(),
+    referenceTimestamp: v.optional(v.number()),
+    elapsedMs: v.optional(v.number()),
+    clientReportedAt: v.optional(v.number()),
+    serverClockOffsetMs: v.optional(v.number()),
+    reason: v.optional(v.string()),
+    metadataJson: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+  .index("by_run_createdAt", ["runId", "createdAt"])
+  .index("by_user_createdAt", ["userId", "createdAt"])
+  .index("by_event_createdAt", ["eventType", "createdAt"])
+  .index("by_run_question_createdAt", ["runId", "questionIndex", "createdAt"]),
+
+  // Snapshot records for server clock drift and client offset telemetry health.
+  rankedClockHealth: defineTable({
+    source: v.union(
+      v.literal("submission"),
+      v.literal("periodic"),
+      v.literal("diagnostic")
+    ),
+    driftMs: v.number(),
+    status: v.union(
+      v.literal("ok"),
+      v.literal("warning"),
+      v.literal("critical")
+    ),
+    metadataJson: v.optional(v.string()),
+    measuredAt: v.number(),
+    createdAt: v.number(),
+  })
+  .index("by_createdAt", ["createdAt"])
+  .index("by_status_createdAt", ["status", "createdAt"]),
 });

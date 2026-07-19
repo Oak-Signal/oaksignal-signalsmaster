@@ -6,6 +6,12 @@ import {
   RANKED_DEFAULT_DAILY_ATTEMPT_LIMIT,
   RANKED_DEFAULT_WEEKLY_ATTEMPT_LIMIT,
 } from "../constants";
+import {
+  getRankedClockHealthConfig,
+  getRankedResultSigningConfig,
+  getRankedSubmissionRateLimitConfig,
+  getRankedTimingAnomalyConfig,
+} from "./security_config";
 
 type RankedCtx = QueryCtx | MutationCtx;
 
@@ -51,5 +57,14 @@ export function getResolvedPolicyConfig(config: Doc<"rankedSystemConfig"> | null
     cooldownMinutes: config?.cooldownMinutes ?? RANKED_DEFAULT_COOLDOWN_MINUTES,
     dailyAttemptLimit: config?.dailyAttemptLimit ?? RANKED_DEFAULT_DAILY_ATTEMPT_LIMIT,
     weeklyAttemptLimit: config?.weeklyAttemptLimit ?? RANKED_DEFAULT_WEEKLY_ATTEMPT_LIMIT,
+  };
+}
+
+export function getResolvedSecurityPolicyConfig() {
+  return {
+    submissionRateLimit: getRankedSubmissionRateLimitConfig(),
+    timingAnomaly: getRankedTimingAnomalyConfig(),
+    clockHealth: getRankedClockHealthConfig(),
+    resultSigning: getRankedResultSigningConfig(),
   };
 }
