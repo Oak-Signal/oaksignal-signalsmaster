@@ -427,58 +427,94 @@ export const completeRankedRun = mutation({
     }
 
     const now = Date.now();
-    const runDurationMs = now - run.startedAt;
+    const securityPolicy = getResolvedSecurityPolicyConfig();
 
-    // Fetch questions to evaluate unanswered or check anti-cheat anomalies
+    // Fetch questions and enforce strict completion prerequisites.
     const questions = await ctx.db
       .query("rankedQuestions")
       .withIndex("by_run", (q) => q.eq("runId", args.runId))
       .collect();
 
-    // Fill in any unanswered questions as incorrect
-    const correctCount = run.correctCount;
-    for (const q of questions) {
-      if (q.userAnswer === null) {
-        await ctx.db.patch(q._id, {
-          userAnswer: "none",
-          answeredAt: now,
-          responseTimeMs: 0,
-          isCorrect: false,
-          updatedAt: now,
-        });
-      }
+    const unansweredCount = questions.filter((question) => question.userAnswer === null).length;
+    if (unansweredCount > 0) {
+      await insertRankedTimingAudit(ctx, {
+        runId: run._id,
+        userId: user._id,
+        eventType: "submission_rejected",
+        requestReceivedAt: now,
+        reason: "incomplete_run_submission",
+        metadata: {
+          unansweredCount,
+          flagCount: run.flagCount,
+        },
+      });
+
+      throw new Error("All questions must be answered before final scoring.");
     }
 
-    // Recalculate accuracy based on finalized correct count
-    const accuracyPercent = Math.round((correctCount / run.flagCount) * 100);
+    const completedAt = run.lastAnsweredAt ?? now;
+    const runDurationMs = Math.max(0, completedAt - run.startedAt);
 
-    // Anti-Cheat: Timing Check
-    // If the average response time is suspiciously fast (< 350ms per question) OR 
-    // any single response time is < 100ms, flag it.
+    const correctCount = questions.filter((question) => question.isCorrect === true).length;
+    const rawAccuracyPercent = run.flagCount > 0 ? (correctCount / run.flagCount) * 100 : 0;
+    const accuracyPercent = Math.round(rawAccuracyPercent * 100) / 100;
+
+    const pointsFromAccuracy = Math.round(accuracyPercent * 1000 * 100) / 100;
+    const timePenaltyPoints = Math.round((runDurationMs / 2000) * 100) / 100;
+    const pointsFromTime = -timePenaltyPoints;
+    const finalScore = Math.round((pointsFromAccuracy + pointsFromTime) * 100) / 100;
+
+    // Anti-cheat timing checks are computed from server-side timings only.
     let antiCheatStatus: "clear" | "flagged" = "clear";
-    let suspiciousReason = undefined;
+    let suspiciousReason: string | undefined = undefined;
 
-    const avgResponseTimeMs = runDurationMs / run.flagCount;
+    const avgResponseTimeMs = run.flagCount > 0 ? runDurationMs / run.flagCount : 0;
     const hasSuspectFastAnswer = questions.some(
-      (q) => q.responseTimeMs !== undefined && q.responseTimeMs > 0 && q.responseTimeMs < 100
+      (q) => q.responseTimeMs !== undefined && q.responseTimeMs > 0 && q.responseTimeMs < securityPolicy.timingAnomaly.minResponseTimeMs
     );
 
-    if (avgResponseTimeMs < 350) {
+    if (avgResponseTimeMs < securityPolicy.timingAnomaly.minAverageAnswerTimeMs) {
       antiCheatStatus = "flagged";
       suspiciousReason = `Average response time too fast (${Math.round(avgResponseTimeMs)}ms / question)`;
     } else if (hasSuspectFastAnswer) {
       antiCheatStatus = "flagged";
-      suspiciousReason = `Detected answer timing below minimum human threshold (< 100ms)`;
+      suspiciousReason = `Detected answer timing below minimum human threshold (< ${securityPolicy.timingAnomaly.minResponseTimeMs}ms)`;
     }
 
     await ctx.db.patch(run._id, {
       status: "completed",
-      completedAt: now,
+      completedAt,
+      finalizedAt: now,
+      immutableAt: now,
       runDurationMs,
+      totalElapsedMs: runDurationMs,
+      nextExpectedQuestionIndex: run.flagCount,
+      correctCount,
       accuracyPercent,
+      score: finalScore,
+      pointsFromTime,
+      pointsFromAccuracy,
       antiCheatStatus,
       suspiciousReason,
       updatedAt: now,
+    });
+
+    await insertRankedTimingAudit(ctx, {
+      runId: run._id,
+      userId: user._id,
+      eventType: "run_finalized",
+      requestReceivedAt: now,
+      referenceTimestamp: completedAt,
+      elapsedMs: runDurationMs,
+      metadata: {
+        score: finalScore,
+        pointsFromAccuracy,
+        pointsFromTime,
+        accuracyPercent,
+        correctCount,
+        flagCount: run.flagCount,
+        antiCheatStatus,
+      },
     });
 
     // Record user activity log event
@@ -487,7 +523,7 @@ export const completeRankedRun = mutation({
       eventType: "ranked_run_completed",
       metadataJson: JSON.stringify({
         runId: run._id,
-        score: run.score,
+        score: finalScore,
         accuracyPercent,
         durationMs: runDurationMs,
         antiCheatStatus,
@@ -498,7 +534,7 @@ export const completeRankedRun = mutation({
     return {
       runId: run._id,
       status: "completed",
-      score: run.score,
+      score: finalScore,
       accuracyPercent,
       runDurationMs,
       antiCheatStatus,
