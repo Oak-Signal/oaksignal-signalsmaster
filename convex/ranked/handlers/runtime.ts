@@ -79,7 +79,6 @@ export const submitRankedAnswer = mutation({
     runId: v.id("rankedRuns"),
     questionIndex: v.number(),
     selectedAnswer: v.string(),
-    responseTimeMs: v.number(),
   },
   handler: async (ctx, args) => {
     const user = await requireAuthenticatedUser(ctx, "Authentication required to submit answer.");
@@ -106,14 +105,19 @@ export const submitRankedAnswer = mutation({
       throw new Error("Question has already been answered.");
     }
 
+    const now = Date.now();
+    const responseWindowStartAt = run.lastAnsweredAt ?? run.startedAt;
+    const elapsedFromPreviousMs = Math.max(0, now - responseWindowStartAt);
+    const elapsedFromStartMs = Math.max(0, now - run.startedAt);
+
     const isCorrect = args.selectedAnswer === question.correctAnswer;
     
     // Scoring logic:
     // Base Accuracy: 1000 points if correct
     // Speed Bonus: up to 3000 points if answered correctly in < 3000ms
     const basePoints = isCorrect ? 1000 : 0;
-    const speedBonus = isCorrect && args.responseTimeMs < 3000
-      ? Math.max(0, Math.round(3000 - args.responseTimeMs))
+    const speedBonus = isCorrect && elapsedFromPreviousMs < 3000
+      ? Math.max(0, Math.round(3000 - elapsedFromPreviousMs))
       : 0;
 
     const questionScore = basePoints + speedBonus;
@@ -121,10 +125,14 @@ export const submitRankedAnswer = mutation({
     // Update the question response
     await ctx.db.patch(question._id, {
       userAnswer: args.selectedAnswer,
-      answeredAt: Date.now(),
-      responseTimeMs: args.responseTimeMs,
+      serverReceivedAt: now,
+      answeredAt: now,
+      elapsedFromPreviousMs,
+      elapsedFromStartMs,
+      submissionSequenceValid: true,
+      responseTimeMs: elapsedFromPreviousMs,
       isCorrect: isCorrect,
-      updatedAt: Date.now(),
+      updatedAt: now,
     });
 
     // Update run aggregates
@@ -135,12 +143,18 @@ export const submitRankedAnswer = mutation({
     const newPointsFromAccuracy = run.pointsFromAccuracy + basePoints;
 
     await ctx.db.patch(run._id, {
+      lastAnsweredAt: now,
+      nextExpectedQuestionIndex: Math.max(
+        run.nextExpectedQuestionIndex ?? 0,
+        args.questionIndex + 1
+      ),
+      totalElapsedMs: elapsedFromStartMs,
       correctCount: newCorrectCount,
       accuracyPercent: newAccuracyPercent,
       score: newScore,
       pointsFromTime: newPointsFromTime,
       pointsFromAccuracy: newPointsFromAccuracy,
-      updatedAt: Date.now(),
+      updatedAt: now,
     });
 
     return {
@@ -148,6 +162,8 @@ export const submitRankedAnswer = mutation({
       scoreGained: questionScore,
       pointsFromTime: speedBonus,
       pointsFromAccuracy: basePoints,
+      serverReceivedAt: now,
+      responseTimeMs: elapsedFromPreviousMs,
     };
   },
 });
