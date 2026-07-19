@@ -1,9 +1,11 @@
 import {
   RANKED_DEFAULT_CLOCK_DRIFT_WARNING_MS,
   RANKED_DEFAULT_MIN_AVERAGE_ANSWER_TIME_MS,
+  RANKED_DEFAULT_MIN_ANSWER_TIME_STD_DEV_MS,
   RANKED_DEFAULT_MIN_RESPONSE_TIME_MS,
   RANKED_DEFAULT_NTP_MAX_CLIENT_OFFSET_MS,
   RANKED_DEFAULT_SLOW_RESPONSE_WARNING_MS,
+  RANKED_DEFAULT_MAX_CONSECUTIVE_SAME_ANSWER,
   RANKED_DEFAULT_SUBMISSION_MAX_PER_WINDOW,
   RANKED_DEFAULT_SUBMISSION_MIN_INTERVAL_MS,
   RANKED_DEFAULT_SUBMISSION_WINDOW_MS,
@@ -44,6 +46,8 @@ export interface RankedTimingAnomalyConfig {
   minResponseTimeMs: number;
   slowResponseWarningMs: number;
   minAverageAnswerTimeMs: number;
+  minAnswerTimeStdDevMs: number;
+  maxConsecutiveSameAnswer: number;
 }
 
 export interface RankedClockHealthConfig {
@@ -92,6 +96,16 @@ export function getRankedTimingAnomalyConfig(): RankedTimingAnomalyConfig {
       "RANKED_MIN_AVERAGE_ANSWER_TIME_MS",
       RANKED_DEFAULT_MIN_AVERAGE_ANSWER_TIME_MS,
       1
+    ),
+    minAnswerTimeStdDevMs: getPositiveIntegerEnv(
+      "RANKED_MIN_ANSWER_TIME_STD_DEV_MS",
+      RANKED_DEFAULT_MIN_ANSWER_TIME_STD_DEV_MS,
+      1
+    ),
+    maxConsecutiveSameAnswer: getPositiveIntegerEnv(
+      "RANKED_MAX_CONSECUTIVE_SAME_ANSWER",
+      RANKED_DEFAULT_MAX_CONSECUTIVE_SAME_ANSWER,
+      2
     ),
   };
 }

@@ -4,6 +4,37 @@ import { requireAuthenticatedUser } from "../../lib/auth";
 import { getResolvedSecurityPolicyConfig } from "../services/runtime";
 import { Id } from "../../_generated/dataModel";
 import { issueRankedResultToken } from "../services/result_signature";
+import { sha256Hex, stableStringify } from "../../exams/services/hash";
+
+function computeStdDeviation(values: number[]): number {
+  if (values.length === 0) {
+    return 0;
+  }
+
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+  const variance = values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / values.length;
+  return Math.sqrt(variance);
+}
+
+function getLongestConsecutiveSameAnswer(answers: string[]): number {
+  if (answers.length === 0) {
+    return 0;
+  }
+
+  let longest = 1;
+  let current = 1;
+
+  for (let index = 1; index < answers.length; index += 1) {
+    if (answers[index] === answers[index - 1]) {
+      current += 1;
+      longest = Math.max(longest, current);
+    } else {
+      current = 1;
+    }
+  }
+
+  return longest;
+}
 
 async function insertRankedTimingAudit(
   ctx: MutationCtx,
@@ -455,8 +486,9 @@ export const completeRankedRun = mutation({
 
     const completedAt = run.lastAnsweredAt ?? now;
     const runDurationMs = Math.max(0, completedAt - run.startedAt);
+    const sortedQuestions = [...questions].sort((left, right) => left.questionIndex - right.questionIndex);
 
-    const correctCount = questions.filter((question) => question.isCorrect === true).length;
+    const correctCount = sortedQuestions.filter((question) => question.isCorrect === true).length;
     const rawAccuracyPercent = run.flagCount > 0 ? (correctCount / run.flagCount) * 100 : 0;
     const accuracyPercent = Math.round(rawAccuracyPercent * 100) / 100;
 
@@ -476,21 +508,120 @@ export const completeRankedRun = mutation({
       timestamp: completedAt,
     });
 
+    const answerSequence = sortedQuestions.map((question) => question.userAnswer ?? "<null>");
+    const responseTimes = sortedQuestions
+      .map((question) => question.responseTimeMs ?? 0)
+      .filter((value) => value > 0);
+    const responseTimeStdDevMs = computeStdDeviation(responseTimes);
+    const longestConsecutiveSameAnswer = getLongestConsecutiveSameAnswer(answerSequence);
+
+    const runChecksum = await sha256Hex(
+      stableStringify({
+        runId: run._id,
+        userId: run.userId,
+        seasonId: run.seasonId,
+        startedAt: run.startedAt,
+        completedAt,
+        questions: sortedQuestions.map((question) => ({
+          questionIndex: question.questionIndex,
+          flagKey: question.flagKey,
+          userAnswer: question.userAnswer,
+          isCorrect: question.isCorrect ?? false,
+          responseTimeMs: question.responseTimeMs ?? null,
+          answeredAt: question.answeredAt ?? null,
+          serverReceivedAt: question.serverReceivedAt ?? null,
+        })),
+      })
+    );
+
+    const replayFingerprintHash = await sha256Hex(
+      stableStringify({
+        userId: run.userId,
+        seasonId: run.seasonId,
+        flagCount: run.flagCount,
+        answerSequence,
+        responseTimes,
+      })
+    );
+
+    const seasonRunsForReplay = await ctx.db
+      .query("rankedRuns")
+      .withIndex("by_season_user_completedAt", (q) =>
+        q.eq("seasonId", run.seasonId).eq("userId", run.userId)
+      )
+      .order("desc")
+      .take(50);
+
+    const replayMatch = seasonRunsForReplay.find(
+      (candidate) =>
+        candidate._id !== run._id &&
+        candidate.status === "completed" &&
+        candidate.replayFingerprintHash !== undefined &&
+        candidate.replayFingerprintHash === replayFingerprintHash
+    );
+
     // Anti-cheat timing checks are computed from server-side timings only.
     let antiCheatStatus: "clear" | "flagged" = "clear";
     let suspiciousReason: string | undefined = undefined;
+    const suspiciousFlags: string[] = [];
 
     const avgResponseTimeMs = run.flagCount > 0 ? runDurationMs / run.flagCount : 0;
-    const hasSuspectFastAnswer = questions.some(
+    const hasSuspectFastAnswer = sortedQuestions.some(
       (q) => q.responseTimeMs !== undefined && q.responseTimeMs > 0 && q.responseTimeMs < securityPolicy.timingAnomaly.minResponseTimeMs
     );
 
     if (avgResponseTimeMs < securityPolicy.timingAnomaly.minAverageAnswerTimeMs) {
-      antiCheatStatus = "flagged";
-      suspiciousReason = `Average response time too fast (${Math.round(avgResponseTimeMs)}ms / question)`;
+      suspiciousFlags.push(`avg_response_too_fast:${Math.round(avgResponseTimeMs)}ms`);
     } else if (hasSuspectFastAnswer) {
+      suspiciousFlags.push(`fast_answer_detected:<${securityPolicy.timingAnomaly.minResponseTimeMs}ms`);
+    }
+
+    if (
+      responseTimes.length > 1 &&
+      responseTimeStdDevMs < securityPolicy.timingAnomaly.minAnswerTimeStdDevMs
+    ) {
+      suspiciousFlags.push(
+        `low_timing_variance:${Math.round(responseTimeStdDevMs)}ms(<${securityPolicy.timingAnomaly.minAnswerTimeStdDevMs}ms)`
+      );
+    }
+
+    if (
+      longestConsecutiveSameAnswer >= securityPolicy.timingAnomaly.maxConsecutiveSameAnswer
+    ) {
+      suspiciousFlags.push(
+        `consecutive_same_answer:${longestConsecutiveSameAnswer}(>=${securityPolicy.timingAnomaly.maxConsecutiveSameAnswer})`
+      );
+    }
+
+    if (replayMatch) {
+      suspiciousFlags.push(`replay_fingerprint_match:${replayMatch._id}`);
+      await insertRankedTimingAudit(ctx, {
+        runId: run._id,
+        userId: user._id,
+        eventType: "replay_flagged",
+        requestReceivedAt: now,
+        reason: "replay_fingerprint_match",
+        metadata: {
+          matchedRunId: replayMatch._id,
+        },
+      });
+    }
+
+    if (suspiciousFlags.length > 0) {
       antiCheatStatus = "flagged";
-      suspiciousReason = `Detected answer timing below minimum human threshold (< ${securityPolicy.timingAnomaly.minResponseTimeMs}ms)`;
+      suspiciousReason = suspiciousFlags[0];
+      await insertRankedTimingAudit(ctx, {
+        runId: run._id,
+        userId: user._id,
+        eventType: "timing_flagged",
+        requestReceivedAt: now,
+        reason: "finalization_outlier_detection",
+        metadata: {
+          suspiciousFlags,
+          responseTimeStdDevMs: Math.round(responseTimeStdDevMs * 100) / 100,
+          longestConsecutiveSameAnswer,
+        },
+      });
     }
 
     await ctx.db.patch(run._id, {
@@ -511,6 +642,9 @@ export const completeRankedRun = mutation({
       resultSalt: signedResult.salt,
       signatureVersion: signedResult.version,
       signatureIssuedAt: signedResult.issuedAt,
+      runChecksum,
+      replayFingerprintHash,
+      suspiciousFlagsJson: suspiciousFlags.length > 0 ? JSON.stringify(suspiciousFlags) : undefined,
       antiCheatStatus,
       suspiciousReason,
       updatedAt: now,
@@ -531,6 +665,11 @@ export const completeRankedRun = mutation({
         correctCount,
         flagCount: run.flagCount,
         antiCheatStatus,
+        runChecksum,
+        replayFingerprintHash,
+        suspiciousFlags,
+        responseTimeStdDevMs: Math.round(responseTimeStdDevMs * 100) / 100,
+        longestConsecutiveSameAnswer,
         signatureVersion: signedResult.version,
         signatureIssuedAt: signedResult.issuedAt,
       },
