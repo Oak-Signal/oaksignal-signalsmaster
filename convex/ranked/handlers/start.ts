@@ -81,6 +81,7 @@ export const startRankedRun = mutation({
       seasonId: season._id,
       status: "started",
       startedAt: now,
+      nextExpectedQuestionIndex: 0,
       flagCount: generated.questions.length,
       correctCount: 0,
       accuracyPercent: 0,

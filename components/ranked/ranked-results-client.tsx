@@ -5,11 +5,15 @@ import { useQuery } from "convex/react";
 import {
   AlertTriangle,
   Award,
+  BadgeCheck,
   Calendar,
+  CheckCheck,
   CheckCircle2,
   Clock,
+  Fingerprint,
   ExternalLink,
   Flame,
+  Hash,
   Home,
   Loader2,
   Percent,
@@ -47,7 +51,7 @@ export function RankedResultsClient({ runId }: RankedResultsClientProps) {
 
   if (run === undefined || entryContext === undefined) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[500px]">
+      <div className="flex flex-col items-center justify-center min-h-125">
         <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
         <p className="text-sm text-muted-foreground mt-4">Compiling run stats...</p>
       </div>
@@ -72,6 +76,8 @@ export function RankedResultsClient({ runId }: RankedResultsClientProps) {
 
   const isFlagged = run.antiCheatStatus === "flagged";
   const avgResponseTimeMs = run.runDurationMs ? Math.round(run.runDurationMs / run.flagCount) : 0;
+  const hasVerification = run.hasSignedResult && run.signatureVersion && run.signatureIssuedAt;
+  const normalizedSuspiciousFlags = run.suspiciousFlags ?? [];
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto py-6">
@@ -105,9 +111,9 @@ export function RankedResultsClient({ runId }: RankedResultsClientProps) {
               </span>
             </div>
             <div className="flex flex-col gap-0.5">
-              <span className="text-slate-500 font-semibold">Time Speed Bonus</span>
+              <span className="text-slate-500 font-semibold">Time Penalty</span>
               <span className="font-bold text-amber-500 text-lg">
-                +{run.pointsFromTime.toLocaleString()}
+                {run.pointsFromTime.toLocaleString()}
               </span>
             </div>
           </CardContent>
@@ -117,11 +123,24 @@ export function RankedResultsClient({ runId }: RankedResultsClientProps) {
         <Card className={`border-slate-800 flex flex-col justify-between ${isFlagged ? "bg-amber-500/5 border-amber-500/20" : "bg-emerald-500/5 border-emerald-500/20"}`}>
           <CardHeader>
             <CardTitle className="text-xs uppercase tracking-wider text-slate-500">Integrity Status</CardTitle>
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              {hasVerification ? (
+                <>
+                  <BadgeCheck className="h-4 w-4 text-emerald-400" />
+                  <span>Signed Result {run.signatureVersion}</span>
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="h-4 w-4 text-amber-400" />
+                  <span>Result signature unavailable</span>
+                </>
+              )}
+            </div>
             <div className="flex items-center gap-2 mt-4">
               {isFlagged ? (
-                <AlertTriangle className="h-6 w-6 text-amber-500 flex-shrink-0" />
+                <AlertTriangle className="h-6 w-6 text-amber-500 shrink-0" />
               ) : (
-                <CheckCircle2 className="h-6 w-6 text-emerald-500 flex-shrink-0" />
+                <CheckCircle2 className="h-6 w-6 text-emerald-500 shrink-0" />
               )}
               <span className={`font-bold text-lg ${isFlagged ? "text-amber-500" : "text-emerald-500"}`}>
                 {isFlagged ? "Flagged for Review" : "Verified Clear"}
@@ -130,9 +149,18 @@ export function RankedResultsClient({ runId }: RankedResultsClientProps) {
           </CardHeader>
           <CardContent className="text-xs text-muted-foreground pb-4 leading-relaxed">
             {isFlagged ? (
-              <p>
-                Your answer speeds exceeded standard human thresholds. This attempt is temporarily excluded from leaderboards pending administrator review.
-              </p>
+              <div className="space-y-2">
+                <p>
+                  Server-side integrity analytics flagged this run for review. Leaderboard eligibility may be deferred pending administrator verification.
+                </p>
+                {normalizedSuspiciousFlags.length > 0 && (
+                  <ul className="list-disc pl-4 space-y-1 text-amber-200">
+                    {normalizedSuspiciousFlags.slice(0, 4).map((flag) => (
+                      <li key={flag}>{flag}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             ) : (
               <p>
                 Run duration and submission patterns successfully validated by anti-cheat filters. Score posted to the season leaderboard.
@@ -141,6 +169,40 @@ export function RankedResultsClient({ runId }: RankedResultsClientProps) {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="border-slate-800 bg-slate-900/30">
+        <CardHeader>
+          <CardTitle className="text-sm font-bold flex items-center gap-2">
+            <CheckCheck className="h-4 w-4 text-emerald-500" />
+            Server Verification
+          </CardTitle>
+          <CardDescription>
+            Final score is immutable and generated entirely from server-side timing and answer records.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+          <div className="rounded border border-slate-800 p-3 bg-slate-950/50">
+            <p className="text-slate-400 mb-1">Finalized At</p>
+            <p className="font-semibold text-slate-100">
+              {run.finalizedAt ? new Date(run.finalizedAt).toLocaleString() : "N/A"}
+            </p>
+          </div>
+          <div className="rounded border border-slate-800 p-3 bg-slate-950/50">
+            <p className="text-slate-400 mb-1 flex items-center gap-1"><Hash className="h-3 w-3" /> Run Checksum</p>
+            <p className="font-mono text-[11px] text-slate-200 break-all">
+              {run.runChecksum ?? "N/A"}
+            </p>
+          </div>
+          <div className="rounded border border-slate-800 p-3 bg-slate-950/50">
+            <p className="text-slate-400 mb-1 flex items-center gap-1"><Fingerprint className="h-3 w-3" /> Signature</p>
+            <p className="font-semibold text-slate-100">
+              {hasVerification
+                ? `${run.signatureVersion} • ${new Date(run.signatureIssuedAt ?? 0).toLocaleTimeString()}`
+                : "Unavailable"}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Primary Metrics Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

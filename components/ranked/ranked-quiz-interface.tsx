@@ -149,7 +149,7 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
   // Background mutation tracker
   const pendingSubmissionsRef = useRef<Set<number>>(new Set());
   const [pendingSubmissionsCount, setPendingSubmissionsCount] = useState(0);
-  const failedSubmissionsRef = useRef<Map<number, { selectedAnswer: string; responseTimeMs: number }>>(new Map());
+  const failedSubmissionsRef = useRef<Map<number, { selectedAnswer: string }>>(new Map());
   const [failedSubmissionsCount, setFailedSubmissionsCount] = useState(0);
   const [isRetryingFailed, setIsRetryingFailed] = useState(false);
   const [finalizingRun, setFinalizingRun] = useState(false);
@@ -281,7 +281,6 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
               runId: runId as Id<"rankedRuns">,
               questionIndex,
               selectedAnswer: payload.selectedAnswer,
-              responseTimeMs: payload.responseTimeMs,
             });
             failedSubmissionsRef.current.delete(questionIndex);
           } catch (err) {
@@ -318,7 +317,7 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
       const result = await completeRunMutation({ runId: runId as Id<"rankedRuns"> });
       toast({
         title: "Ranked Run Complete",
-        description: `Your run was completed with a score of ${result.score}.`,
+        description: `Your run was completed with a score of ${result.score}. Signed result ${result.signatureVersion} issued.`,
       });
       startTransition(() => {
         router.replace(`/dashboard/ranked/run/${runId}/results`);
@@ -366,8 +365,6 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
     const currentQuestion = questions[currentIndex];
     if (!currentQuestion) return;
 
-    const responseTimeMs = Date.now() - questionLoadedAtRef.current;
-
     if (soundEnabled) playSound("click");
     if (hapticEnabled) triggerHaptic("click");
 
@@ -382,7 +379,6 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
       runId: runId as Id<"rankedRuns">,
       questionIndex: currentIndex,
       selectedAnswer: optionId,
-      responseTimeMs,
     })
       .then((result) => {
         if (soundEnabled) {
@@ -409,7 +405,6 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
         } else {
           failedSubmissionsRef.current.set(currentIndex, {
             selectedAnswer: optionId,
-            responseTimeMs,
           });
           setFailedSubmissionsCount(failedSubmissionsRef.current.size);
         }
