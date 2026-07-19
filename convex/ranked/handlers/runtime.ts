@@ -63,7 +63,6 @@ export const getRankedRunQuestions = query({
         flagKey: q.flagKey,
         mode: q.mode,
         options: q.options,
-        correctAnswer: q.correctAnswer, // Send to client to enable instant, zero-delay feedback
         userAnswer: q.userAnswer,       // For resuming active runs
         imagePath: flag?.imagePath ?? "",
         meaning: flag?.meaning ?? "",

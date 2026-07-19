@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import Image from "next/image";
+import NextImage from "next/image";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -31,6 +31,12 @@ interface RankedQuizInterfaceProps {
   runId: string;
 }
 
+declare global {
+  interface Window {
+    webkitAudioContext?: typeof AudioContext;
+  }
+}
+
 // Global AudioContext cache to avoid re-creation
 let audioCtx: AudioContext | null = null;
 
@@ -38,7 +44,9 @@ function playSound(type: "correct" | "incorrect" | "click") {
   if (typeof window === "undefined") return;
   try {
     if (!audioCtx) {
-      audioCtx = new (window.AudioContext || (window as Window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+      const AudioCtx = window.AudioContext ?? window.webkitAudioContext;
+      if (!AudioCtx) return;
+      audioCtx = new AudioCtx();
     }
     if (audioCtx.state === "suspended") {
       audioCtx.resume();
@@ -122,6 +130,7 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
     () => typeof window !== "undefined" ? localStorage.getItem("ranked_haptic_enabled") !== "false" : true
   );
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Quiz Navigation State
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -140,6 +149,9 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
   // Background mutation tracker
   const pendingSubmissionsRef = useRef<Set<number>>(new Set());
   const [pendingSubmissionsCount, setPendingSubmissionsCount] = useState(0);
+  const failedSubmissionsRef = useRef<Map<number, { selectedAnswer: string; responseTimeMs: number }>>(new Map());
+  const [failedSubmissionsCount, setFailedSubmissionsCount] = useState(0);
+  const [isRetryingFailed, setIsRetryingFailed] = useState(false);
   const [finalizingRun, setFinalizingRun] = useState(false);
 
   // Fullscreen toggle
@@ -209,12 +221,12 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
     if (!questions) return;
     questions.forEach((q) => {
       if (q.imagePath) {
-        const img = new Image();
+        const img = new window.Image();
         img.src = q.imagePath;
       }
       q.options.forEach((opt) => {
         if (opt.imagePath) {
-          const img = new Image();
+          const img = new window.Image();
           img.src = opt.imagePath;
         }
       });
@@ -223,17 +235,9 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
     // Resume from first unanswered question
     const firstUnanswered = questions.findIndex((q) => q.userAnswer === null);
     if (firstUnanswered !== -1) {
-      let activeStreak = 0;
-      for (let i = 0; i < firstUnanswered; i++) {
-        if (questions[i].userAnswer === questions[i].correctAnswer) {
-          activeStreak++;
-        } else {
-          activeStreak = 0;
-        }
-      }
       startTransition(() => {
         setCurrentIndex(firstUnanswered);
-        setLocalStreak(activeStreak);
+        setLocalStreak(0);
       });
     } else if (questions.length > 0) {
       startTransition(() => setCurrentIndex(questions.length));
@@ -262,6 +266,52 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
     startTransition(() => setQuestionTime(0));
   }, [currentIndex, startTransition]);
 
+  const retryFailedSubmissions = useCallback(async () => {
+    if (isRetryingFailed) return;
+    const failedEntries = Array.from(failedSubmissionsRef.current.entries());
+    if (failedEntries.length === 0) return;
+
+    setIsRetryingFailed(true);
+
+    try {
+      await Promise.all(
+        failedEntries.map(async ([questionIndex, payload]) => {
+          try {
+            await submitAnswerMutation({
+              runId: runId as Id<"rankedRuns">,
+              questionIndex,
+              selectedAnswer: payload.selectedAnswer,
+              responseTimeMs: payload.responseTimeMs,
+            });
+            failedSubmissionsRef.current.delete(questionIndex);
+          } catch (err) {
+            const message = err instanceof Error ? err.message : "Unknown submission error";
+            if (message.includes("already been answered")) {
+              failedSubmissionsRef.current.delete(questionIndex);
+              return;
+            }
+            throw err;
+          }
+        })
+      );
+
+      setFailedSubmissionsCount(failedSubmissionsRef.current.size);
+
+      toast({
+        title: "Answer Sync Restored",
+        description: "All queued answer submissions were synchronized.",
+      });
+    } catch (err) {
+      toast({
+        title: "Sync Retry Failed",
+        description: err instanceof Error ? err.message : "Some answers could not be synchronized yet.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRetryingFailed(false);
+    }
+  }, [isRetryingFailed, runId, submitAnswerMutation, toast]);
+
   const handleFinalizeRun = useCallback(async () => {
     setFinalizingRun(true);
     try {
@@ -288,11 +338,11 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
     if (!questions || questions.length === 0) return;
     if (currentIndex >= questions.length && runState?.status === "started" && !finalizingRun) {
       // Check if background mutations are still in-flight
-      if (pendingSubmissionsRef.current.size === 0) {
+      if (pendingSubmissionsRef.current.size === 0 && failedSubmissionsRef.current.size === 0) {
         startTransition(() => { handleFinalizeRun(); });
       }
     }
-  }, [currentIndex, questions, pendingSubmissionsCount, runState, finalizingRun, handleFinalizeRun, startTransition]);
+  }, [currentIndex, questions, pendingSubmissionsCount, failedSubmissionsCount, runState, finalizingRun, handleFinalizeRun, startTransition]);
 
   const handleAbandonRun = async () => {
     if (!confirm("Are you sure you want to exit? Your ranked run progress will be lost and count as an attempt.")) {
@@ -317,19 +367,12 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
     if (!currentQuestion) return;
 
     const responseTimeMs = Date.now() - questionLoadedAtRef.current;
-    const isCorrect = optionId === currentQuestion.correctAnswer;
 
-    // Trigger local feedback
-    if (soundEnabled) {
-      playSound(isCorrect ? "correct" : "incorrect");
-    }
-    if (hapticEnabled) {
-      triggerHaptic(isCorrect ? "correct" : "incorrect");
-    }
+    if (soundEnabled) playSound("click");
+    if (hapticEnabled) triggerHaptic("click");
 
     // Local state updates
     setSelectedAnswer(optionId);
-    setLocalStreak((prev) => (isCorrect ? prev + 1 : 0));
 
     // Submit answer in background
     pendingSubmissionsRef.current.add(currentIndex);
@@ -341,17 +384,41 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
       selectedAnswer: optionId,
       responseTimeMs,
     })
-      .then(() => {
+      .then((result) => {
+        if (soundEnabled) {
+          playSound(result.isCorrect ? "correct" : "incorrect");
+        }
+        if (hapticEnabled) {
+          triggerHaptic(result.isCorrect ? "correct" : "incorrect");
+        }
+        setLocalStreak((prev) => (result.isCorrect ? prev + 1 : 0));
+
+        failedSubmissionsRef.current.delete(currentIndex);
+        setFailedSubmissionsCount(failedSubmissionsRef.current.size);
+
         pendingSubmissionsRef.current.delete(currentIndex);
         setPendingSubmissionsCount(pendingSubmissionsRef.current.size);
       })
       .catch((err) => {
         console.error(`Submission failed for index ${currentIndex}:`, err);
+
+        const message = err instanceof Error ? err.message : "Unknown submission error";
+        if (message.includes("already been answered")) {
+          failedSubmissionsRef.current.delete(currentIndex);
+          setFailedSubmissionsCount(failedSubmissionsRef.current.size);
+        } else {
+          failedSubmissionsRef.current.set(currentIndex, {
+            selectedAnswer: optionId,
+            responseTimeMs,
+          });
+          setFailedSubmissionsCount(failedSubmissionsRef.current.size);
+        }
+
         pendingSubmissionsRef.current.delete(currentIndex);
         setPendingSubmissionsCount(pendingSubmissionsRef.current.size);
         toast({
           title: "Submission Lag Detected",
-          description: "Re-syncing answer with server...",
+          description: "Answer queued for sync. Retry will run before finalization.",
           variant: "destructive",
         });
       });
@@ -360,7 +427,6 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
     const transitionDelay = 80;
     setTimeout(() => {
       setSelectedAnswer(null);
-      setIsLocalAnswerCorrect(null);
       setCurrentIndex((prev) => prev + 1);
     }, transitionDelay);
   }, [selectedAnswer, questions, currentIndex, soundEnabled, hapticEnabled, submitAnswerMutation, runId, toast]);
@@ -675,7 +741,7 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
                       <div className="flex flex-col items-center gap-4">
                         <div className="bg-[#111827] border border-slate-800 rounded-xl p-4 shadow-[0_4px_30px_rgba(0,0,0,0.4)] relative flex items-center justify-center w-[260px] h-[180px] sm:w-[320px] sm:h-[220px]">
                           {currentQuestion.imagePath ? (
-                            <Image
+                            <NextImage
                               src={currentQuestion.imagePath}
                               alt="Signal Flag Prompt"
                               fill
@@ -693,17 +759,11 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full mt-4">
                       {currentQuestion.options.map((option, index) => {
                         const isSelected = selectedAnswer === option.id;
-                        const isCorrectOption = option.id === currentQuestion.correctAnswer;
 
                         let optionStyle = "border-slate-800 bg-slate-900/40 hover:bg-slate-900 hover:border-slate-700 text-slate-200";
                         if (selectedAnswer !== null) {
                           if (isSelected) {
-                            optionStyle = isCorrectOption
-                              ? "bg-emerald-500/20 border-emerald-500/60 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.3)]"
-                              : "bg-rose-500/20 border-rose-500/60 text-rose-400 shadow-[0_0_15px_rgba(244,63,94,0.3)]";
-                          } else if (isCorrectOption) {
-                            // Reveal the correct option briefly on mistake
-                            optionStyle = "bg-emerald-500/10 border-emerald-500/40 text-emerald-400";
+                            optionStyle = "bg-emerald-500/20 border-emerald-500/60 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.3)]";
                           } else {
                             optionStyle = "opacity-40 border-slate-900 bg-slate-950/20 text-slate-500";
                           }
@@ -726,7 +786,7 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
                               {currentQuestion.mode === "match" ? (
                                 <div className="flex items-center justify-center w-24 h-12 bg-[#111827] rounded border border-slate-800/80 p-1">
                                   {option.imagePath ? (
-                                    <Image
+                                    <NextImage
                                       src={option.imagePath}
                                       alt="Match Choice"
                                       fill
@@ -747,11 +807,7 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
                             {/* Correct/Incorrect checks */}
                             {selectedAnswer !== null && isSelected && (
                               <div className="flex-shrink-0">
-                                {isCorrectOption ? (
-                                  <Check className="h-5 w-5 text-emerald-400 stroke-[3]" />
-                                ) : (
-                                  <X className="h-5 w-5 text-rose-400 stroke-[3]" />
-                                )}
+                                <Check className="h-5 w-5 text-emerald-400 stroke-[3]" />
                               </div>
                             )}
                           </button>
@@ -769,11 +825,24 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
       {/* Footer shortcut helper banner */}
       <footer className="w-full max-w-5xl mx-auto h-12 flex items-center justify-between text-xs text-slate-600 font-semibold border-t border-slate-900 mt-6 pt-4">
         <span>Keyboard: Press 1-4 for instant answer submit</span>
-        {pendingSubmissionsCount > 0 && (
-          <span className="text-amber-500 animate-pulse">
-            Syncing answers ({pendingSubmissionsCount} pending)...
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {pendingSubmissionsCount > 0 && (
+            <span className="text-amber-500 animate-pulse">
+              Syncing answers ({pendingSubmissionsCount} pending)...
+            </span>
+          )}
+          {failedSubmissionsCount > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void retryFailedSubmissions()}
+              disabled={isRetryingFailed}
+              className="h-7 border-amber-600/40 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
+            >
+              {isRetryingFailed ? "Retrying..." : `Retry sync (${failedSubmissionsCount})`}
+            </Button>
+          )}
+        </div>
       </footer>
     </div>
   );
