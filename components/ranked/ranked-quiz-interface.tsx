@@ -1,13 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import NextImage from "next/image";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
-  Check,
   Eye,
   EyeOff,
   Maximize,
@@ -25,6 +23,10 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { QuizContainer } from "@/components/practice/quiz-container";
+import { FlagDisplay } from "@/components/practice/flag-display";
+import { ExamProgressHeader } from "@/components/exam/exam-progress-header";
+import { RankedOptionGrid } from "@/components/ranked/ranked-option-grid";
 import { useToast } from "@/hooks/use-toast";
 
 interface RankedQuizInterfaceProps {
@@ -453,19 +455,19 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
   // Loading indicator for query loads
   if (runState === undefined || questions === undefined) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#030712] text-slate-100">
-        <Loader2 className="h-10 w-10 animate-spin text-emerald-500" />
-        <p className="text-sm text-slate-400 mt-4">Initializing ranked run environment...</p>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background text-foreground">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="mt-4 text-sm text-muted-foreground">Initializing ranked run environment...</p>
       </div>
     );
   }
 
   if (!runState || !questions) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#030712] text-slate-100 p-6 text-center">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-6 text-center text-foreground">
         <h2 className="text-2xl font-bold">Run Not Found</h2>
-        <p className="text-slate-400 mt-2">The ranked run could not be found or you do not have permission.</p>
-        <Button onClick={() => router.replace("/dashboard/ranked")} className="mt-4 bg-emerald-600 hover:bg-emerald-500">
+        <p className="mt-2 text-muted-foreground">The ranked run could not be found or you do not have permission.</p>
+        <Button onClick={() => router.replace("/dashboard/ranked")} className="mt-4">
           Back to Entry Dashboard
         </Button>
       </div>
@@ -475,10 +477,10 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
   // Redirect if session is already concluded
   if (!runState || runState.status === "completed" || runState.status === "abandoned" || runState.status === "flagged") {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#030712] text-slate-100 p-6 text-center">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-6 text-center text-foreground">
         <h2 className="text-2xl font-bold">Session Closed</h2>
-        <p className="text-slate-400 mt-2">This ranked run has already been completed or abandoned.</p>
-        <Button onClick={() => router.replace("/dashboard/ranked")} className="mt-4 bg-emerald-600 hover:bg-emerald-500">
+        <p className="mt-2 text-muted-foreground">This ranked run has already been completed or abandoned.</p>
+        <Button onClick={() => router.replace("/dashboard/ranked")} className="mt-4">
           Back to Entry Dashboard
         </Button>
       </div>
@@ -491,10 +493,11 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
   // Render finalized loaders
   const isFinalizing = finalizingRun || currentIndex >= totalQuestions;
 
+  // Additive ranked per-question color-coded timer (retained on top of shared UI)
   const timerColorClass = () => {
-    if (questionTime < 1500) return "text-emerald-400 border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.25)] bg-emerald-500/5";
-    if (questionTime < 3000) return "text-amber-400 border-amber-500/40 shadow-[0_0_15px_rgba(245,158,11,0.25)] bg-amber-500/5";
-    return "text-rose-400 border-rose-500/40 shadow-[0_0_15px_rgba(244,63,94,0.25)] bg-rose-500/5";
+    if (questionTime < 1500) return "text-emerald-500 border-emerald-500/40 bg-emerald-500/10";
+    if (questionTime < 3000) return "text-amber-500 border-amber-500/40 bg-amber-500/10";
+    return "text-rose-500 border-rose-500/40 bg-rose-500/10";
   };
 
   const formatTotalTime = (sec: number) => {
@@ -503,30 +506,35 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const answeredCount = Math.min(currentIndex, totalQuestions);
+  const remainingCount = Math.max(0, totalQuestions - answeredCount);
+  const completionPercent = totalQuestions > 0 ? Math.round((answeredCount / totalQuestions) * 100) : 0;
+  const currentQuestionNumber = Math.min(currentIndex + 1, totalQuestions);
+
   return (
-    <div className="flex flex-col justify-between min-h-screen bg-[#030712] text-slate-100 p-4 md:p-6 select-none font-sans overflow-hidden">
+    <div className="flex min-h-screen select-none flex-col bg-background text-foreground">
       {/* Top Header bar */}
-      <header className="flex items-center justify-between gap-4 w-full max-w-5xl mx-auto h-12">
+      <header className="mx-auto flex h-12 w-full max-w-5xl items-center justify-between gap-4 px-4 md:px-6">
         <div className="flex items-center gap-2">
           <Button
             onClick={() => void handleAbandonRun()}
             variant="ghost"
-            className="text-slate-400 hover:text-slate-200 gap-1.5 hover:bg-slate-900"
+            size="sm"
+            className="gap-1.5"
           >
             <ArrowLeft className="h-4 w-4" />
             Exit
           </Button>
 
           {/* Connection Dot */}
-          <div className="flex items-center gap-1.5 ml-2">
+          <div className="ml-2 flex items-center gap-1.5" aria-live="polite">
             <span
+              aria-hidden="true"
               className={`h-2.5 w-2.5 rounded-full ${
-                isOnline
-                  ? "bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]"
-                  : "bg-rose-500 animate-ping"
+                isOnline ? "bg-emerald-500 animate-pulse" : "bg-rose-500 animate-ping"
               }`}
             />
-            <span className="text-[10px] uppercase tracking-wider text-slate-500">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
               {isOnline ? "Online" : "Offline"}
             </span>
           </div>
@@ -538,7 +546,7 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
             initial={{ scale: 0.6, opacity: 0 }}
             animate={{ scale: [1, 1.25, 1], opacity: 1 }}
             key={localStreak}
-            className="bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-extrabold text-xs px-2.5 py-1 rounded-full shadow-[0_0_12px_rgba(245,158,11,0.4)] flex items-center gap-1 uppercase"
+            className="flex items-center gap-1 rounded-full bg-linear-to-r from-amber-500 to-orange-500 px-2.5 py-1 text-xs font-extrabold uppercase text-slate-950 shadow"
           >
             🔥 Combo {localStreak}x
           </motion.div>
@@ -550,8 +558,8 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
             size="icon"
             variant="ghost"
             onClick={() => setSettingsOpen(!settingsOpen)}
-            className="text-slate-400 hover:text-slate-200 hover:bg-slate-900"
             title="Quiz settings"
+            aria-label="Open quiz settings"
           >
             <Settings className="h-4 w-4" />
           </Button>
@@ -560,8 +568,9 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
             size="icon"
             variant="ghost"
             onClick={toggleFullscreen}
-            className="text-slate-400 hover:text-slate-200 hover:bg-slate-900 hidden sm:inline-flex"
+            className="hidden sm:inline-flex"
             title="Toggle Fullscreen"
+            aria-label="Toggle fullscreen"
           >
             {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
           </Button>
@@ -569,87 +578,96 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
       </header>
 
       {/* Main workspace */}
-      <main className="flex-1 flex flex-col justify-center items-center w-full max-w-5xl mx-auto py-6">
+      <main className="relative flex-1">
         {/* Settings Dialog Overlay */}
         {settingsOpen && (
-          <div className="absolute inset-0 bg-[#030712]/90 backdrop-blur-md z-50 flex items-center justify-center p-4">
-            <Card className="w-full max-w-sm bg-slate-900 border-slate-800 text-slate-100 shadow-[0_0_40px_rgba(0,0,0,0.5)]">
-              <CardContent className="p-6 space-y-5">
-                <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-                  <h3 className="text-lg font-bold text-slate-200">Runner Settings</h3>
-                  <Button size="icon" variant="ghost" onClick={() => setSettingsOpen(false)} className="h-8 w-8 text-slate-400">
+          <div
+            className="absolute inset-0 z-50 flex items-center justify-center bg-background/90 p-4 backdrop-blur-md"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Runner settings"
+          >
+            <Card className="w-full max-w-sm">
+              <CardContent className="space-y-5 p-6">
+                <div className="flex items-center justify-between border-b pb-3">
+                  <h3 className="text-lg font-bold">Runner Settings</h3>
+                  <Button size="icon" variant="ghost" onClick={() => setSettingsOpen(false)} className="h-8 w-8" aria-label="Close settings">
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
 
                 <div className="space-y-4 text-sm">
                   {/* Focus Mode */}
-                  <div className="flex items-center justify-between">
+                  <label htmlFor="ranked-focus-mode" className="flex cursor-pointer items-center justify-between gap-4">
                     <div className="flex flex-col">
-                      <span className="font-semibold text-slate-200 flex items-center gap-1.5">
-                        {focusMode ? <EyeOff className="h-4 w-4 text-amber-400" /> : <Eye className="h-4 w-4 text-slate-400" />}
+                      <span className="flex items-center gap-1.5 font-semibold">
+                        {focusMode ? <EyeOff className="h-4 w-4 text-amber-500" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
                         Focus Mode
                       </span>
-                      <span className="text-xs text-slate-500 mt-0.5">Hides timers to reduce testing pressure.</span>
+                      <span className="mt-0.5 text-xs text-muted-foreground">Hides timers to reduce testing pressure.</span>
                     </div>
                     <input
+                      id="ranked-focus-mode"
                       type="checkbox"
                       checked={focusMode}
                       onChange={(e) => updateFocusMode(e.target.checked)}
-                      className="rounded bg-slate-800 border-slate-700 accent-emerald-500 h-4.5 w-4.5"
+                      className="h-4.5 w-4.5 rounded accent-primary"
                     />
-                  </div>
+                  </label>
 
                   {/* Performance Mode */}
-                  <div className="flex items-center justify-between">
+                  <label htmlFor="ranked-perf-mode" className="flex cursor-pointer items-center justify-between gap-4">
                     <div className="flex flex-col">
-                      <span className="font-semibold text-slate-200 flex items-center gap-1.5">
-                        {performanceMode ? <ZapOff className="h-4 w-4 text-amber-400" /> : <Zap className="h-4 w-4 text-slate-400" />}
+                      <span className="flex items-center gap-1.5 font-semibold">
+                        {performanceMode ? <ZapOff className="h-4 w-4 text-amber-500" /> : <Zap className="h-4 w-4 text-muted-foreground" />}
                         Performance Mode
                       </span>
-                      <span className="text-xs text-slate-500 mt-0.5">Removes animations for 120fps display.</span>
+                      <span className="mt-0.5 text-xs text-muted-foreground">Removes animations for a smoother display.</span>
                     </div>
                     <input
+                      id="ranked-perf-mode"
                       type="checkbox"
                       checked={performanceMode}
                       onChange={(e) => updatePerformanceMode(e.target.checked)}
-                      className="rounded bg-slate-800 border-slate-700 accent-emerald-500 h-4.5 w-4.5"
+                      className="h-4.5 w-4.5 rounded accent-primary"
                     />
-                  </div>
+                  </label>
 
                   {/* Sound FX */}
-                  <div className="flex items-center justify-between">
+                  <label htmlFor="ranked-sound" className="flex cursor-pointer items-center justify-between gap-4">
                     <div className="flex flex-col">
-                      <span className="font-semibold text-slate-200 flex items-center gap-1.5">
-                        {soundEnabled ? <Volume2 className="h-4 w-4 text-slate-200" /> : <VolumeX className="h-4 w-4 text-slate-500" />}
+                      <span className="flex items-center gap-1.5 font-semibold">
+                        {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4 text-muted-foreground" />}
                         Synthesizer Audio
                       </span>
-                      <span className="text-xs text-slate-500 mt-0.5">Plays audio pitch feedback on select.</span>
+                      <span className="mt-0.5 text-xs text-muted-foreground">Plays audio pitch feedback on select.</span>
                     </div>
                     <input
+                      id="ranked-sound"
                       type="checkbox"
                       checked={soundEnabled}
                       onChange={(e) => updateSoundEnabled(e.target.checked)}
-                      className="rounded bg-slate-800 border-slate-700 accent-emerald-500 h-4.5 w-4.5"
+                      className="h-4.5 w-4.5 rounded accent-primary"
                     />
-                  </div>
+                  </label>
 
                   {/* Vibrate Haptic */}
-                  <div className="flex items-center justify-between">
+                  <label htmlFor="ranked-haptic" className="flex cursor-pointer items-center justify-between gap-4">
                     <div className="flex flex-col">
-                      <span className="font-semibold text-slate-200">Haptic Vibration</span>
-                      <span className="text-xs text-slate-500 mt-0.5">Triggers touch confirmation on mobile.</span>
+                      <span className="font-semibold">Haptic Vibration</span>
+                      <span className="mt-0.5 text-xs text-muted-foreground">Triggers touch confirmation on mobile.</span>
                     </div>
                     <input
+                      id="ranked-haptic"
                       type="checkbox"
                       checked={hapticEnabled}
                       onChange={(e) => updateHapticEnabled(e.target.checked)}
-                      className="rounded bg-slate-800 border-slate-700 accent-emerald-500 h-4.5 w-4.5"
+                      className="h-4.5 w-4.5 rounded accent-primary"
                     />
-                  </div>
+                  </label>
                 </div>
 
-                <Button onClick={() => setSettingsOpen(false)} className="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 mt-2">
+                <Button onClick={() => setSettingsOpen(false)} variant="secondary" className="mt-2 w-full">
                   Confirm Settings
                 </Button>
               </CardContent>
@@ -658,171 +676,77 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
         )}
 
         {isFinalizing ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Loader2 className="h-10 w-10 animate-spin text-emerald-500" />
-            <h3 className="text-xl font-bold mt-4">Finalizing Ranked Run...</h3>
-            <p className="text-sm text-slate-400 mt-2 max-w-xs">
+          <QuizContainer className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <h3 className="mt-4 text-xl font-bold">Finalizing Ranked Run...</h3>
+            <p className="mt-2 max-w-xs text-sm text-muted-foreground">
               Saving answers and checking integrity values. Please keep the page open.
             </p>
-          </div>
+          </QuizContainer>
         ) : (
-          <div className="w-full flex flex-col items-center gap-6">
-            {/* Top Indicators: Progress & Counters */}
-            <div className="flex justify-between items-center w-full max-w-3xl gap-4">
-              {/* Question Index */}
-              <div className="flex flex-col gap-0.5">
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Progress</span>
-                <span className="text-lg font-bold tracking-tight text-slate-300">
-                  {currentIndex + 1} / {totalQuestions}
-                </span>
+          <QuizContainer>
+            {/* Progress header (parity with exam mode) */}
+            <ExamProgressHeader
+              currentQuestionNumber={currentQuestionNumber}
+              answeredCount={answeredCount}
+              remainingCount={remainingCount}
+              totalQuestions={totalQuestions}
+              completionPercent={completionPercent}
+              elapsedMs={totalElapsed * 1000}
+            />
+
+            {/* Additive ranked per-question timer (hidden in Focus Mode) */}
+            {!focusMode && (
+              <div className="flex items-center justify-center gap-3" aria-hidden="true">
+                <div
+                  className={`flex items-center justify-center rounded-full border px-3 py-1.5 font-mono text-xs font-bold tracking-wider transition-colors duration-300 ${timerColorClass()}`}
+                >
+                  Q: {(questionTime / 1000).toFixed(1)}s
+                </div>
+                <div className="rounded-full border bg-muted px-3 py-1.5 font-mono text-xs font-bold text-muted-foreground">
+                  ⏱️ {formatTotalTime(totalElapsed)}
+                </div>
               </div>
+            )}
 
-              {/* Real-time Color Coded Timer (unless Focus Mode active) */}
-              {!focusMode ? (
-                <div className="flex items-center gap-3">
-                  {/* Current question timer badge */}
-                  <div
-                    className={`flex items-center justify-center border px-3 py-1.5 rounded-full text-xs font-mono font-bold tracking-wider transition-all duration-300 ${timerColorClass()}`}
-                  >
-                    Q: {(questionTime / 1000).toFixed(1)}s
-                  </div>
-                  {/* Total run duration badge */}
-                  <div className="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-full text-xs font-mono font-bold text-slate-400">
-                    ⏱️ {formatTotalTime(totalElapsed)}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-xs text-slate-600 font-semibold italic flex items-center">
-                  Focus Mode Enabled
-                </div>
+            {/* Question + options */}
+            <AnimatePresence mode="wait">
+              {currentQuestion && (
+                <motion.div
+                  key={currentIndex}
+                  initial={performanceMode ? {} : { x: 200, opacity: 0 }}
+                  animate={performanceMode ? {} : { x: 0, opacity: 1 }}
+                  exit={performanceMode ? {} : { x: -200, opacity: 0 }}
+                  transition={{ duration: 0.12, ease: "easeInOut" }}
+                  className="flex w-full flex-col gap-6"
+                >
+                  <FlagDisplay
+                    mode={currentQuestion.mode}
+                    flagImage={currentQuestion.imagePath || undefined}
+                    flagName={currentQuestion.name}
+                    flagMeaning={currentQuestion.meaning}
+                  />
+
+                  <RankedOptionGrid
+                    options={currentQuestion.options}
+                    mode={currentQuestion.mode}
+                    selectedAnswer={selectedAnswer}
+                    onSelect={handleOptionSelect}
+                    animate={!performanceMode}
+                  />
+                </motion.div>
               )}
-            </div>
-
-            {/* Flat Progress Bar (No percentage) */}
-            <div className="w-full max-w-3xl bg-slate-900 h-1.5 rounded-full overflow-hidden border border-slate-800/40">
-              <div
-                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-100 ease-out"
-                style={{ width: `${((currentIndex + 1) / totalQuestions) * 100}%` }}
-              />
-            </div>
-
-            {/* Quiz Container with AnimatePresence */}
-            <div className="relative w-full max-w-3xl min-h-[360px] flex items-center justify-center mt-4">
-              <AnimatePresence mode="wait">
-                {currentQuestion && (
-                  <motion.div
-                    key={currentIndex}
-                    initial={performanceMode ? {} : { x: 300, opacity: 0 }}
-                    animate={performanceMode ? {} : { x: 0, opacity: 1 }}
-                    exit={performanceMode ? {} : { x: -300, opacity: 0 }}
-                    transition={{ duration: 0.08, ease: "easeInOut" }}
-                    className="w-full flex flex-col items-center gap-6"
-                  >
-                    {/* Prompt Header */}
-                    {currentQuestion.mode === "match" ? (
-                      <div className="text-center py-6">
-                        <h2 className="text-xs font-extrabold uppercase tracking-widest text-slate-500">
-                          Select the matching Flag/Pennant
-                        </h2>
-                        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-2 text-slate-100 max-w-xl mx-auto">
-                          {currentQuestion.meaning}
-                          <span className="block text-sm font-semibold text-emerald-400 uppercase tracking-wider mt-1.5">
-                            ({currentQuestion.name})
-                          </span>
-                        </h1>
-                      </div>
-                    ) : (
-                      /* Flag Display in Learn Mode */
-                      <div className="flex flex-col items-center gap-4">
-                        <div className="bg-[#111827] border border-slate-800 rounded-xl p-4 shadow-[0_4px_30px_rgba(0,0,0,0.4)] relative flex items-center justify-center w-[260px] h-[180px] sm:w-[320px] sm:h-[220px]">
-                          {currentQuestion.imagePath ? (
-                            <NextImage
-                              src={currentQuestion.imagePath}
-                              alt="Signal Flag Prompt"
-                              fill
-                              className="object-contain filter drop-shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
-                              draggable={false}
-                            />
-                          ) : (
-                            <span className="text-xs text-slate-500">Flag Image Missing</span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Shuffled multiple choice option block */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full mt-4">
-                      {currentQuestion.options.map((option, index) => {
-                        const isSelected = selectedAnswer === option.id;
-
-                        let optionStyle = "border-slate-800 bg-slate-900/40 hover:bg-slate-900 hover:border-slate-700 text-slate-200";
-                        if (selectedAnswer !== null) {
-                          if (isSelected) {
-                            optionStyle = "bg-emerald-500/20 border-emerald-500/60 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.3)]";
-                          } else {
-                            optionStyle = "opacity-40 border-slate-900 bg-slate-950/20 text-slate-500";
-                          }
-                        }
-
-                        return (
-                          <button
-                            key={option.id}
-                            disabled={selectedAnswer !== null}
-                            onClick={() => handleOptionSelect(option.id)}
-                            className={`flex items-center justify-between rounded-xl border px-5 py-5 text-left transition-all duration-75 relative cursor-pointer outline-none select-none group min-h-[76px] ${optionStyle}`}
-                          >
-                            <div className="flex items-center gap-3 w-full">
-                              {/* Display Keyboard shortcut Keycap indicator */}
-                              <span className="bg-slate-950 text-slate-500 text-[10px] font-mono font-bold h-5 w-5 rounded border border-slate-800 flex items-center justify-center flex-shrink-0 group-hover:border-slate-600 transition-colors">
-                                {index + 1}
-                              </span>
-
-                              {/* Text option or Image option */}
-                              {currentQuestion.mode === "match" ? (
-                                <div className="flex items-center justify-center w-24 h-12 bg-[#111827] rounded border border-slate-800/80 p-1">
-                                  {option.imagePath ? (
-                                    <NextImage
-                                      src={option.imagePath}
-                                      alt="Match Choice"
-                                      fill
-                                      className="object-contain"
-                                      draggable={false}
-                                    />
-                                  ) : (
-                                    <span className="text-[10px] text-slate-500">Missing</span>
-                                  )}
-                                </div>
-                              ) : (
-                                <span className="font-bold text-sm tracking-wide sm:text-base pr-8 break-words leading-tight">
-                                  {option.label}
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Correct/Incorrect checks */}
-                            {selectedAnswer !== null && isSelected && (
-                              <div className="flex-shrink-0">
-                                <Check className="h-5 w-5 text-emerald-400 stroke-[3]" />
-                              </div>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
+            </AnimatePresence>
+          </QuizContainer>
         )}
       </main>
 
       {/* Footer shortcut helper banner */}
-      <footer className="w-full max-w-5xl mx-auto h-12 flex items-center justify-between text-xs text-slate-600 font-semibold border-t border-slate-900 mt-6 pt-4">
+      <footer className="mx-auto mt-6 flex h-12 w-full max-w-5xl items-center justify-between border-t px-4 pt-4 text-xs font-semibold text-muted-foreground md:px-6">
         <span>Keyboard: Press 1-4 for instant answer submit</span>
         <div className="flex items-center gap-3">
           {pendingSubmissionsCount > 0 && (
-            <span className="text-amber-500 animate-pulse">
+            <span className="animate-pulse text-amber-500" role="status">
               Syncing answers ({pendingSubmissionsCount} pending)...
             </span>
           )}
@@ -832,7 +756,7 @@ export function RankedQuizInterface({ runId }: RankedQuizInterfaceProps) {
               variant="outline"
               onClick={() => void retryFailedSubmissions()}
               disabled={isRetryingFailed}
-              className="h-7 border-amber-600/40 text-amber-400 hover:text-amber-300 hover:bg-amber-500/10"
+              className="h-7"
             >
               {isRetryingFailed ? "Retrying..." : `Retry sync (${failedSubmissionsCount})`}
             </Button>
