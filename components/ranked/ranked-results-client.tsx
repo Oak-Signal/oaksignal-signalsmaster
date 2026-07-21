@@ -52,7 +52,7 @@ export function RankedResultsClient({ runId }: RankedResultsClientProps) {
   if (run === undefined || entryContext === undefined) {
     return (
       <div className="flex flex-col items-center justify-center min-h-125">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <p className="text-sm text-muted-foreground mt-4">Compiling run stats...</p>
       </div>
     );
@@ -83,7 +83,7 @@ export function RankedResultsClient({ runId }: RankedResultsClientProps) {
     <div className="space-y-6 max-w-4xl mx-auto py-6">
       {/* Title Header */}
       <div className="flex flex-col items-center text-center gap-2">
-        <Award className="h-16 w-16 text-emerald-500 animate-pulse drop-shadow-[0_0_15px_rgba(16,185,129,0.3)]" />
+        <Award className="h-16 w-16 text-primary" />
         <h1 className="text-3xl font-extrabold tracking-tight">Ranked Run Finalized</h1>
         <p className="text-muted-foreground max-w-lg">
           Your run has been registered and verified by the server. See your performance details below.
@@ -93,26 +93,26 @@ export function RankedResultsClient({ runId }: RankedResultsClientProps) {
       {/* Main Score & Anti-Cheat validation */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Score Card */}
-        <Card className="md:col-span-2 bg-slate-950 border-slate-800 shadow-[0_4px_30px_rgba(0,0,0,0.3)] relative overflow-hidden flex flex-col justify-between">
+        <Card className="md:col-span-2 relative overflow-hidden flex flex-col justify-between">
           <div className="absolute top-0 right-0 p-4 opacity-5">
             <Trophy className="h-40 w-40" />
           </div>
           <CardHeader>
-            <CardTitle className="text-xs uppercase tracking-wider text-slate-500">Overall Points</CardTitle>
-            <CardDescription className="text-5xl font-black text-slate-100 tracking-tight mt-2 select-all">
+            <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">Overall Points</CardTitle>
+            <CardDescription className="text-5xl font-black text-foreground tracking-tight mt-2 select-all">
               {run.score.toLocaleString()}
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4 border-t border-slate-900 pt-4 text-sm">
+          <CardContent className="grid grid-cols-2 gap-4 border-t pt-4 text-sm">
             <div className="flex flex-col gap-0.5">
-              <span className="text-slate-500 font-semibold">Accuracy Base</span>
-              <span className="font-bold text-slate-200 text-lg">
+              <span className="text-muted-foreground font-semibold">Accuracy Base</span>
+              <span className="font-bold text-foreground text-lg">
                 +{run.pointsFromAccuracy.toLocaleString()}
               </span>
             </div>
             <div className="flex flex-col gap-0.5">
-              <span className="text-slate-500 font-semibold">Time Penalty</span>
-              <span className="font-bold text-amber-500 text-lg">
+              <span className="text-muted-foreground font-semibold">Time Penalty</span>
+              <span className="font-bold text-foreground text-lg">
                 {run.pointsFromTime.toLocaleString()}
               </span>
             </div>
@@ -120,18 +120,18 @@ export function RankedResultsClient({ runId }: RankedResultsClientProps) {
         </Card>
 
         {/* Integrity status card */}
-        <Card className={`border-slate-800 flex flex-col justify-between ${isFlagged ? "bg-amber-500/5 border-amber-500/20" : "bg-emerald-500/5 border-emerald-500/20"}`}>
+        <Card className={`flex flex-col justify-between ${isFlagged ? "border-amber-500/30 bg-amber-500/5" : "border-emerald-600/30 bg-emerald-600/5"}`}>
           <CardHeader>
-            <CardTitle className="text-xs uppercase tracking-wider text-slate-500">Integrity Status</CardTitle>
-            <div className="flex items-center gap-2 text-xs text-slate-400">
+            <CardTitle className="text-xs uppercase tracking-wider text-muted-foreground">Integrity Status</CardTitle>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
               {hasVerification ? (
                 <>
-                  <BadgeCheck className="h-4 w-4 text-emerald-400" />
+                  <BadgeCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                   <span>Signed Result {run.signatureVersion}</span>
                 </>
               ) : (
                 <>
-                  <AlertTriangle className="h-4 w-4 text-amber-400" />
+                  <AlertTriangle className="h-4 w-4 text-amber-500" />
                   <span>Result signature unavailable</span>
                 </>
               )}
@@ -140,9 +140,9 @@ export function RankedResultsClient({ runId }: RankedResultsClientProps) {
               {isFlagged ? (
                 <AlertTriangle className="h-6 w-6 text-amber-500 shrink-0" />
               ) : (
-                <CheckCircle2 className="h-6 w-6 text-emerald-500 shrink-0" />
+                <CheckCircle2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400 shrink-0" />
               )}
-              <span className={`font-bold text-lg ${isFlagged ? "text-amber-500" : "text-emerald-500"}`}>
+              <span className={`font-bold text-lg ${isFlagged ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
                 {isFlagged ? "Flagged for Review" : "Verified Clear"}
               </span>
             </div>
@@ -154,7 +154,7 @@ export function RankedResultsClient({ runId }: RankedResultsClientProps) {
                   Server-side integrity analytics flagged this run for review. Leaderboard eligibility may be deferred pending administrator verification.
                 </p>
                 {normalizedSuspiciousFlags.length > 0 && (
-                  <ul className="list-disc pl-4 space-y-1 text-amber-200">
+                  <ul className="list-disc pl-4 space-y-1 text-amber-600 dark:text-amber-300">
                     {normalizedSuspiciousFlags.slice(0, 4).map((flag) => (
                       <li key={flag}>{flag}</li>
                     ))}
@@ -170,10 +170,10 @@ export function RankedResultsClient({ runId }: RankedResultsClientProps) {
         </Card>
       </div>
 
-      <Card className="border-slate-800 bg-slate-900/30">
+      <Card className="bg-muted/30">
         <CardHeader>
           <CardTitle className="text-sm font-bold flex items-center gap-2">
-            <CheckCheck className="h-4 w-4 text-emerald-500" />
+            <CheckCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             Server Verification
           </CardTitle>
           <CardDescription>
@@ -181,21 +181,21 @@ export function RankedResultsClient({ runId }: RankedResultsClientProps) {
           </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-          <div className="rounded border border-slate-800 p-3 bg-slate-950/50">
-            <p className="text-slate-400 mb-1">Finalized At</p>
-            <p className="font-semibold text-slate-100">
+          <div className="rounded border p-3 bg-background/50">
+            <p className="text-muted-foreground mb-1">Finalized At</p>
+            <p className="font-semibold text-foreground">
               {run.finalizedAt ? new Date(run.finalizedAt).toLocaleString() : "N/A"}
             </p>
           </div>
-          <div className="rounded border border-slate-800 p-3 bg-slate-950/50">
-            <p className="text-slate-400 mb-1 flex items-center gap-1"><Hash className="h-3 w-3" /> Run Checksum</p>
-            <p className="font-mono text-[11px] text-slate-200 break-all">
+          <div className="rounded border p-3 bg-background/50">
+            <p className="text-muted-foreground mb-1 flex items-center gap-1"><Hash className="h-3 w-3" /> Run Checksum</p>
+            <p className="font-mono text-[11px] text-foreground break-all">
               {run.runChecksum ?? "N/A"}
             </p>
           </div>
-          <div className="rounded border border-slate-800 p-3 bg-slate-950/50">
-            <p className="text-slate-400 mb-1 flex items-center gap-1"><Fingerprint className="h-3 w-3" /> Signature</p>
-            <p className="font-semibold text-slate-100">
+          <div className="rounded border p-3 bg-background/50">
+            <p className="text-muted-foreground mb-1 flex items-center gap-1"><Fingerprint className="h-3 w-3" /> Signature</p>
+            <p className="font-semibold text-foreground">
               {hasVerification
                 ? `${run.signatureVersion} • ${new Date(run.signatureIssuedAt ?? 0).toLocaleTimeString()}`
                 : "Unavailable"}
@@ -207,10 +207,10 @@ export function RankedResultsClient({ runId }: RankedResultsClientProps) {
       {/* Primary Metrics Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {/* Accuracy */}
-        <Card className="border-slate-800 bg-slate-900/20 shadow-sm">
+        <Card className="shadow-sm">
           <CardHeader className="p-4 flex flex-row items-center justify-between space-y-0">
             <span className="text-xs text-muted-foreground font-semibold">Accuracy</span>
-            <Percent className="h-4 w-4 text-emerald-500" />
+            <Percent className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <div className="text-2xl font-bold">{run.accuracyPercent}%</div>
@@ -221,10 +221,10 @@ export function RankedResultsClient({ runId }: RankedResultsClientProps) {
         </Card>
 
         {/* Total Duration */}
-        <Card className="border-slate-800 bg-slate-900/20 shadow-sm">
+        <Card className="shadow-sm">
           <CardHeader className="p-4 flex flex-row items-center justify-between space-y-0">
             <span className="text-xs text-muted-foreground font-semibold">Duration</span>
-            <Clock className="h-4 w-4 text-sky-500" />
+            <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <div className="text-2xl font-bold">{formatDuration(run.runDurationMs)}</div>
@@ -235,10 +235,10 @@ export function RankedResultsClient({ runId }: RankedResultsClientProps) {
         </Card>
 
         {/* Speed Average */}
-        <Card className="border-slate-800 bg-slate-900/20 shadow-sm">
+        <Card className="shadow-sm">
           <CardHeader className="p-4 flex flex-row items-center justify-between space-y-0">
             <span className="text-xs text-muted-foreground font-semibold">Speed Avg</span>
-            <Flame className="h-4 w-4 text-amber-500 animate-pulse" />
+            <Flame className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <div className="text-2xl font-bold">{(avgResponseTimeMs / 1000).toFixed(2)}s</div>
@@ -249,10 +249,10 @@ export function RankedResultsClient({ runId }: RankedResultsClientProps) {
         </Card>
 
         {/* Fleet Position Projection */}
-        <Card className="border-slate-800 bg-slate-900/20 shadow-sm">
+        <Card className="shadow-sm">
           <CardHeader className="p-4 flex flex-row items-center justify-between space-y-0">
             <span className="text-xs text-muted-foreground font-semibold">Leaderboard</span>
-            <Trophy className="h-4 w-4 text-amber-500" />
+            <Trophy className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="p-4 pt-0">
             <div className="text-2xl font-bold">
@@ -268,10 +268,10 @@ export function RankedResultsClient({ runId }: RankedResultsClientProps) {
       </div>
 
       {/* Season projection status */}
-      <Card className="border-slate-800 bg-slate-900/10">
+      <Card className="bg-muted/20">
         <CardHeader>
           <CardTitle className="text-sm font-bold flex items-center gap-2">
-            <Award className="h-4 w-4 text-amber-500" />
+            <Award className="h-4 w-4 text-primary" />
             Current Rank Projection: {entryContext?.rank.currentRankTitle ?? "Unranked"}
           </CardTitle>
           <CardDescription>
@@ -279,7 +279,7 @@ export function RankedResultsClient({ runId }: RankedResultsClientProps) {
           </CardDescription>
         </CardHeader>
         {entryContext?.rank.isRanked && (
-          <CardContent className="text-xs text-muted-foreground border-t border-slate-900 pt-4 flex items-center justify-between gap-4">
+          <CardContent className="text-xs text-muted-foreground border-t pt-4 flex items-center justify-between gap-4">
             <div className="flex items-center gap-1.5">
               <Calendar className="h-3.5 w-3.5" />
               <span>Season: {entryContext.season?.name ?? "N/A"}</span>
@@ -291,22 +291,22 @@ export function RankedResultsClient({ runId }: RankedResultsClientProps) {
 
       {/* Button navigation section */}
       <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-6">
-        <Button asChild className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 text-slate-100 gap-1.5 shadow-sm">
+        <Button asChild size="lg" className="w-full sm:w-auto">
           <Link href="/dashboard/ranked">
-            <Home className="h-4 w-4" />
+            <Home className="mr-2 h-4 w-4" aria-hidden="true" />
             Return to Ranked Mode
           </Link>
         </Button>
-        <Button asChild variant="outline" className="w-full sm:w-auto gap-1.5 border-slate-800 hover:bg-slate-900 text-slate-300">
+        <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
           <Link href="/dashboard/practice">
-            <RefreshCw className="h-4 w-4" />
+            <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
             Warm-up in Practice Mode
           </Link>
         </Button>
-        <Button asChild variant="ghost" className="w-full sm:w-auto gap-1.5 text-slate-400 hover:text-slate-200">
-          <Link href="/dashboard" className="flex items-center gap-1">
+        <Button asChild variant="ghost" size="lg" className="w-full sm:w-auto">
+          <Link href="/dashboard">
             Go to dashboard
-            <ExternalLink className="h-3 w-3" />
+            <ExternalLink className="ml-2 h-3 w-3" aria-hidden="true" />
           </Link>
         </Button>
       </div>
