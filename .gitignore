@@ -48,3 +48,9 @@ docs/
 # AI context
 AGENTS.md
 
+# Spec Kit
+.vscode/
+.specify/
+specs/
+.github/agents/
+.github/prompts/

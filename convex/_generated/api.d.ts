@@ -70,6 +70,7 @@ import type * as practice_sessions_services_feedback from "../practice_sessions/
 import type * as practice_sessions_services_generation from "../practice_sessions/services/generation.js";
 import type * as ranked from "../ranked.js";
 import type * as ranked_constants from "../ranked/constants.js";
+import type * as ranked_handlers_admin from "../ranked/handlers/admin.js";
 import type * as ranked_handlers_entry from "../ranked/handlers/entry.js";
 import type * as ranked_handlers_migrations from "../ranked/handlers/migrations.js";
 import type * as ranked_handlers_runtime from "../ranked/handlers/runtime.js";
@@ -78,6 +79,7 @@ import type * as ranked_services_attempt_policy from "../ranked/services/attempt
 import type * as ranked_services_eligibility from "../ranked/services/eligibility.js";
 import type * as ranked_services_leaderboard from "../ranked/services/leaderboard.js";
 import type * as ranked_services_rank_tiers from "../ranked/services/rank_tiers.js";
+import type * as ranked_services_result_signature from "../ranked/services/result_signature.js";
 import type * as ranked_services_runtime from "../ranked/services/runtime.js";
 import type * as ranked_services_security_config from "../ranked/services/security_config.js";
 import type * as seed_letters from "../seed/letters.js";
@@ -161,6 +163,7 @@ declare const fullApi: ApiFromModules<{
   "practice_sessions/services/generation": typeof practice_sessions_services_generation;
   ranked: typeof ranked;
   "ranked/constants": typeof ranked_constants;
+  "ranked/handlers/admin": typeof ranked_handlers_admin;
   "ranked/handlers/entry": typeof ranked_handlers_entry;
   "ranked/handlers/migrations": typeof ranked_handlers_migrations;
   "ranked/handlers/runtime": typeof ranked_handlers_runtime;
@@ -169,6 +172,7 @@ declare const fullApi: ApiFromModules<{
   "ranked/services/eligibility": typeof ranked_services_eligibility;
   "ranked/services/leaderboard": typeof ranked_services_leaderboard;
   "ranked/services/rank_tiers": typeof ranked_services_rank_tiers;
+  "ranked/services/result_signature": typeof ranked_services_result_signature;
   "ranked/services/runtime": typeof ranked_services_runtime;
   "ranked/services/security_config": typeof ranked_services_security_config;
   "seed/letters": typeof seed_letters;
