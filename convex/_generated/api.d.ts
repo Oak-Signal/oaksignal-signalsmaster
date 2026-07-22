@@ -72,6 +72,7 @@ import type * as ranked from "../ranked.js";
 import type * as ranked_constants from "../ranked/constants.js";
 import type * as ranked_handlers_admin from "../ranked/handlers/admin.js";
 import type * as ranked_handlers_entry from "../ranked/handlers/entry.js";
+import type * as ranked_handlers_leaderboard from "../ranked/handlers/leaderboard.js";
 import type * as ranked_handlers_migrations from "../ranked/handlers/migrations.js";
 import type * as ranked_handlers_runtime from "../ranked/handlers/runtime.js";
 import type * as ranked_handlers_start from "../ranked/handlers/start.js";
@@ -165,6 +166,7 @@ declare const fullApi: ApiFromModules<{
   "ranked/constants": typeof ranked_constants;
   "ranked/handlers/admin": typeof ranked_handlers_admin;
   "ranked/handlers/entry": typeof ranked_handlers_entry;
+  "ranked/handlers/leaderboard": typeof ranked_handlers_leaderboard;
   "ranked/handlers/migrations": typeof ranked_handlers_migrations;
   "ranked/handlers/runtime": typeof ranked_handlers_runtime;
   "ranked/handlers/start": typeof ranked_handlers_start;

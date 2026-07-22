@@ -457,6 +457,12 @@ export function RankedEntryPageClient() {
                 </div>
               ))
             )}
+            <Button asChild variant="outline" size="sm" className="w-full">
+              <Link href="/dashboard/ranked/leaderboard">
+                View Full Leaderboard
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
           </CardContent>
         </Card>
 

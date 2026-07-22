@@ -8,6 +8,7 @@ export {
   archiveRankedSeason,
 } from "./ranked/handlers/admin";
 export { getRankedEntryContext } from "./ranked/handlers/entry";
+export { getSeasonLeaderboardView } from "./ranked/handlers/leaderboard";
 export { startRankedRun } from "./ranked/handlers/start";
 export {
   getRankedRunState,

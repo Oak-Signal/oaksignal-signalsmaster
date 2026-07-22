@@ -8,7 +8,7 @@ import {
 } from "../constants";
 import { evaluateRankedAttemptPolicy } from "../services/attempt_policy";
 import { getRankedEligibility } from "../services/eligibility";
-import { getSeasonLeaderboard } from "../services/leaderboard";
+import { formatLeaderboardDisplayName, getSeasonLeaderboard } from "../services/leaderboard";
 import { getFleetRankForPosition } from "../services/rank_tiers";
 import {
   getActiveRankedSeason,
@@ -118,7 +118,7 @@ export const getRankedEntryContext = query({
         return {
           position: index + 1,
           userId: entry.userId,
-          name: rankedUser?.name ?? rankedUser?.email ?? "Unknown Cadet",
+          name: formatLeaderboardDisplayName(rankedUser?.name, rankedUser?.email ?? ""),
           score: entry.score,
           runDurationMs: entry.runDurationMs,
           accuracyPercent: entry.accuracyPercent,

@@ -13,11 +13,45 @@ export interface LeaderboardEntry {
 }
 
 function isEligibleLeaderboardRun(run: Doc<"rankedRuns">): boolean {
+  // Voided/incomplete runs (FR-008a) are excluded via `status !== "completed"`.
+  // Only admin-confirmed (invalidated) runs are excluded for integrity reasons —
+  // a run merely "flagged" for soft-anomaly review is still accepted per the
+  // hybrid anti-cheat model (FR-011a) and continues to count until an admin
+  // confirms the violation (`reviewStatus === "confirmed"`).
   return (
     run.status === "completed" &&
     run.completedAt !== undefined &&
-    run.antiCheatStatus === "clear"
+    run.reviewStatus !== "confirmed"
   );
+}
+
+/**
+ * Extracts a display-friendly "First Last" name from a stored user name or
+ * email address. Handles dotted/underscored email-local-part style values
+ * (e.g. "joe.bloggins@example.com" or a `name` of "joe.bloggins") by taking
+ * the local part before "@", splitting on non-letter separators, and
+ * Title-Casing each segment. Falls back to Title-Casing whitespace-separated
+ * words when no "@" is present.
+ */
+export function formatLeaderboardDisplayName(
+  rawName: string | undefined,
+  email: string
+): string {
+  const source = rawName?.trim() || email;
+  const localPart = source.includes("@") ? source.split("@")[0] : source;
+
+  const words = localPart
+    .split(/[^a-zA-Z0-9]+/)
+    .map((word) => word.trim())
+    .filter((word) => word.length > 0);
+
+  if (words.length === 0) {
+    return "Unknown Cadet";
+  }
+
+  return words
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
 }
 
 function compareEntries(a: LeaderboardEntry, b: LeaderboardEntry): number {
