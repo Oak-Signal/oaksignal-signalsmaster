@@ -18,6 +18,12 @@ export const RANKED_DEFAULT_MAX_CONSECUTIVE_SAME_ANSWER = 8;
 export const RANKED_DEFAULT_CLOCK_DRIFT_WARNING_MS = 250;
 export const RANKED_DEFAULT_NTP_MAX_CLIENT_OFFSET_MS = 5_000;
 
+// How long a run may sit idle in "started" status (no accepted answer, no completion)
+// before it is treated as abandoned/disconnected and auto-voided so the cadet can retry
+// (FR-008a). Comfortably above the per-question slow-response warning threshold so a
+// single slow question never triggers this.
+export const RANKED_STALE_RUN_INACTIVITY_MS = 15 * 60 * 1000;
+
 export const RANKED_RULES = [
   "All signal flags are included in each ranked run.",
   "Speed and accuracy both contribute to your score.",

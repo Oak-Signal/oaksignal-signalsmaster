@@ -933,6 +933,13 @@ export default defineSchema({
     ),
     suspiciousFlagsJson: v.optional(v.string()),
     suspiciousReason: v.optional(v.string()),
+    // Highest-severity classification across suspiciousFlagsJson, mirroring the exam
+    // integrity model's severity tiers for admin-review parity (FR-011a).
+    suspiciousSeverity: v.optional(
+      v.union(v.literal("low"), v.literal("medium"), v.literal("high"))
+    ),
+    // Simple weighted count of triggered soft-anomaly rules, for admin-review sorting.
+    integrityScore: v.optional(v.number()),
     runChecksum: v.optional(v.string()),
     replayFingerprintHash: v.optional(v.string()),
     resultSignatureHash: v.optional(v.string()),
@@ -1003,7 +1010,8 @@ export default defineSchema({
       v.literal("rate_limited"),
       v.literal("timing_flagged"),
       v.literal("run_finalized"),
-      v.literal("replay_flagged")
+      v.literal("replay_flagged"),
+      v.literal("run_voided")
     ),
     requestReceivedAt: v.number(),
     referenceTimestamp: v.optional(v.number()),

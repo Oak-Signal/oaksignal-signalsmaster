@@ -2,7 +2,7 @@ import { mutation } from "../../_generated/server";
 import { v } from "convex/values";
 
 import { requireAuthenticatedUser } from "../../lib/auth";
-import { RANKED_START_CONFIRMATION_TOKEN } from "../constants";
+import { RANKED_START_CONFIRMATION_TOKEN, RANKED_STALE_RUN_INACTIVITY_MS } from "../constants";
 import { evaluateRankedAttemptPolicy } from "../services/attempt_policy";
 import { getRankedEligibility } from "../services/eligibility";
 import {
@@ -11,6 +11,7 @@ import {
   getResolvedPolicyConfig,
 } from "../services/runtime";
 import { generateExamQuestions } from "../../lib/exam_generation";
+import { voidRankedRun } from "./runtime";
 
 export const startRankedRun = mutation({
   args: {
@@ -52,13 +53,40 @@ export const startRankedRun = mutation({
       throw new Error(attemptPolicy.reasons.join(" "));
     }
 
+    const now = Date.now();
+
     const activeAttempt = await ctx.db
       .query("rankedRuns")
       .withIndex("by_user_startedAt", (q) => q.eq("userId", user._id))
       .order("desc")
       .take(10);
 
-    const hasInProgressAttempt = activeAttempt.some((run) => run.status === "started");
+    // A run stuck in "started" status past a reasonable inactivity window is treated as
+    // disconnected/abandoned and auto-voided here so the cadet is never permanently locked
+    // out of retrying ranked mode (FR-008a). Runs still within the window remain a genuine
+    // in-progress block.
+    let hasInProgressAttempt = false;
+    for (const candidate of activeAttempt) {
+      if (candidate.status !== "started") {
+        continue;
+      }
+
+      const lastActivityAt = candidate.lastAnsweredAt ?? candidate.startedAt;
+      const idleForMs = now - lastActivityAt;
+
+      if (idleForMs > RANKED_STALE_RUN_INACTIVITY_MS) {
+        await voidRankedRun(ctx, {
+          run: candidate,
+          userId: user._id,
+          now,
+          reason: "stale_run_auto_voided_on_new_start",
+        });
+        continue;
+      }
+
+      hasInProgressAttempt = true;
+    }
+
     if (hasInProgressAttempt) {
       throw new Error("An active ranked run already exists for this account.");
     }
@@ -66,8 +94,6 @@ export const startRankedRun = mutation({
     if (!season) {
       throw new Error("No active ranked season is available.");
     }
-
-    const now = Date.now();
 
     // Generate questions for all available flags in alternating mode strategy
     const generated = generateExamQuestions(flags, {

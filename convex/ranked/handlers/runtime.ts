@@ -2,7 +2,7 @@ import { MutationCtx, query, mutation } from "../../_generated/server";
 import { v } from "convex/values";
 import { requireAuthenticatedUser } from "../../lib/auth";
 import { getResolvedSecurityPolicyConfig } from "../services/runtime";
-import { Id } from "../../_generated/dataModel";
+import { Doc, Id } from "../../_generated/dataModel";
 import { issueRankedResultToken } from "../services/result_signature";
 import { sha256Hex, stableStringify } from "../../exams/services/hash";
 
@@ -53,6 +53,38 @@ function parseSuspiciousFlags(value: string | undefined): string[] {
   }
 }
 
+// Per-rule severity weights, modeled on the exam integrity model's severity tiers
+// (convex/exams/services/integrity_detection.ts) so ranked soft-anomaly flags carry the
+// same admin-review-ready shape (FR-011a). Weight scale is additive; see classifySuspiciousFlags.
+const SUSPICIOUS_FLAG_RULE_WEIGHTS: Record<string, number> = {
+  avg_response_too_fast: 3,
+  fast_answer_detected: 2,
+  low_timing_variance: 2,
+  consecutive_same_answer: 2,
+  replay_fingerprint_match: 4,
+};
+
+function classifySuspiciousFlags(flags: string[]): {
+  severity: "low" | "medium" | "high" | undefined;
+  integrityScore: number;
+} {
+  const integrityScore = flags.reduce((total, flag) => {
+    const ruleId = flag.split(":")[0];
+    return total + (SUSPICIOUS_FLAG_RULE_WEIGHTS[ruleId] ?? 1);
+  }, 0);
+
+  let severity: "low" | "medium" | "high" | undefined;
+  if (integrityScore >= 4) {
+    severity = "high";
+  } else if (integrityScore >= 2) {
+    severity = "medium";
+  } else if (integrityScore >= 1) {
+    severity = "low";
+  }
+
+  return { severity, integrityScore };
+}
+
 async function insertRankedTimingAudit(
   ctx: MutationCtx,
   input: {
@@ -66,7 +98,8 @@ async function insertRankedTimingAudit(
       | "rate_limited"
       | "timing_flagged"
       | "run_finalized"
-      | "replay_flagged";
+      | "replay_flagged"
+      | "run_voided";
     requestReceivedAt: number;
     referenceTimestamp?: number;
     elapsedMs?: number;
@@ -85,6 +118,42 @@ async function insertRankedTimingAudit(
     reason: input.reason,
     metadataJson: input.metadata ? JSON.stringify(input.metadata) : undefined,
     createdAt: input.requestReceivedAt,
+  });
+}
+
+/**
+ * Voids an incomplete ranked run (explicit abandon, or auto-voided because it went stale
+ * while stuck in "started" status) with no score recorded, per FR-008a. Voided runs are
+ * never "completed" so they are already excluded from leaderboard standings; this also
+ * resets the score/accuracy aggregates so a voided run never carries a stale, non-authoritative
+ * score forward.
+ */
+export async function voidRankedRun(
+  ctx: MutationCtx,
+  input: {
+    run: Doc<"rankedRuns">;
+    userId: Id<"users">;
+    now: number;
+    reason: string;
+  }
+): Promise<void> {
+  await ctx.db.patch(input.run._id, {
+    status: "abandoned",
+    completedAt: input.now,
+    updatedAt: input.now,
+    score: 0,
+    pointsFromAccuracy: 0,
+    pointsFromTime: 0,
+    correctCount: 0,
+    accuracyPercent: 0,
+  });
+
+  await insertRankedTimingAudit(ctx, {
+    runId: input.run._id,
+    userId: input.userId,
+    eventType: "run_voided",
+    requestReceivedAt: input.now,
+    reason: input.reason,
   });
 }
 
@@ -154,6 +223,8 @@ export const getRankedRunState = query({
       antiCheatStatus: run.antiCheatStatus,
       reviewStatus: run.reviewStatus,
       suspiciousReason: run.suspiciousReason ?? null,
+      suspiciousSeverity: run.suspiciousSeverity ?? null,
+      integrityScore: run.integrityScore ?? null,
     };
   },
 });
@@ -397,16 +468,6 @@ export const submitRankedAnswer = mutation({
     }
 
     const isCorrect = args.selectedAnswer === question.correctAnswer;
-    
-    // Scoring logic:
-    // Base Accuracy: 1000 points if correct
-    // Speed Bonus: up to 3000 points if answered correctly in < 3000ms
-    const basePoints = isCorrect ? 1000 : 0;
-    const speedBonus = isCorrect && elapsedFromPreviousMs < 3000
-      ? Math.max(0, Math.round(3000 - elapsedFromPreviousMs))
-      : 0;
-
-    const questionScore = basePoints + speedBonus;
 
     // Update the question response
     await ctx.db.patch(question._id, {
@@ -425,12 +486,16 @@ export const submitRankedAnswer = mutation({
       updatedAt: now,
     });
 
-    // Update run aggregates
+    // Update run aggregates. The in-run "score" shown while a run is still "started" is a
+    // provisional read of the SAME authoritative formula used at finalization
+    // (accuracyPercent x 1000 - elapsedSeconds / 2), derived only from server-stored facts
+    // (accepted answers so far, elapsed time so far) -- never a separately-accumulated
+    // per-question value that could diverge from the final score (FR-005/FR-007/FR-008).
     const newCorrectCount = run.correctCount + (isCorrect ? 1 : 0);
     const newAccuracyPercent = Math.round((newCorrectCount / run.flagCount) * 100);
-    const newScore = run.score + questionScore;
-    const newPointsFromTime = run.pointsFromTime + speedBonus;
-    const newPointsFromAccuracy = run.pointsFromAccuracy + basePoints;
+    const provisionalPointsFromAccuracy = newAccuracyPercent * 1000;
+    const provisionalScore = Math.round(provisionalPointsFromAccuracy - elapsedFromStartMs / 2000);
+    const provisionalPointsFromTime = provisionalScore - provisionalPointsFromAccuracy;
 
     await ctx.db.patch(run._id, {
       lastAnsweredAt: now,
@@ -441,9 +506,9 @@ export const submitRankedAnswer = mutation({
       totalElapsedMs: elapsedFromStartMs,
       correctCount: newCorrectCount,
       accuracyPercent: newAccuracyPercent,
-      score: newScore,
-      pointsFromTime: newPointsFromTime,
-      pointsFromAccuracy: newPointsFromAccuracy,
+      score: provisionalScore,
+      pointsFromTime: provisionalPointsFromTime,
+      pointsFromAccuracy: provisionalPointsFromAccuracy,
       updatedAt: now,
     });
 
@@ -459,9 +524,9 @@ export const submitRankedAnswer = mutation({
 
     return {
       isCorrect,
-      scoreGained: questionScore,
-      pointsFromTime: speedBonus,
-      pointsFromAccuracy: basePoints,
+      score: provisionalScore,
+      pointsFromAccuracy: provisionalPointsFromAccuracy,
+      pointsFromTime: provisionalPointsFromTime,
       serverReceivedAt: now,
       responseTimeMs: elapsedFromPreviousMs,
     };
@@ -515,13 +580,16 @@ export const completeRankedRun = mutation({
     const sortedQuestions = [...questions].sort((left, right) => left.questionIndex - right.questionIndex);
 
     const correctCount = sortedQuestions.filter((question) => question.isCorrect === true).length;
-    const rawAccuracyPercent = run.flagCount > 0 ? (correctCount / run.flagCount) * 100 : 0;
-    const accuracyPercent = Math.round(rawAccuracyPercent * 100) / 100;
+    // Whole-percent rounding, unified with the same rounding used for the in-run provisional
+    // accuracy in `submitRankedAnswer` (FR-005/FR-006, T014) -- the two paths must never diverge.
+    const accuracyPercent = run.flagCount > 0 ? Math.round((correctCount / run.flagCount) * 100) : 0;
 
-    const pointsFromAccuracy = Math.round(accuracyPercent * 1000 * 100) / 100;
-    const timePenaltyPoints = Math.round((runDurationMs / 2000) * 100) / 100;
-    const pointsFromTime = -timePenaltyPoints;
-    const finalScore = Math.round((pointsFromAccuracy + pointsFromTime) * 100) / 100;
+    // Single round of the whole authoritative formula (FR-005), not a sum of independently
+    // rounded components -- pointsFromTime is then derived as the remainder so the displayed
+    // breakdown always sums exactly to the final score.
+    const pointsFromAccuracy = accuracyPercent * 1000;
+    const finalScore = Math.round(pointsFromAccuracy - runDurationMs / 2000);
+    const pointsFromTime = finalScore - pointsFromAccuracy;
 
     if (!securityPolicy.resultSigning.enabled) {
       throw new Error("Ranked result signing is not configured. Contact an administrator.");
@@ -633,6 +701,8 @@ export const completeRankedRun = mutation({
       });
     }
 
+    const { severity: suspiciousSeverity, integrityScore } = classifySuspiciousFlags(suspiciousFlags);
+
     if (suspiciousFlags.length > 0) {
       antiCheatStatus = "flagged";
       suspiciousReason = suspiciousFlags[0];
@@ -644,6 +714,8 @@ export const completeRankedRun = mutation({
         reason: "finalization_outlier_detection",
         metadata: {
           suspiciousFlags,
+          suspiciousSeverity,
+          integrityScore,
           responseTimeStdDevMs: Math.round(responseTimeStdDevMs * 100) / 100,
           longestConsecutiveSameAnswer,
         },
@@ -673,6 +745,8 @@ export const completeRankedRun = mutation({
       suspiciousFlagsJson: suspiciousFlags.length > 0 ? JSON.stringify(suspiciousFlags) : undefined,
       antiCheatStatus,
       suspiciousReason,
+      suspiciousSeverity,
+      integrityScore: suspiciousFlags.length > 0 ? integrityScore : undefined,
       updatedAt: now,
     });
 
@@ -694,6 +768,8 @@ export const completeRankedRun = mutation({
         runChecksum,
         replayFingerprintHash,
         suspiciousFlags,
+        suspiciousSeverity,
+        integrityScore,
         responseTimeStdDevMs: Math.round(responseTimeStdDevMs * 100) / 100,
         longestConsecutiveSameAnswer,
         signatureVersion: signedResult.version,
@@ -748,10 +824,11 @@ export const abandonRankedRun = mutation({
 
     const now = Date.now();
 
-    await ctx.db.patch(run._id, {
-      status: "abandoned",
-      completedAt: now,
-      updatedAt: now,
+    await voidRankedRun(ctx, {
+      run,
+      userId: user._id,
+      now,
+      reason: "user_abandoned_run",
     });
 
     return {
