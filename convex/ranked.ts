@@ -13,6 +13,7 @@ export { startRankedRun } from "./ranked/handlers/start";
 export {
   getRankedRunState,
   getRankedRunQuestions,
+  getRankedRunRankChange,
   submitRankedAnswer,
   completeRankedRun,
   abandonRankedRun,

@@ -5,16 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
-  Anchor,
   ArrowRight,
   Calendar,
   CheckCircle2,
-  Compass,
-  Crown,
   Loader2,
-  Shield,
   Timer,
-  Trophy,
 } from "lucide-react";
 
 import { useRankedEntryData } from "@/hooks/use-ranked-entry-data";
@@ -28,8 +23,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RankedRankProgressCard } from "@/components/ranked/ranked-rank-progress-card";
 import {
   Dialog,
   DialogContent,
@@ -91,22 +86,6 @@ function formatDate(timestamp: number | null): string {
   }
 
   return new Date(timestamp).toLocaleString();
-}
-
-function badgeIconForRank(badge: string) {
-  switch (badge) {
-    case "crown_star":
-      return Crown;
-    case "trophy":
-      return Trophy;
-    case "shield":
-    case "helmet":
-      return Shield;
-    case "anchor":
-      return Anchor;
-    default:
-      return Compass;
-  }
 }
 
 function badgeClassForAccent(accent: string): string {
@@ -207,22 +186,6 @@ export function RankedEntryPageClient() {
     return `${daily} • ${weekly}`;
   }, [context]);
 
-  const promotionProgress = useMemo(() => {
-    if (!context?.rank.leaderboardPosition || !context.nextPromotion.targetPosition) {
-      return 0;
-    }
-
-    const current = context.rank.leaderboardPosition;
-    const target = context.nextPromotion.targetPosition;
-
-    if (current <= target) {
-      return 100;
-    }
-
-    const ratio = ((current - target) / current) * 100;
-    return Math.max(5, Math.min(100, Math.round(ratio)));
-  }, [context]);
-
   const router = useRouter();
 
   const handleConfirmStart = async () => {
@@ -273,8 +236,6 @@ export function RankedEntryPageClient() {
     );
   }
 
-  const RankIcon = badgeIconForRank(context.rank.badge);
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-2">
@@ -317,31 +278,7 @@ export function RankedEntryPageClient() {
       </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <RankIcon className="h-5 w-5" />
-              Current Fleet Rank
-            </CardTitle>
-            <CardDescription>
-              {context.rank.leaderboardPosition
-                ? `#${context.rank.leaderboardPosition} of ${context.rank.leaderboardTotalPlayers} players`
-                : "No leaderboard position yet"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Badge className={badgeClassForAccent(context.rank.accent)}>
-              {context.rank.currentRankTitle}
-            </Badge>
-            <p className="text-sm text-muted-foreground">{context.nextPromotion.label}</p>
-            <p className="text-sm font-medium">
-              {context.nextPromotion.pointsRequired === null
-                ? "Points to promotion: N/A"
-                : `Points to promotion: ${context.nextPromotion.pointsRequired}`}
-            </p>
-            <Progress value={promotionProgress} aria-label="Promotion progress" />
-          </CardContent>
-        </Card>
+        <RankedRankProgressCard rank={context.rank} nextPromotion={context.nextPromotion} />
 
         <Card>
           <CardHeader>

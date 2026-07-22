@@ -1,5 +1,6 @@
 import { Doc, Id } from "../../_generated/dataModel";
 import { QueryCtx, MutationCtx } from "../../_generated/server";
+import { getFleetRankForPosition } from "./rank_tiers";
 
 type RankedCtx = QueryCtx | MutationCtx;
 
@@ -87,7 +88,8 @@ function toEntry(run: Doc<"rankedRuns">): LeaderboardEntry {
 
 export async function getSeasonLeaderboard(
   ctx: RankedCtx,
-  seasonId: Id<"rankedSeasons">
+  seasonId: Id<"rankedSeasons">,
+  options?: { excludeRunId?: Id<"rankedRuns"> }
 ): Promise<LeaderboardEntry[]> {
   const seasonRuns = await ctx.db
     .query("rankedRuns")
@@ -98,6 +100,10 @@ export async function getSeasonLeaderboard(
   const bestRunByUser = new Map<string, LeaderboardEntry>();
 
   for (const run of seasonRuns) {
+    if (options?.excludeRunId && run._id === options.excludeRunId) {
+      continue;
+    }
+
     if (!isEligibleLeaderboardRun(run)) {
       continue;
     }
@@ -114,4 +120,72 @@ export async function getSeasonLeaderboard(
   const entries = [...bestRunByUser.values()];
   entries.sort(compareEntries);
   return entries;
+}
+
+export interface RankedRunRankChange {
+  previousPosition: number | null;
+  currentPosition: number | null;
+  positionDelta: number | null;
+  previousRankTitle: string | null;
+  currentRankTitle: string;
+  direction: "up" | "down" | "same" | "new";
+}
+
+/**
+ * Derives the rank-progression change caused by a specific finalized run (US5/FR-018) by
+ * comparing the season leaderboard with vs. without that run. This is fully server-derived
+ * and deterministic — it does not rely on any stored "previous rank" snapshot. A run that
+ * was not the cadet's new best has no effect on their standing, so `direction` is "same".
+ */
+export async function computeRankedRunRankChange(
+  ctx: RankedCtx,
+  run: Doc<"rankedRuns">
+): Promise<RankedRunRankChange | null> {
+  if (run.status !== "completed" || run.reviewStatus === "confirmed") {
+    return null;
+  }
+
+  const [currentLeaderboard, previousLeaderboard] = await Promise.all([
+    getSeasonLeaderboard(ctx, run.seasonId),
+    getSeasonLeaderboard(ctx, run.seasonId, { excludeRunId: run._id }),
+  ]);
+
+  const currentIndex = currentLeaderboard.findIndex((entry) => entry.userId === run.userId);
+  const previousIndex = previousLeaderboard.findIndex((entry) => entry.userId === run.userId);
+
+  const currentPosition = currentIndex >= 0 ? currentIndex + 1 : null;
+  const previousPosition = previousIndex >= 0 ? previousIndex + 1 : null;
+
+  const currentRankTitle =
+    currentPosition !== null ? getFleetRankForPosition(currentPosition).title : "Unranked";
+  const previousRankTitle =
+    previousPosition !== null ? getFleetRankForPosition(previousPosition).title : null;
+
+  let direction: "up" | "down" | "same" | "new";
+  let positionDelta: number | null = null;
+
+  if (previousPosition === null && currentPosition !== null) {
+    direction = "new";
+  } else if (previousPosition !== null && currentPosition !== null) {
+    // Lower position number is better; a positive delta means the cadet moved up.
+    positionDelta = previousPosition - currentPosition;
+    if (positionDelta > 0) {
+      direction = "up";
+    } else if (positionDelta < 0) {
+      direction = "down";
+    } else {
+      direction = "same";
+    }
+  } else {
+    direction = "same";
+  }
+
+  return {
+    previousPosition,
+    currentPosition,
+    positionDelta,
+    previousRankTitle,
+    currentRankTitle,
+    direction,
+  };
 }

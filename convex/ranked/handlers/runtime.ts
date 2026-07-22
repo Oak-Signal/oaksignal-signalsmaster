@@ -4,6 +4,7 @@ import { requireAuthenticatedUser } from "../../lib/auth";
 import { getResolvedSecurityPolicyConfig } from "../services/runtime";
 import { Doc, Id } from "../../_generated/dataModel";
 import { issueRankedResultToken } from "../services/result_signature";
+import { computeRankedRunRankChange } from "../services/leaderboard";
 import { sha256Hex, stableStringify } from "../../exams/services/hash";
 
 function computeStdDeviation(values: number[]): number {
@@ -226,6 +227,30 @@ export const getRankedRunState = query({
       suspiciousSeverity: run.suspiciousSeverity ?? null,
       integrityScore: run.integrityScore ?? null,
     };
+  },
+});
+
+/**
+ * Derives the rank-progression change caused by a specific finalized ranked run (US5/FR-018)
+ * by comparing the season leaderboard with vs. without that run. Returns null while the run
+ * is not yet completed/eligible so results UI can render a neutral state until data is ready.
+ */
+export const getRankedRunRankChange = query({
+  args: {
+    runId: v.id("rankedRuns"),
+  },
+  handler: async (ctx, args) => {
+    const user = await requireAuthenticatedUser(
+      ctx,
+      "Authentication required to fetch ranked rank change."
+    );
+    const run = await ctx.db.get(args.runId);
+
+    if (!run || run.userId !== user._id) {
+      return null;
+    }
+
+    return computeRankedRunRankChange(ctx, run);
   },
 });
 

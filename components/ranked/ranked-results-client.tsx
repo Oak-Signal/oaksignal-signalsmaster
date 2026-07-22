@@ -25,6 +25,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { RankedRankProgressCard } from "@/components/ranked/ranked-rank-progress-card";
 
 interface RankedResultsClientProps {
   runId: string;
@@ -48,6 +49,9 @@ export function RankedResultsClient({ runId }: RankedResultsClientProps) {
   });
 
   const entryContext = useQuery(api.ranked.getRankedEntryContext, {});
+  const rankChange = useQuery(api.ranked.getRankedRunRankChange, {
+    runId: runId as Id<"rankedRuns">,
+  });
 
   if (run === undefined || entryContext === undefined) {
     return (
@@ -266,6 +270,15 @@ export function RankedResultsClient({ runId }: RankedResultsClientProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Rank progression (US5): fleet rank, position, and this run's rank change */}
+      {entryContext ? (
+        <RankedRankProgressCard
+          rank={entryContext.rank}
+          nextPromotion={entryContext.nextPromotion}
+          rankChange={rankChange ?? null}
+        />
+      ) : null}
 
       {/* Season projection status */}
       <Card className="bg-muted/20">
