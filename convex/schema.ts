@@ -1011,7 +1011,10 @@ export default defineSchema({
       v.literal("timing_flagged"),
       v.literal("run_finalized"),
       v.literal("replay_flagged"),
-      v.literal("run_voided")
+      v.literal("run_voided"),
+      // Admin ranked-integrity review action (Phase 9 / US7), mirroring the exam
+      // integrity model's `result_invalidated`-style audit event.
+      v.literal("admin_reviewed")
     ),
     requestReceivedAt: v.number(),
     referenceTimestamp: v.optional(v.number()),

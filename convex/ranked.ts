@@ -6,6 +6,8 @@ export {
   createRankedSeason,
   activateRankedSeason,
   archiveRankedSeason,
+  getRankedIntegrityQueue,
+  reviewRankedRun,
 } from "./ranked/handlers/admin";
 export { getRankedEntryContext } from "./ranked/handlers/entry";
 export { getSeasonLeaderboardView } from "./ranked/handlers/leaderboard";

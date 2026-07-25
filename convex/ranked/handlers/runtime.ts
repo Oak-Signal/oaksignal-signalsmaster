@@ -37,7 +37,7 @@ function getLongestConsecutiveSameAnswer(answers: string[]): number {
   return longest;
 }
 
-function parseSuspiciousFlags(value: string | undefined): string[] {
+export function parseSuspiciousFlags(value: string | undefined): string[] {
   if (!value) {
     return [];
   }
@@ -86,7 +86,7 @@ function classifySuspiciousFlags(flags: string[]): {
   return { severity, integrityScore };
 }
 
-async function insertRankedTimingAudit(
+export async function insertRankedTimingAudit(
   ctx: MutationCtx,
   input: {
     runId: Id<"rankedRuns">;
@@ -100,7 +100,8 @@ async function insertRankedTimingAudit(
       | "timing_flagged"
       | "run_finalized"
       | "replay_flagged"
-      | "run_voided";
+      | "run_voided"
+      | "admin_reviewed";
     requestReceivedAt: number;
     referenceTimestamp?: number;
     elapsedMs?: number;

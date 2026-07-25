@@ -1,6 +1,6 @@
 import { MutationCtx, mutation, query } from "../../_generated/server";
 import { v } from "convex/values";
-import { Id } from "../../_generated/dataModel";
+import { Doc, Id } from "../../_generated/dataModel";
 
 import { requireAdminUser } from "../../lib/auth";
 import {
@@ -14,6 +14,21 @@ import {
   getRankedSystemConfig,
   getResolvedPolicyConfig,
 } from "../services/runtime";
+import { formatLeaderboardDisplayName } from "../services/leaderboard";
+import { insertRankedTimingAudit, parseSuspiciousFlags } from "./runtime";
+
+// Anti-cheat statuses that represent a run the anti-cheat system has flagged for
+// admin attention (FR-022). "clear" runs never need admin review.
+const FLAGGED_ANTI_CHEAT_STATUSES: Array<Doc<"rankedRuns">["antiCheatStatus"]> = [
+  "flagged",
+  "reviewing",
+  "disqualified",
+];
+
+const DEFAULT_INTEGRITY_QUEUE_LIMIT = 50;
+const MAX_INTEGRITY_QUEUE_LIMIT = 200;
+
+const ANOMALY_AUDIT_EVENT_TYPES = new Set(["timing_flagged", "replay_flagged"]);
 
 function assertSeasonWindow(startsAt: number, endsAt?: number | null): void {
   if (!Number.isFinite(startsAt) || startsAt <= 0) {
@@ -362,6 +377,153 @@ export const archiveRankedSeason = mutation({
       status: "archived",
       archivedAt: now,
       endsAt: endNow ? season.endsAt ?? now : season.endsAt ?? null,
+    };
+  },
+});
+
+/**
+ * Admin ranked anti-cheat review queue (US7 / FR-022): lists ranked runs the anti-cheat
+ * system has flagged (any `antiCheatStatus` other than "clear"), each with the cadet/season
+ * context, the suspicious-flag/severity detail computed at finalization, and the supporting
+ * `rankedTimingAudit` timing/replay anomaly events, so an admin can triage without leaving
+ * the panel.
+ */
+export const getRankedIntegrityQueue = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    await requireAdminUser(ctx, "Only administrators can access the ranked integrity queue.");
+
+    const limit = Math.min(
+      Math.max(args.limit ?? DEFAULT_INTEGRITY_QUEUE_LIMIT, 1),
+      MAX_INTEGRITY_QUEUE_LIMIT
+    );
+
+    const runsByStatus = await Promise.all(
+      FLAGGED_ANTI_CHEAT_STATUSES.map((status) =>
+        ctx.db
+          .query("rankedRuns")
+          .withIndex("by_anticheat_completedAt", (q) => q.eq("antiCheatStatus", status))
+          .order("desc")
+          .take(limit)
+      )
+    );
+
+    const runs = runsByStatus
+      .flat()
+      .sort((a, b) => (b.completedAt ?? b.updatedAt) - (a.completedAt ?? a.updatedAt))
+      .slice(0, limit);
+
+    const items = await Promise.all(
+      runs.map(async (run) => {
+        const [user, season, auditEvents] = await Promise.all([
+          ctx.db.get(run.userId),
+          ctx.db.get(run.seasonId),
+          ctx.db
+            .query("rankedTimingAudit")
+            .withIndex("by_run_createdAt", (q) => q.eq("runId", run._id))
+            .order("desc")
+            .collect(),
+        ]);
+
+        const timingAnomalies = auditEvents
+          .filter((event) => ANOMALY_AUDIT_EVENT_TYPES.has(event.eventType))
+          .map((event) => ({
+            eventId: event._id,
+            eventType: event.eventType,
+            reason: event.reason ?? null,
+            createdAt: event.createdAt,
+          }));
+
+        return {
+          runId: run._id,
+          userId: run.userId,
+          userName: user ? formatLeaderboardDisplayName(user.name, user.email) : "Unknown Cadet",
+          userEmail: user?.email ?? null,
+          seasonId: run.seasonId,
+          seasonName: season?.name ?? "Unknown Season",
+          status: run.status,
+          antiCheatStatus: run.antiCheatStatus,
+          reviewStatus: run.reviewStatus,
+          score: run.score,
+          accuracyPercent: run.accuracyPercent,
+          runDurationMs: run.runDurationMs ?? null,
+          completedAt: run.completedAt ?? null,
+          suspiciousFlags: parseSuspiciousFlags(run.suspiciousFlagsJson),
+          suspiciousReason: run.suspiciousReason ?? null,
+          suspiciousSeverity: run.suspiciousSeverity ?? null,
+          integrityScore: run.integrityScore ?? null,
+          timingAnomalies,
+        };
+      })
+    );
+
+    return {
+      generatedAt: Date.now(),
+      items,
+    };
+  },
+});
+
+/**
+ * Admin ranked anti-cheat review workflow (US7 / FR-023): progresses a flagged run's
+ * `reviewStatus` through the existing schema states (`pending` while an admin is actively
+ * reviewing it, `confirmed` once the violation is confirmed, `dismissed` once cleared as a
+ * false positive). `confirmed` is the sole state `isEligibleLeaderboardRun` (see
+ * `convex/ranked/services/leaderboard.ts`) treats as excluded from standings — the run's
+ * immutable `score`/`pointsFromTime`/`pointsFromAccuracy` fields are never touched. Every
+ * transition writes an `admin_reviewed` audit entry.
+ */
+export const reviewRankedRun = mutation({
+  args: {
+    runId: v.id("rankedRuns"),
+    reviewStatus: v.union(
+      v.literal("pending"),
+      v.literal("confirmed"),
+      v.literal("dismissed")
+    ),
+    note: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const admin = await requireAdminUser(ctx, "Only administrators can review ranked runs.");
+
+    const run = await ctx.db.get(args.runId);
+    if (!run) {
+      throw new Error("Ranked run not found.");
+    }
+
+    if (run.antiCheatStatus === "clear" && run.reviewStatus === "none") {
+      throw new Error("This run has no anti-cheat flags to review.");
+    }
+
+    const now = Date.now();
+    const previousReviewStatus = run.reviewStatus;
+    const trimmedNote = args.note?.trim();
+
+    await ctx.db.patch(run._id, {
+      reviewStatus: args.reviewStatus,
+      updatedAt: now,
+    });
+
+    await insertRankedTimingAudit(ctx, {
+      runId: run._id,
+      userId: run.userId,
+      eventType: "admin_reviewed",
+      requestReceivedAt: now,
+      reason: trimmedNote && trimmedNote.length > 0 ? trimmedNote : undefined,
+      metadata: {
+        adminUserId: admin._id,
+        previousReviewStatus,
+        newReviewStatus: args.reviewStatus,
+      },
+    });
+
+    return {
+      runId: run._id,
+      reviewStatus: args.reviewStatus,
+      reviewedAt: now,
+      reviewedBy: admin._id,
     };
   },
 });
