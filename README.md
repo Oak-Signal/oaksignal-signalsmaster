@@ -177,6 +177,78 @@ How to run:
 /public               # Static assets (Flags, Icons)
 ```
 
+## Public Changelog & Roadmap
+
+
+_Part of the OakSignal ecosystem_
+ 
+---
+ 
+### 🧪 Product Version: ALPHA
+
+**Focus**: (marketing) Public Changelog & Roadmap | public-facing changelog and development updates page
+
+- [ ] Markdown Content Infrastructure
+- [ ] Changelog Page UI Foundation
+- [ ] Timeline Style Changelog Display
+- [ ] "In-Development" Section
+- [ ] "Roadmap" Section
+- [ ] Landing Page Integration
+
+---
+
+### 🛠️ Product Version: CLOSED BETA
+ 
+**Focus:** Accessibility + Polish & Optimization
+ 
+- [ ] Smooth page transitions with Framer Motion
+- [ ] Toast notification system with Sonner
+- [ ] Comprehensive loading & error states
+- [ ] Mobile optimization & touch-friendly design
+- [ ] Enhanced / modern login & logout pages + animations
+- [ ] Accessibility compliance — Marketing side (WCAG AA)
+- [ ] Accessibility compliance — Dashboard side (WCAG AA)
+- [ ] Accessibility compliance — Admin side (WCAG AA)
+- [ ] Performance optimization (Lighthouse ≥ 90)
+
+---
+ 
+### 🚀 Product Version: OPEN BETA
+ 
+**Focus:** Launch & Iterations
+ 
+**Testing**
+- [ ] Unit tests (Convex mutations & queries)
+- [ ] E2E testing (user flow with Playwright)
+- [ ] Cross-Browser Testing (compatability testing across major browsers/devices)
+- [ ] Security audit (API protection, validation, rate-limiting)
+
+---
+
+### 🎯 Product Version: RELEASE CANDIDATE
+ 
+**Focus:** Configure app for production
+ 
+---
+ 
+### ✅ Product Version: GENERAL AVAILABILITY
+ 
+**Focus:** Ongoing feedback & development
+ 
+- [ ] GitHub code security & quality issues
+
+---
+ 
+### 🌐 Product Version: PRODUCTION / LIVE RELEASE
+ 
+**Focus:** Ongoing feedback & development
+ 
+- [ ] GitHub code security & quality issues
+
+---
+ 
+_Last updated: July 25, 2026_
+
 ---
 
 ## 🌲 About OakSignal
