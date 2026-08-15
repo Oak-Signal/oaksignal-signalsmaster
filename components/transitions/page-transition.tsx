@@ -16,7 +16,13 @@ export function PageTransition({ children }: PageTransitionProps) {
   const pathname = usePathname()
 
   return (
-    <AnimatePresence mode="wait" initial={false}>
+    // mode="wait" would hold the new route's content unmounted until the old
+    // route's exit animation resolves. With Next.js App Router replacing
+    // `children` (Suspense-streamed) on every navigation, that handoff can
+    // stall indefinitely, leaving the page blank until a hard refresh. Default
+    // (sync) mode animates enter/exit simultaneously instead, so new content
+    // always mounts immediately.
+    <AnimatePresence initial={false}>
       <motion.div
         key={pathname}
         initial={{ opacity: 0, y: 8 }}

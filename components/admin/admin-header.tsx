@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 import { Shield, LayoutDashboard, ClipboardList, AlertTriangle, ChartColumn, Users, ShieldAlert } from "lucide-react"
 import { UserButton } from "@clerk/nextjs"
 import { useQuery } from "convex/react"
+import { useHydrated } from "@/hooks/use-hydrated"
 
 import { api } from "@/convex/_generated/api"
 import { ModeToggle } from "@/components/mode-toggle"
@@ -56,6 +57,10 @@ export function AdminHeader() {
   const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY)
   const user = useQuery(api.users.getCurrentUser)
 
+  // Convex query results are always undefined during SSR; gate until after
+  // mount so the first client render matches the server markup exactly.
+  const hasMounted = useHydrated()
+
   return (
     <header className="sticky top-0 z-30 flex h-16 w-full items-center gap-4 border-b bg-background px-6">
       <div className="flex items-center gap-2 font-bold text-xl tracking-tight text-primary">
@@ -99,7 +104,7 @@ export function AdminHeader() {
         <ModeToggle />
 
         <div className="ml-1 flex items-center gap-3 border-l pl-3">
-          {user ? (
+          {hasMounted && user ? (
             <div className="hidden flex-col items-end md:flex">
               <span className="text-sm font-medium leading-none">{user.name}</span>
               <span className="text-xs uppercase tracking-wider text-muted-foreground">{user.role}</span>

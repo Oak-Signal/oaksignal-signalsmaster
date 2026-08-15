@@ -1,6 +1,5 @@
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
-import { PageTransition } from "@/components/transitions/page-transition";
 
 export default function MarketingLayout({
   children,
@@ -10,9 +9,9 @@ export default function MarketingLayout({
   return (
     <>
       <SiteHeader />
-      <div className="flex-1">
-        <PageTransition>{children}</PageTransition>
-      </div>
+      {/* PageTransition disabled: AnimatePresence duplicates children and gets
+          stuck at opacity:0 under React Strict Mode (dev), blanking pages. */}
+      <div className="flex-1">{children}</div>
       <SiteFooter />
     </>
   );

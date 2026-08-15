@@ -121,10 +121,12 @@ function QuizInterfaceContent({ sessionId }: QuizInterfaceProps) {
     router.push(`/dashboard/practice/session/${sessionId}/results`)
   }
 
+  // Skip the auto-redirect while the feedback modal for the final question is
+  // still open, otherwise it yanks the user to /results before they can see it.
   useEffect(() => {
-    if (!session || questionData !== null) return
+    if (!session || questionData !== null || feedbackModalOpen) return
     router.replace(`/dashboard/practice/session/${sessionId}/results`)
-  }, [session, questionData, router, sessionId])
+  }, [session, questionData, feedbackModalOpen, router, sessionId])
 
   // Keyboard shortcuts
   useKeyboardShortcuts({

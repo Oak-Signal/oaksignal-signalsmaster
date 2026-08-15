@@ -8,6 +8,7 @@ import { UserButton } from "@clerk/nextjs"
 import { useMutation, useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { Id } from "@/convex/_generated/dataModel"
+import { useHydrated } from "@/hooks/use-hydrated"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -26,6 +27,11 @@ export function DashboardHeader() {
   const notifications = useQuery(api.notifications.listMyNotifications, { limit: 8 })
   const markNotificationRead = useMutation(api.notifications.markNotificationRead)
   const markAllNotificationsRead = useMutation(api.notifications.markAllNotificationsRead)
+
+  // Convex query results are always undefined during SSR; gate data-dependent
+  // branches until after mount so the first client render matches the server
+  // markup exactly (avoids hydration mismatches / Radix id drift).
+  const hasMounted = useHydrated()
 
   const openFeedbackWidget = () => {
     if (typeof window !== "undefined") {
@@ -81,7 +87,7 @@ export function DashboardHeader() {
         </nav>
 
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
-          {user?.role === "admin" ? (
+          {hasMounted && user?.role === "admin" ? (
             <>
               <Button
                 asChild
@@ -116,7 +122,7 @@ export function DashboardHeader() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="relative" aria-label="Open notifications">
                 <Bell className="h-5 w-5" />
-                {unreadCount > 0 ? (
+                {hasMounted && unreadCount > 0 ? (
                   <span className="absolute right-1.5 top-1.5 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">
                     {unreadCount > 9 ? "9+" : unreadCount}
                   </span>
@@ -175,7 +181,7 @@ export function DashboardHeader() {
           </DropdownMenu>
 
           <div className="ml-1 flex items-center gap-3 border-l pl-3">
-            {user ? (
+            {hasMounted && user ? (
               <div className="hidden md:flex flex-col items-end">
                 <span className="text-sm font-medium leading-none">{user.name}</span>
                 <span className="text-xs text-muted-foreground uppercase tracking-wider">
