@@ -4,6 +4,7 @@ import { UpdatesHero } from "@/components/updates/updates-hero";
 import { isUpdatesTab, UpdatesTabs } from "@/components/updates/updates-tabs";
 import { getChangelogEntries } from "@/lib/content/changelog";
 import { getInDevelopmentItems } from "@/lib/content/in-development";
+import { getRoadmapData } from "@/lib/content/roadmap";
 
 export const metadata: Metadata = {
   title: "Development Updates & Roadmap",
@@ -31,9 +32,10 @@ export default async function UpdatesPage({
   const requestedTab = resolvedSearchParams.tab;
   const activeTab = requestedTab && isUpdatesTab(requestedTab) ? requestedTab : "latest";
 
-  const [changelogEntries, inDevelopmentItems] = await Promise.all([
+  const [changelogEntries, inDevelopmentItems, roadmapData] = await Promise.all([
     getChangelogEntries(),
     getInDevelopmentItems(),
+    getRoadmapData(),
   ]);
 
   return (
@@ -43,6 +45,7 @@ export default async function UpdatesPage({
         defaultTab={activeTab}
         changelogEntries={changelogEntries}
         inDevelopmentItems={inDevelopmentItems}
+        roadmapData={roadmapData}
       />
     </div>
   );

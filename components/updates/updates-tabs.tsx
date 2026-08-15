@@ -6,9 +6,10 @@ import { ChangelogEmptyState } from "@/components/updates/changelog-empty-state"
 import { ChangelogTimeline } from "@/components/updates/changelog-timeline";
 import { InDevelopmentCard } from "@/components/updates/in-development-card";
 import { InDevelopmentEmptyState } from "@/components/updates/in-development-empty-state";
-import { Card, CardContent } from "@/components/ui/card";
+import { RoadmapEmptyState } from "@/components/updates/roadmap-empty-state";
+import { RoadmapSection } from "@/components/updates/roadmap-section";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { ChangelogEntry, InDevelopmentItem } from "@/lib/content/types";
+import type { ChangelogEntry, InDevelopmentItem, RoadmapData } from "@/lib/content/types";
 
 /** The three navigable sections of `/updates`, per FR-009. */
 export const UPDATES_TABS = ["latest", "in-development", "roadmap"] as const;
@@ -25,16 +26,25 @@ interface UpdatesTabsProps {
   changelogEntries: ChangelogEntry[];
   /** In-development items (already order-sorted), fetched server-side in `page.tsx`. */
   inDevelopmentItems: InDevelopmentItem[];
+  /** Roadmap groups + intro body, fetched server-side in `page.tsx`. */
+  roadmapData: RoadmapData;
 }
 
 /**
  * Client-side tab orchestrator for `/updates`. Wraps Shadcn `Tabs` (Radix under the hood), which
  * already provides correct tablist/tab/tabpanel ARIA semantics and keyboard operability (FR-009).
  *
- * The "Latest Updates" and "In Development" panels are fully wired to real content (US3/US4).
- * "Roadmap" remains a placeholder until its own user story (US5) wires it up.
+ * The "Latest Updates", "In Development", and "Roadmap" panels are all fully wired to real
+ * content (US3/US4/US5).
  */
-export function UpdatesTabs({ defaultTab, changelogEntries, inDevelopmentItems }: UpdatesTabsProps) {
+export function UpdatesTabs({
+  defaultTab,
+  changelogEntries,
+  inDevelopmentItems,
+  roadmapData,
+}: UpdatesTabsProps) {
+  const hasRoadmapContent =
+    Object.keys(roadmapData.groups).length > 0 || roadmapData.introBody.trim().length > 0;
   return (
     <Tabs defaultValue={defaultTab} className="w-full">
       <TabsList className="mb-8 grid h-auto w-full grid-cols-3 gap-1 p-1">
@@ -73,18 +83,8 @@ export function UpdatesTabs({ defaultTab, changelogEntries, inDevelopmentItems }
         )}
       </TabsContent>
       <TabsContent value="roadmap">
-        <UpdatesPlaceholderPanel message="Planned features will appear here soon." />
+        {hasRoadmapContent ? <RoadmapSection data={roadmapData} /> : <RoadmapEmptyState />}
       </TabsContent>
     </Tabs>
-  );
-}
-
-function UpdatesPlaceholderPanel({ message }: { message: string }) {
-  return (
-    <Card>
-      <CardContent className="py-12 text-center text-sm text-muted-foreground md:text-base">
-        {message}
-      </CardContent>
-    </Card>
   );
 }

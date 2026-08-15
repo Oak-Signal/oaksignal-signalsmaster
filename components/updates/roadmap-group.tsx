@@ -10,10 +10,10 @@ interface RoadmapGroupProps {
 export function RoadmapGroup({ timeframe, items }: RoadmapGroupProps) {
   return (
     <section aria-labelledby={`roadmap-group-${timeframe}`} className="space-y-3">
-      <h3 id={`roadmap-group-${timeframe}`} className="text-lg font-semibold tracking-tight">
+      <h3 id={`roadmap-group-${timeframe}`} className="text-center text-lg font-semibold tracking-tight">
         {timeframe}
       </h3>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid justify-center gap-4 [grid-template-columns:repeat(auto-fit,minmax(260px,380px))]">
         {items.map((item, index) => (
           <RoadmapItemCard key={`${item.title}-${index}`} item={item} />
         ))}
