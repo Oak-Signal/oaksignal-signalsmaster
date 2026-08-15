@@ -1,5 +1,6 @@
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
+import { PageTransition } from "@/components/transitions/page-transition";
 
 export default function MarketingLayout({
   children,
@@ -10,7 +11,7 @@ export default function MarketingLayout({
     <>
       <SiteHeader />
       <div className="flex-1">
-        {children}
+        <PageTransition>{children}</PageTransition>
       </div>
       <SiteFooter />
     </>

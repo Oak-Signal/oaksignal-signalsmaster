@@ -8,6 +8,7 @@ import { api } from "@/convex/_generated/api"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { UserjotWidget } from "@/components/userjot-widget"
 import { Toaster } from "@/components/ui/toaster"
+import { PageTransition } from "@/components/transitions/page-transition"
 
 interface DashboardShellProps {
   children: React.ReactNode
@@ -33,7 +34,9 @@ function StandardDashboardShell({ children }: StandardDashboardShellProps) {
     <div className="flex min-h-screen flex-col">
       <UserjotWidget />
       <DashboardHeader />
-      <main className="flex-1 space-y-4 p-8 pt-6">{children}</main>
+      <main className="flex-1 space-y-4 p-8 pt-6">
+        <PageTransition>{children}</PageTransition>
+      </main>
       <Toaster />
     </div>
   )
@@ -43,6 +46,7 @@ interface FocusedExamShellProps {
   children: React.ReactNode
 }
 
+// Focused shell (active exam/ranked run) intentionally excludes PageTransition (FR-025).
 function FocusedExamShell({ children }: FocusedExamShellProps) {
   return (
     <div className="min-h-screen">
