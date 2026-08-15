@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/mode-toggle";
 import { cn } from "@/lib/utils";
 
+// Navigation links for the header. These are hardcoded for now, but could be made dynamic in the future if needed.
 const navLinks = [
   { name: "Home", href: "/" },
   { name: "Features", href: "/#features" },
