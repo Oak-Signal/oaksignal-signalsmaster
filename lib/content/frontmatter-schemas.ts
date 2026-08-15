@@ -44,3 +44,18 @@ export const changelogFrontmatterSchema = z.object({
 });
 
 export type ChangelogFrontmatter = z.infer<typeof changelogFrontmatterSchema>;
+
+/**
+ * `content/in-development/<slug>.md` frontmatter.
+ *
+ * `title` and `description` are required — a file missing either fails `safeParse` entirely, so
+ * the loader excludes the whole item (FR-016/FR-017). `order` uses `.catch(0)` so an absent or
+ * malformed value falls back to its documented default without excluding the item.
+ */
+export const inDevelopmentFrontmatterSchema = z.object({
+  title: z.string().trim().min(1),
+  description: z.string().trim().min(1),
+  order: z.number().catch(0),
+});
+
+export type InDevelopmentFrontmatter = z.infer<typeof inDevelopmentFrontmatterSchema>;
