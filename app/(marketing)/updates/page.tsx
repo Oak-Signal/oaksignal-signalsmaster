@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { UpdatesHero } from "@/components/updates/updates-hero";
 import { isUpdatesTab, UpdatesTabs } from "@/components/updates/updates-tabs";
 import { getChangelogEntries } from "@/lib/content/changelog";
+import { getInDevelopmentItems } from "@/lib/content/in-development";
 
 export const metadata: Metadata = {
   title: "Development Updates & Roadmap",
@@ -30,12 +31,19 @@ export default async function UpdatesPage({
   const requestedTab = resolvedSearchParams.tab;
   const activeTab = requestedTab && isUpdatesTab(requestedTab) ? requestedTab : "latest";
 
-  const changelogEntries = await getChangelogEntries();
+  const [changelogEntries, inDevelopmentItems] = await Promise.all([
+    getChangelogEntries(),
+    getInDevelopmentItems(),
+  ]);
 
   return (
     <div className="container mx-auto max-w-5xl px-4 py-10 md:px-6 md:py-16">
       <UpdatesHero />
-      <UpdatesTabs defaultTab={activeTab} changelogEntries={changelogEntries} />
+      <UpdatesTabs
+        defaultTab={activeTab}
+        changelogEntries={changelogEntries}
+        inDevelopmentItems={inDevelopmentItems}
+      />
     </div>
   );
 }
