@@ -93,7 +93,7 @@ export function OakSignalSection() {
             </Card>
 
             {/* Cadet Inventory Management System Card */}
-            <Card className="border-border/60 shadow-xs opacity-90 hover:opacity-100 transition-opacity">
+            <Card className="border-border/60 shadow-xs">
               <CardHeader className="pb-2">
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-3">

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import dynamic from "next/dynamic"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -8,9 +9,12 @@ import { Search, LayoutGrid, GalleryHorizontal } from "lucide-react"
 import { useQuery } from "convex/react"
 import { api } from "@/convex/_generated/api"
 import { FlagGrid } from "./flag-grid"
-import { FlagCarousel } from "./flag-carousel"
 import { ReferenceStats } from "./reference-stats"
 import { Doc } from "@/convex/_generated/dataModel"
+
+// Swiper (flag-carousel.tsx) is only needed when the user switches to Carousel view, so it's
+// code-split out of the default Grid-view bundle.
+const FlagCarousel = dynamic(() => import("./flag-carousel").then((mod) => mod.FlagCarousel));
 
 export function ReferenceClient() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -66,6 +70,7 @@ export function ReferenceClient() {
             <Input
               type="search"
               placeholder="Search by name, meaning..."
+              aria-label="Search flags by name or meaning"
               className="pl-9"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}

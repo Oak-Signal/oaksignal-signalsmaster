@@ -77,7 +77,7 @@ export function ComparisonCard({
                 <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-200/50 dark:bg-muted">
                   <ItemIcon className="h-3.5 w-3.5 text-gray-500 dark:text-muted-foreground" />
                 </div>
-                <span className="text-left font-medium text-gray-600 dark:text-gray-300">
+                <span className="text-left font-medium text-gray-700 dark:text-gray-300">
                   {item.text}
                 </span>
               </div>

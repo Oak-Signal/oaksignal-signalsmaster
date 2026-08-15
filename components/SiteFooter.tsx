@@ -71,9 +71,9 @@ export function SiteFooter() {
             <h4 className="text-sm font-semibold tracking-wide uppercase text-foreground">Contact</h4>
             <ul className="space-y-2">
               <li>
-                <a href="mailto:contact.oaksignal@gmail.com" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors">
-                  <Mail className="h-4 w-4" />
-                  contact.oaksignal@gmail.com
+                <a href="mailto:contact.oaksignal@gmail.com" className="flex items-center gap-2 min-w-0 text-sm text-muted-foreground hover:text-primary transition-colors">
+                  <Mail className="h-4 w-4 shrink-0" />
+                  <span className="break-all">contact.oaksignal@gmail.com</span>
                 </a>
               </li>
             </ul>
@@ -93,7 +93,7 @@ export function SiteFooter() {
               © {currentYear} Signals Master. All rights reserved.
             </p>
             <span className="hidden md:inline text-muted-foreground/30">|</span>
-            <p className="text-xs text-muted-foreground font-medium bg-muted/50 px-2 py-1 rounded">
+            <p className="text-xs text-foreground/70 font-medium bg-muted/50 px-2 py-1 rounded">
               Not an official DND/CAF/CJCR system. Independently developed.
             </p>
           </div>

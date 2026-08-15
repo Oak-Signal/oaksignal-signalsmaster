@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/tooltip"
 
 import { api } from "@/convex/_generated/api"
+import { useToast } from "@/hooks/use-toast"
 
 interface FlagDetailViewProps {
   flagKey: string
@@ -26,6 +27,7 @@ interface FlagDetailViewProps {
 
 export function FlagDetailView({ flagKey }: FlagDetailViewProps) {
   const router = useRouter()
+  const { toast } = useToast()
   const flag = useQuery(api.flags.getFlagByKey, { key: flagKey })
   const allFlags = useQuery(api.flags.getAllFlags)
 
@@ -47,8 +49,18 @@ export function FlagDetailView({ flagKey }: FlagDetailViewProps) {
 
   const handleCopyLink = () => {
     const url = window.location.href
-    navigator.clipboard.writeText(url)
-    // Could add a toast here
+    navigator.clipboard.writeText(url).then(
+      () => {
+        toast({ title: "Link copied", description: "Flag link copied to your clipboard." })
+      },
+      () => {
+        toast({
+          title: "Could not copy link",
+          description: "Please copy the URL from your browser's address bar instead.",
+          variant: "destructive",
+        })
+      }
+    )
   }
   
   const handlePrint = () => {
@@ -103,7 +115,7 @@ export function FlagDetailView({ flagKey }: FlagDetailViewProps) {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" onClick={handleCopyLink}>
+                <Button variant="outline" size="icon" onClick={handleCopyLink} aria-label="Copy link to this flag">
                   <Share2 className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
@@ -113,7 +125,7 @@ export function FlagDetailView({ flagKey }: FlagDetailViewProps) {
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="icon" onClick={handlePrint}>
+                <Button variant="outline" size="icon" onClick={handlePrint} aria-label="Print this page">
                   <Printer className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
@@ -182,14 +194,14 @@ export function FlagDetailView({ flagKey }: FlagDetailViewProps) {
                 </Badge>
                 {navigation.next || navigation.prev ? (
                     <div className="flex gap-1 md:hidden print:hidden">
-                        <Button variant="outline" size="icon" className="h-8 w-8" disabled={!navigation.prev} asChild={!!navigation.prev}>
+                        <Button variant="outline" size="icon" className="h-8 w-8" disabled={!navigation.prev} asChild={!!navigation.prev} aria-label={navigation.prev ? `Previous flag: ${navigation.prev.name}` : "No previous flag"}>
                             {navigation.prev ? (
                                 <Link href={`/dashboard/reference/flags/${navigation.prev.key}`}>
                                     <ChevronLeft className="h-4 w-4" />
                                 </Link>
                             ) : <ChevronLeft className="h-4 w-4" />}
                         </Button>
-                         <Button variant="outline" size="icon" className="h-8 w-8" disabled={!navigation.next} asChild={!!navigation.next}>
+                         <Button variant="outline" size="icon" className="h-8 w-8" disabled={!navigation.next} asChild={!!navigation.next} aria-label={navigation.next ? `Next flag: ${navigation.next.name}` : "No next flag"}>
                             {navigation.next ? (
                                 <Link href={`/dashboard/reference/flags/${navigation.next.key}`}>
                                     <ChevronRight className="h-4 w-4" />

@@ -5,12 +5,14 @@ import {
   Flag,
 } from "lucide-react"
 import Link from "next/link"
+import dynamic from "next/dynamic"
 
 import { StatsOverview } from "@/components/dashboard/stats-overview"
 import { ModuleCard } from "@/components/dashboard/module-card"
-import { RecentActivity } from "@/components/dashboard/recent-activity"
-import { DashboardPerformanceTrend } from "@/components/dashboard/dashboard-performance-trend"
 import { Button } from "@/components/ui/button"
+
+const RecentActivity = dynamic(() => import("@/components/dashboard/recent-activity").then((mod) => mod.RecentActivity));
+const DashboardPerformanceTrend = dynamic(() => import("@/components/dashboard/dashboard-performance-trend").then((mod) => mod.DashboardPerformanceTrend));
 
 // TODO: Add Convex query for current user
 // const currentUser = useQuery(api.users.getCurrentUser)
