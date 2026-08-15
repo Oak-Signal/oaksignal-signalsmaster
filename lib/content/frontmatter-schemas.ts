@@ -59,3 +59,21 @@ export const inDevelopmentFrontmatterSchema = z.object({
 });
 
 export type InDevelopmentFrontmatter = z.infer<typeof inDevelopmentFrontmatterSchema>;
+
+/**
+ * A single item within `content/roadmap.md`'s frontmatter `items` array.
+ *
+ * `title` is required — an item missing it fails `safeParse`, so the loader drops that item only,
+ * not the whole file (FR-019). `description` and `status` use `.catch(...)` for their documented
+ * defaults. `timeframe` is optional with `.catch(undefined)` so a missing/invalid value is
+ * retained (bucketed as `"Uncategorized"` by the loader) instead of dropping the item (FR-021
+ * edge case).
+ */
+export const roadmapItemFrontmatterSchema = z.object({
+  title: z.string().trim().min(1),
+  description: z.string().trim().catch(""),
+  timeframe: z.enum(["Short-term", "Mid-term", "Long-term"]).optional().catch(undefined),
+  status: z.enum(["Planned", "In Consideration"]).catch("Planned"),
+});
+
+export type RoadmapItemFrontmatter = z.infer<typeof roadmapItemFrontmatterSchema>;
