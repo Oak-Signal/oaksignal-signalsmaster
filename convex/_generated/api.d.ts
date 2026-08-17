@@ -18,6 +18,7 @@ import type * as analytics_services_dateRange from "../analytics/services/dateRa
 import type * as analytics_services_flagLookup from "../analytics/services/flagLookup.js";
 import type * as analytics_services_flagTally from "../analytics/services/flagTally.js";
 import type * as analytics_services_sessions from "../analytics/services/sessions.js";
+import type * as devlogs from "../devlogs.js";
 import type * as devlogs_handlers_migrations from "../devlogs/handlers/migrations.js";
 import type * as devlogs_handlers_mutations from "../devlogs/handlers/mutations.js";
 import type * as devlogs_handlers_queries from "../devlogs/handlers/queries.js";
@@ -116,6 +117,7 @@ declare const fullApi: ApiFromModules<{
   "analytics/services/flagLookup": typeof analytics_services_flagLookup;
   "analytics/services/flagTally": typeof analytics_services_flagTally;
   "analytics/services/sessions": typeof analytics_services_sessions;
+  devlogs: typeof devlogs;
   "devlogs/handlers/migrations": typeof devlogs_handlers_migrations;
   "devlogs/handlers/mutations": typeof devlogs_handlers_mutations;
   "devlogs/handlers/queries": typeof devlogs_handlers_queries;
