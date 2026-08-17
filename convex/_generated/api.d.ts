@@ -18,6 +18,7 @@ import type * as analytics_services_dateRange from "../analytics/services/dateRa
 import type * as analytics_services_flagLookup from "../analytics/services/flagLookup.js";
 import type * as analytics_services_flagTally from "../analytics/services/flagTally.js";
 import type * as analytics_services_sessions from "../analytics/services/sessions.js";
+import type * as devlogs_handlers_queries from "../devlogs/handlers/queries.js";
 import type * as exams from "../exams.js";
 import type * as exams_handlers_adminAnalytics from "../exams/handlers/adminAnalytics.js";
 import type * as exams_handlers_adminStats from "../exams/handlers/adminStats.js";
@@ -112,6 +113,7 @@ declare const fullApi: ApiFromModules<{
   "analytics/services/flagLookup": typeof analytics_services_flagLookup;
   "analytics/services/flagTally": typeof analytics_services_flagTally;
   "analytics/services/sessions": typeof analytics_services_sessions;
+  "devlogs/handlers/queries": typeof devlogs_handlers_queries;
   exams: typeof exams;
   "exams/handlers/adminAnalytics": typeof exams_handlers_adminAnalytics;
   "exams/handlers/adminStats": typeof exams_handlers_adminStats;
