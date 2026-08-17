@@ -56,7 +56,9 @@ export default async function UpdatesPage({
   ]);
 
   // Adapter: `ChangelogTimeline`/`ChangelogEntryCard` still expect the Markdown-era
-  // `ChangelogEntry` shape; T104-T106 retire this once they consume Convex docs directly.
+  // `ChangelogEntry` shape (T107-T109 retire this shape once `lib/content/types.ts` is updated).
+  // This unfiltered list also doubles as `UpdatesTabs`'s SSR/CSR-flash-free fallback and its
+  // "any devlogs at all" signal for choosing between the two empty states (FR-035).
   const changelogEntries: ChangelogEntry[] = devlogs.map((devlog) => ({
     slug: devlog._id,
     version: devlog.version,

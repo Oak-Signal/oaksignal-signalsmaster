@@ -1,13 +1,17 @@
 "use client";
 
+import { useQuery } from "convex/react";
 import { Hammer, Map as MapIcon, Rss } from "lucide-react";
 
+import { api } from "@/convex/_generated/api";
 import { ChangelogEmptyState } from "@/components/updates/changelog-empty-state";
+import { ChangelogFilteredEmptyState } from "@/components/updates/changelog-filtered-empty-state";
 import { ChangelogTimeline } from "@/components/updates/changelog-timeline";
 import { InDevelopmentCard } from "@/components/updates/in-development-card";
 import { InDevelopmentEmptyState } from "@/components/updates/in-development-empty-state";
 import { RoadmapEmptyState } from "@/components/updates/roadmap-empty-state";
 import { RoadmapSection } from "@/components/updates/roadmap-section";
+import { StageFilter } from "@/components/updates/stage-filter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ChangelogEntry, InDevelopmentItem, RoadmapData, Stage } from "@/lib/content/types";
 
@@ -22,9 +26,11 @@ export function isUpdatesTab(value: string): value is UpdatesTab {
 interface UpdatesTabsProps {
   /** Initial active tab, resolved server-side from the `?tab=` query param (FR-028). */
   defaultTab: UpdatesTab;
-  /** Current `?stage=` filter, resolved server-side (FR-032/FR-034). Wired up in T104-T106. */
-  stage?: Stage | "all";
-  /** Changelog entries (already newest-first), fetched server-side in `page.tsx`. */
+  /** Current `?stage=` filter, resolved server-side (FR-032/FR-034). */
+  stage: Stage | "all";
+  /** Unfiltered changelog entries (newest-first), fetched server-side in `page.tsx`. Doubles as
+   * the "any devlogs at all" signal (FR-035) and the SSR/CSR-flash-free fallback while the live
+   * stage-filtered query loads. */
   changelogEntries: ChangelogEntry[];
   /** In-development items (already order-sorted), fetched server-side in `page.tsx`. */
   inDevelopmentItems: InDevelopmentItem[];
@@ -41,12 +47,26 @@ interface UpdatesTabsProps {
  */
 export function UpdatesTabs({
   defaultTab,
+  stage,
   changelogEntries,
   inDevelopmentItems,
   roadmapData,
 }: UpdatesTabsProps) {
   const hasRoadmapContent =
     Object.keys(roadmapData.groups).length > 0 || roadmapData.introBody.trim().length > 0;
+
+  const filteredDevlogs = useQuery(api.devlogs.listDevlogsByStage, { stage });
+  const latestEntries: ChangelogEntry[] =
+    filteredDevlogs?.map((devlog) => ({
+      slug: devlog._id,
+      version: devlog.version,
+      date: devlog.date,
+      title: devlog.title,
+      stage: devlog.stage,
+      category: devlog.category,
+      body: devlog.body,
+    })) ?? changelogEntries.filter((entry) => stage === "all" || entry.stage === stage);
+
   return (
     <Tabs defaultValue={defaultTab} className="w-full">
       <TabsList className="mb-8 grid h-auto w-full grid-cols-3 gap-1 p-1">
@@ -66,11 +86,14 @@ export function UpdatesTabs({
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="latest">
-        {changelogEntries.length > 0 ? (
-          <ChangelogTimeline entries={changelogEntries} />
-        ) : (
+      <TabsContent value="latest" className="space-y-6">
+        <StageFilter stage={stage} />
+        {changelogEntries.length === 0 ? (
           <ChangelogEmptyState />
+        ) : latestEntries.length === 0 ? (
+          <ChangelogFilteredEmptyState />
+        ) : (
+          <ChangelogTimeline entries={latestEntries} />
         )}
       </TabsContent>
       <TabsContent value="in-development">
