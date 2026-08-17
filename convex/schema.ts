@@ -1049,4 +1049,27 @@ export default defineSchema({
   })
   .index("by_createdAt", ["createdAt"])
   .index("by_status_createdAt", ["status", "createdAt"]),
+
+  // "Latest Updates" changelog entries (User Story 7 — migrated off Markdown).
+  devlogs: defineTable({
+    version: v.string(),
+    date: v.string(), // ISO YYYY-MM-DD
+    title: v.string(),
+    stage: v.union(
+      v.literal("Pre-Alpha"),
+      v.literal("Alpha"),
+      v.literal("Closed Beta"),
+      v.literal("Open Beta"),
+      v.literal("Release Candidate"),
+      v.literal("General Availability"),
+      v.literal("Production")
+    ),
+    category: v.string(),
+    body: v.string(),
+    createdBy: v.optional(v.id("users")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+  .index("by_date", ["date"])
+  .index("by_stage_date", ["stage", "date"]),
 });
