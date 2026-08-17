@@ -3,7 +3,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Shield, LayoutDashboard, ClipboardList, AlertTriangle, ChartColumn, Users, ShieldAlert } from "lucide-react"
+import { Shield, LayoutDashboard, ClipboardList, AlertTriangle, ChartColumn, Users, ShieldAlert, Rss } from "lucide-react"
 import { UserButton } from "@clerk/nextjs"
 import { useQuery } from "convex/react"
 import { useHydrated } from "@/hooks/use-hydrated"
@@ -34,6 +34,11 @@ const navItems = [
     href: "/admin/ranked-integrity",
     label: "Ranked Integrity",
     icon: ShieldAlert,
+  },
+  {
+    href: "/admin/devlogs",
+    label: "Devlogs",
+    icon: Rss,
   },
   {
     href: "/admin/analytics",
