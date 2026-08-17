@@ -58,7 +58,7 @@ export function UpdatesTabs({
   const filteredDevlogs = useQuery(api.devlogs.listDevlogsByStage, { stage });
   const latestEntries: ChangelogEntry[] =
     filteredDevlogs?.map((devlog) => ({
-      slug: devlog._id,
+      _id: devlog._id,
       version: devlog.version,
       date: devlog.date,
       title: devlog.title,

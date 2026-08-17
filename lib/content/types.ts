@@ -6,6 +6,8 @@
  * `specs/002-public-changelog-roadmap/data-model.md` for the full field-by-field contract.
  */
 
+import type { Id } from "@/convex/_generated/dataModel";
+
 /** Product maturity at the time of a changelog entry. Fixed set — expanding is out of scope. */
 export type Stage = "Pre-Alpha" | "Alpha" | "Closed Beta" | "Open Beta" | "Release Candidate" | "General Availability" | "Production"
 
@@ -30,10 +32,10 @@ export type Timeframe = "Short-term" | "Mid-term" | "Long-term";
 /** Roadmap item status indicator. */
 export type RoadmapStatus = "Planned" | "In Consideration";
 
-/** A single changelog entry, sourced from one file in `content/changelog/*.md`. */
+/** A single changelog entry, sourced from the Convex `devlogs` table (US7 — migrated off Markdown). */
 export interface ChangelogEntry {
-  /** Derived from the filename (no extension). Used as React key / anchor. */
-  slug: string;
+  /** Convex `devlogs` row id — the key (replaces the old Markdown-era `slug`). */
+  _id: Id<"devlogs">;
   /** Freeform version label (semver or informal). */
   version: string;
   /** ISO `YYYY-MM-DD` date string (kept as a string so it stays serializable across the

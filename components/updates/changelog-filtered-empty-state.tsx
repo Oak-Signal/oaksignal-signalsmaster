@@ -10,7 +10,8 @@ export function ChangelogFilteredEmptyState() {
         <FilterX className="h-8 w-8 text-primary" aria-hidden="true" />
         <p className="text-base font-medium">No updates match this filter</p>
         <p className="max-w-sm text-sm text-muted-foreground">
-          Try selecting a different development stage, or choose "All" to see every update.
+          Try selecting a different development stage, or choose &ldquo;All&rdquo; to see every
+          update.
         </p>
       </CardContent>
     </Card>

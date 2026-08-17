@@ -10,8 +10,8 @@ interface ChangelogTimelineProps {
 }
 
 /**
- * Renders changelog entries (already newest-first from `getChangelogEntries()`) as a vertical
- * connecting-line timeline with a staggered entrance, per FR-010/FR-013.
+ * Renders changelog entries (already newest-first from Convex's `listDevlogs`/`listDevlogsByStage`)
+ * as a vertical connecting-line timeline with a staggered entrance, per FR-010/FR-013.
  *
  * The staggered entrance respects `prefers-reduced-motion` via `useReducedMotion()` (FR-014): when
  * reduced motion is preferred, entries render at their final, fully-visible state immediately
@@ -25,7 +25,7 @@ export function ChangelogTimeline({ entries }: ChangelogTimelineProps) {
     <ol className="relative space-y-8 border-l border-border pl-6 sm:pl-8">
       {entries.map((entry, index) => (
         <motion.li
-          key={entry.slug}
+          key={entry._id}
           className="relative"
           initial={shouldReduceMotion ? false : { opacity: 0, y: 16 }}
           whileInView={shouldReduceMotion ? undefined : { opacity: 1, y: 0 }}
