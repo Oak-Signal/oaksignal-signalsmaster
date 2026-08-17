@@ -1,64 +1,97 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, ArrowRight } from "lucide-react";
+import { useQuery } from "convex/react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
+import { api } from "@/convex/_generated/api";
+import { StatusTransitionCard } from "@/components/transitions/status-transition-card";
 
-const REDIRECT_DELAY_SECONDS = 3;
+const REDIRECT_DELAY_MS = 1800;
+const SUCCESS_VISUAL_LEAD_MS = 420;
+
+function resolveDestination(role: "cadet" | "admin" | null | undefined): "/dashboard" | "/admin" {
+  return role === "admin" ? "/admin" : "/dashboard";
+}
 
 export default function AuthSuccessPage() {
   const router = useRouter();
-  const [secondsLeft, setSecondsLeft] = useState(REDIRECT_DELAY_SECONDS);
+  const user = useQuery(api.users.getCurrentUser);
+
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const hasNavigatedRef = useRef(false);
+  const destinationRef = useRef<"/dashboard" | "/admin">("/dashboard");
+
+  const role = user?.role;
+  const destination = resolveDestination(role);
+
+  const cadetName = user?.name?.trim() || "Cadet";
+  const cadetRank = user?.rank?.trim() || "Cadet in Training";
+
+  const destinationLabel = destination === "/admin" ? "Admin Console" : "Dashboard";
+  const profileLine = `${cadetName} · ${cadetRank}`;
 
   useEffect(() => {
+    destinationRef.current = destination;
+  }, [destination]);
+
+  const handleTransition = useCallback(() => {
+    if (hasNavigatedRef.current) {
+      return;
+    }
+
+    hasNavigatedRef.current = true;
+    router.replace(destinationRef.current);
+  }, [router]);
+
+  useEffect(() => {
+    const startedAt = Date.now();
+
     const timeout = setTimeout(() => {
-      router.replace("/dashboard");
-    }, REDIRECT_DELAY_SECONDS * 1000);
+      handleTransition();
+    }, REDIRECT_DELAY_MS);
 
     const interval = setInterval(() => {
-      setSecondsLeft((current) => (current > 0 ? current - 1 : 0));
-    }, 1000);
+      const nextElapsed = Math.min(Date.now() - startedAt, REDIRECT_DELAY_MS);
+      setElapsedMs(nextElapsed);
+    }, 100);
 
     return () => {
       clearTimeout(timeout);
       clearInterval(interval);
     };
-  }, [router]);
+  }, [handleTransition]);
+
+  const remainingMs = Math.max(0, REDIRECT_DELAY_MS - elapsedMs);
+  const secondsLeft = (remainingMs / 1000).toFixed(1);
 
   const progressValue = useMemo(
-    () => ((REDIRECT_DELAY_SECONDS - secondsLeft) / REDIRECT_DELAY_SECONDS) * 100,
-    [secondsLeft]
+    () => Math.min(100, (elapsedMs / REDIRECT_DELAY_MS) * 100),
+    [elapsedMs]
   );
 
+  const buttonState = elapsedMs >= REDIRECT_DELAY_MS - SUCCESS_VISUAL_LEAD_MS ? "success" : "loading";
+
   return (
-    <main className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-10">
-      <Card className="w-full max-w-lg border-border/70 shadow-sm">
-        <CardHeader className="space-y-3 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-600">
-            <CheckCircle2 className="h-6 w-6" />
-          </div>
-          <CardTitle className="text-3xl tracking-tight">Login Successful</CardTitle>
-          <CardDescription className="text-base">
-            You are signed in. Redirecting to your dashboard in {secondsLeft}s.
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent className="space-y-4">
-          <Progress value={progressValue} className="h-2" />
-
-          <Button asChild className="w-full">
-            <Link href="/dashboard">
-              Continue Now
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
-    </main>
+    <StatusTransitionCard
+      title="Welcome to Signals Master"
+      primaryLine={profileLine}
+      secondaryLine={`Redirecting to ${destinationLabel} in ${secondsLeft}s`}
+      liveMessage={`Login successful. Redirecting to ${destinationLabel} in approximately ${secondsLeft} seconds.`}
+      progressValue={progressValue}
+      progressAriaLabel="Redirect progress"
+      buttonState={buttonState}
+      buttonLoadingLabel="Syncing Session"
+      buttonSuccessLabel="Continue"
+      onContinue={handleTransition}
+      centerLoadingIcon={<Loader2 className="h-6 w-6 animate-spin" />}
+      centerSuccessIcon={<CheckCircle2 className="h-6 w-6" />}
+      buttonLoadingIcon={<Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+      buttonSuccessIcon={<CheckCircle2 className="mr-2 h-4 w-4" />}
+      iconToneClassName="border border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
+      glowPrimaryClassName="bg-sky-500/10"
+      glowSecondaryClassName="bg-cyan-500/10"
+    />
   );
 }

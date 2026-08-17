@@ -22,6 +22,10 @@
 
 # misc
 .DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.idea/
 *.pem
 
 # debug

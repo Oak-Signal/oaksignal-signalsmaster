@@ -1,21 +1,48 @@
 "use client";
 
-import { useEffect } from "react";
-import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, Home } from "lucide-react";
+import { CheckCircle2, Loader2, LogOut } from "lucide-react";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { StatusTransitionCard } from "@/components/transitions/status-transition-card";
 
-const REDIRECT_DELAY_MS = 3000;
+const SIGNOUT_PROGRESS_WINDOW_MS = 1200;
+const SUCCESS_REDIRECT_DELAY_MS = 520;
+
+type LogoutPhase = "signing-out" | "success";
 
 export default function LogoutPage() {
   const router = useRouter();
 
-  useEffect(() => {
-    let isActive = true;
+  const [phase, setPhase] = useState<LogoutPhase>("signing-out");
+  const [elapsedMs, setElapsedMs] = useState(0);
+  const [successAtMs, setSuccessAtMs] = useState<number | null>(null);
 
+  const hasNavigatedRef = useRef(false);
+  const startedAtRef = useRef<number>(0);
+
+  const handleTransition = useCallback(() => {
+    if (hasNavigatedRef.current) {
+      return;
+    }
+
+    hasNavigatedRef.current = true;
+    router.replace("/");
+  }, [router]);
+
+  useEffect(() => {
+    startedAtRef.current = Date.now();
+
+    const interval = setInterval(() => {
+      setElapsedMs(Date.now() - startedAtRef.current);
+    }, 80);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, []);
+
+  useEffect(() => {
     const handleLogout = async () => {
       const clerk = (window as unknown as { Clerk?: { signOut: () => Promise<void> } }).Clerk;
 
@@ -27,46 +54,56 @@ export default function LogoutPage() {
         }
       }
 
+      const nowElapsed = Date.now() - startedAtRef.current;
+      setPhase("success");
+      setSuccessAtMs(nowElapsed);
+
       setTimeout(() => {
-        if (isActive) {
-          router.replace("/");
-        }
-      }, REDIRECT_DELAY_MS);
+        handleTransition();
+      }, SUCCESS_REDIRECT_DELAY_MS);
     };
 
     void handleLogout();
 
-    return () => {
-      isActive = false;
-    };
-  }, [router]);
+    return undefined;
+  }, [handleTransition]);
+
+  const successElapsed = successAtMs === null ? 0 : Math.max(0, elapsedMs - successAtMs);
+  const secondsLeft = Math.max(0, (SUCCESS_REDIRECT_DELAY_MS - successElapsed) / 1000).toFixed(1);
+
+  const progressValue = useMemo(() => {
+    if (phase === "signing-out") {
+      const base = Math.min(85, (elapsedMs / SIGNOUT_PROGRESS_WINDOW_MS) * 85);
+      return Math.max(12, base);
+    }
+
+    const tail = Math.min(15, (successElapsed / SUCCESS_REDIRECT_DELAY_MS) * 15);
+    return Math.min(100, 85 + tail);
+  }, [phase, elapsedMs, successElapsed]);
 
   return (
-    <main className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-10">
-      <Card className="w-full max-w-lg border-border/70 shadow-sm">
-        <CardHeader className="space-y-3 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-600">
-            <LogOut className="h-6 w-6" />
-          </div>
-          <CardTitle className="text-3xl tracking-tight">Logging Out</CardTitle>
-          <CardDescription className="text-base">
-            You are being logged out. Redirecting in 3 seconds.
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent className="space-y-4">
-          <div className="rounded-md border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
-            Your session is ending safely.
-          </div>
-
-          <Button asChild variant="outline" className="w-full">
-            <Link href="/">
-              <Home className="mr-2 h-4 w-4" />
-              Return Home Now
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
-    </main>
+    <StatusTransitionCard
+      title={phase === "signing-out" ? "Signing Out" : "Signed Out"}
+      primaryLine="Session ended securely."
+      secondaryLine={`Redirecting home in ${secondsLeft}s`}
+      liveMessage={
+        phase === "signing-out"
+          ? "Signing out. Redirecting to home shortly."
+          : `Signed out. Redirecting to home in approximately ${secondsLeft} seconds.`
+      }
+      progressValue={progressValue}
+      progressAriaLabel="Sign-out progress"
+      buttonState={phase === "signing-out" ? "loading" : "success"}
+      buttonLoadingLabel="Ending Session"
+      buttonSuccessLabel="Continue Home"
+      onContinue={handleTransition}
+      centerLoadingIcon={<LogOut className="h-6 w-6" />}
+      centerSuccessIcon={<CheckCircle2 className="h-6 w-6" />}
+      buttonLoadingIcon={<Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+      buttonSuccessIcon={<CheckCircle2 className="mr-2 h-4 w-4" />}
+      iconToneClassName="border border-amber-500/30 bg-amber-500/10 text-amber-600"
+      glowPrimaryClassName="bg-amber-500/10"
+      glowSecondaryClassName="bg-rose-500/10"
+    />
   );
 }
