@@ -9,7 +9,7 @@ import { InDevelopmentEmptyState } from "@/components/updates/in-development-emp
 import { RoadmapEmptyState } from "@/components/updates/roadmap-empty-state";
 import { RoadmapSection } from "@/components/updates/roadmap-section";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { ChangelogEntry, InDevelopmentItem, RoadmapData } from "@/lib/content/types";
+import type { ChangelogEntry, InDevelopmentItem, RoadmapData, Stage } from "@/lib/content/types";
 
 /** The three navigable sections of `/updates`, per FR-009. */
 export const UPDATES_TABS = ["latest", "in-development", "roadmap"] as const;
@@ -22,6 +22,8 @@ export function isUpdatesTab(value: string): value is UpdatesTab {
 interface UpdatesTabsProps {
   /** Initial active tab, resolved server-side from the `?tab=` query param (FR-028). */
   defaultTab: UpdatesTab;
+  /** Current `?stage=` filter, resolved server-side (FR-032/FR-034). Wired up in T104-T106. */
+  stage?: Stage | "all";
   /** Changelog entries (already newest-first), fetched server-side in `page.tsx`. */
   changelogEntries: ChangelogEntry[];
   /** In-development items (already order-sorted), fetched server-side in `page.tsx`. */
