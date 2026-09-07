@@ -19,6 +19,14 @@ import { api } from "@/convex/_generated/api"
 import { formatDistanceToNow } from "date-fns"
 import Link from "next/link"
 
+function clampPercent(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0
+  }
+
+  return Math.min(100, Math.max(0, Math.round(value)))
+}
+
 export function RecentActivity() {
   const recentSessions = useQuery(api.analytics.getRecentSessions, { limit: 5 })
 
@@ -52,7 +60,17 @@ export function RecentActivity() {
         ) : (
           <div className="space-y-4">
             {recentSessions.map((session) => {
-              const isPerfect = session.score === session.totalQuestions;
+              const safeTotalQuestions = Math.max(0, session.totalQuestions)
+              const safeCorrectCount = Math.min(
+                safeTotalQuestions,
+                Math.max(0, session.correctCount)
+              )
+              const fallbackPercent =
+                safeTotalQuestions > 0
+                  ? (safeCorrectCount / safeTotalQuestions) * 100
+                  : 0
+              const displayPercent = clampPercent(session.score ?? fallbackPercent)
+              const isPerfect = safeTotalQuestions > 0 && safeCorrectCount === safeTotalQuestions
               
               return (
                 <Link 
@@ -90,10 +108,10 @@ export function RecentActivity() {
                   </div>
                   <div className="flex text-right sm:block">
                     <div className="text-xl font-bold font-mono text-primary">
-                      {Math.round((session.score / session.totalQuestions) * 100)}%
+                      {displayPercent}%
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {session.score}/{session.totalQuestions} correct
+                      {safeCorrectCount}/{safeTotalQuestions} correct
                     </div>
                   </div>
                 </Link>
