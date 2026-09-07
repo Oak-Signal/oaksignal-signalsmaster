@@ -5,6 +5,32 @@ import { getAuthenticatedUser } from "../services/auth";
 import { getCompletedSessions } from "../services/sessions";
 import { getFlagLookupByIds } from "../services/flagLookup";
 
+function clampPercent(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.min(100, Math.max(0, Math.round(value)));
+}
+
+function deriveSessionPercentScore(session: {
+  score: number;
+  correctCount: number;
+  sessionLength: number;
+  questions?: unknown[];
+}): number {
+  const totalQuestions = session.questions?.length ?? session.sessionLength;
+  const safeTotalQuestions = Math.max(0, totalQuestions);
+  const safeCorrectCount = Math.min(
+    safeTotalQuestions,
+    Math.max(0, session.correctCount)
+  );
+  const fallbackPercent =
+    safeTotalQuestions > 0 ? (safeCorrectCount / safeTotalQuestions) * 100 : 0;
+
+  return clampPercent(Number.isFinite(session.score) ? session.score : fallbackPercent);
+}
+
 export const getSessionResults = query({
   args: {
     sessionId: v.id("practiceSessions"),
@@ -109,7 +135,7 @@ export const getRecentSessions = query({
       sessionId: session._id,
       mode: session.mode,
       sessionLength: session.sessionLength,
-      score: session.score,
+      score: deriveSessionPercentScore(session),
       correctCount: session.correctCount,
       totalQuestions: session.questions?.length ?? session.sessionLength,
       startedAt: session.startedAt,
@@ -141,7 +167,7 @@ export const getPerformanceTrend = query({
       .map((session) => ({
         sessionId: session._id,
         date: session.completedAt ?? session.startedAt,
-        score: session.score,
+        score: deriveSessionPercentScore(session),
         mode: session.mode,
         sessionLength: session.sessionLength,
       }));
