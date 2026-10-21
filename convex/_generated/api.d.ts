@@ -69,6 +69,7 @@ import type * as lib_types from "../lib/types.js";
 import type * as notifications from "../notifications.js";
 import type * as practice_sessions from "../practice_sessions.js";
 import type * as practice_sessions_handlers_answers from "../practice_sessions/handlers/answers.js";
+import type * as practice_sessions_handlers_migrations from "../practice_sessions/handlers/migrations.js";
 import type * as practice_sessions_handlers_queries from "../practice_sessions/handlers/queries.js";
 import type * as practice_sessions_handlers_sessionMutations from "../practice_sessions/handlers/sessionMutations.js";
 import type * as practice_sessions_services_auth from "../practice_sessions/services/auth.js";
@@ -170,6 +171,7 @@ declare const fullApi: ApiFromModules<{
   notifications: typeof notifications;
   practice_sessions: typeof practice_sessions;
   "practice_sessions/handlers/answers": typeof practice_sessions_handlers_answers;
+  "practice_sessions/handlers/migrations": typeof practice_sessions_handlers_migrations;
   "practice_sessions/handlers/queries": typeof practice_sessions_handlers_queries;
   "practice_sessions/handlers/sessionMutations": typeof practice_sessions_handlers_sessionMutations;
   "practice_sessions/services/auth": typeof practice_sessions_services_auth;
