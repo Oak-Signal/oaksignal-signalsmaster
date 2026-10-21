@@ -221,6 +221,25 @@ export function computeDayStreaks(dayKeys: Iterable<string>, todayKey: string): 
 }
 
 /**
+ * Day streaks for a set of completed sessions: local day keys of `completedAt` (sessions without
+ * `completedAt` are skipped), measured against the local day of `now`. Callers pass completed
+ * sessions from **all history**; streaks ignore date-range filters.
+ *
+ * @see docs/session-statistics.md#current-day-streak
+ * @see docs/session-statistics.md#longest-day-streak
+ */
+export function computeSessionDayStreaks(
+  completedSessions: readonly { completedAt?: number }[],
+  now: number
+): DayStreaks {
+  const dayKeys = completedSessions.flatMap((session) =>
+    session.completedAt === undefined ? [] : [toLocalDayKey(session.completedAt)]
+  );
+
+  return computeDayStreaks(dayKeys, toLocalDayKey(now));
+}
+
+/**
  * True when every answered question carries a server `answeredAt` timestamp and at least one
  * question was answered.
  */

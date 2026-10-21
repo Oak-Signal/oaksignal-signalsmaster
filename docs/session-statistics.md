@@ -203,7 +203,9 @@
 
 ### Current Day Streak
 
-- **Function**: `computeDayStreaks(dayKeys, todayKey).current`
+- **Functions**: `computeSessionDayStreaks(completedSessions, now).current`, which wraps
+  `computeDayStreaks(dayKeys, todayKey)`. The same call is used by the dashboard, analytics, and
+  the admin profile.
 - **Surfaces**: Dashboard "Current Streak"; admin profile "Learning Streak".
 - **Day key**: `toLocalDayKey(completedAt)`, which gives `YYYY-MM-DD` in `STATS_TIME_ZONE`.
 - **Formula**: number of consecutive calendar days with at least one completed session, ending on
@@ -216,7 +218,7 @@
 
 ### Longest Day Streak
 
-- **Function**: `computeDayStreaks(dayKeys, todayKey).longest`
+- **Function**: `computeSessionDayStreaks(completedSessions, now).longest`
 - **Surfaces**: Analytics "Best Streak".
 - **Formula**: the longest run of consecutive day keys in history. Always `>= current`.
 - **Empty value**: `0`.
@@ -289,7 +291,7 @@ with this document. Once all tasks are complete, T037 removes this section.
 | Average / Best / Worst score | Done | T009, T010, T011 |
 | Accuracy (mode/category) | Mode done (T009); category unchanged, already question-weighted | T009 |
 | Sessions Completed | Pending | T031, T032 |
-| Day streaks | Pending | T020, T021 |
+| Day streaks | Done | T020, T021 |
 | Response time / Active time / Avg response | Pending | T023–T029 |
 | Flags Practiced / Mastered | Pending | T031, T033 |
 | Weekly Frequency | Pending | T034 |

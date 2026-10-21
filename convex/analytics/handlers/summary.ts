@@ -9,6 +9,7 @@ import {
   computeAccuracy,
   computeAverageScore,
   computeBestScore,
+  computeSessionDayStreaks,
   computeWorstScore,
   deriveSessionAnsweredCount,
   deriveSessionCorrectCount,
@@ -100,61 +101,10 @@ export const getAnalyticsSummary = query({
       },
     };
 
-    const sortedByDate = [...allCompleted].sort(
-      (a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0)
-    );
-
-    let longestStreak = 0;
-    let currentStreak = 0;
-
-    if (sortedByDate.length > 0) {
-      const daySet = new Set<string>();
-      for (const session of sortedByDate) {
-        const date = new Date(session.completedAt ?? session.startedAt);
-        daySet.add(date.toISOString().split("T")[0]);
-      }
-
-      const today = new Date();
-      today.setUTCHours(0, 0, 0, 0);
-
-      let streak = 0;
-      const cursor = new Date(today);
-      while (true) {
-        const key = cursor.toISOString().split("T")[0];
-        if (daySet.has(key)) {
-          streak++;
-          cursor.setUTCDate(cursor.getUTCDate() - 1);
-        } else if (streak === 0) {
-          cursor.setUTCDate(cursor.getUTCDate() - 1);
-          const yesterdayKey = cursor.toISOString().split("T")[0];
-          if (daySet.has(yesterdayKey)) {
-            streak++;
-            cursor.setUTCDate(cursor.getUTCDate() - 1);
-          } else {
-            break;
-          }
-        } else {
-          break;
-        }
-      }
-      currentStreak = streak;
-
-      const dayList = Array.from(daySet).sort();
-      let best = 1;
-      let run = 1;
-      for (let i = 1; i < dayList.length; i++) {
-        const previous = new Date(dayList[i - 1]);
-        const current = new Date(dayList[i]);
-        const diff = (current.getTime() - previous.getTime()) / (1000 * 60 * 60 * 24);
-        if (diff === 1) {
-          run++;
-          best = Math.max(best, run);
-        } else {
-          run = 1;
-        }
-      }
-      longestStreak = dayList.length > 0 ? best : 0;
-    }
+    // Local-day streaks over all history, ignoring the date range
+    // (docs/session-statistics.md#current-day-streak).
+    const { current: currentStreak, longest: longestStreak } =
+      computeSessionDayStreaks(allCompleted, Date.now());
 
     const flagTallies = tallyFlagsFromSessions(sessions, 0);
     const categoryTally = new Map<string, { attempts: number; correct: number }>();

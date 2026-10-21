@@ -4,8 +4,10 @@ import { v } from "convex/values";
 import { requireAdminUser } from "../../lib/auth";
 import {
   computeAverageScore,
+  computeSessionDayStreaks,
   deriveSessionCorrectCount,
   deriveSessionScorePercent,
+  toLocalDayKey,
 } from "../../lib/session_stats";
 
 function getMostRecentTimestamp(values: number[]): number | null {
@@ -173,7 +175,9 @@ export const getAdminUserProfile = query({
       .take(timelineLimit);
 
     const practiceActivityDays = new Set(
-      completedPracticeSessions.map((session) => new Date(session.startedAt).toISOString().slice(0, 10))
+      completedPracticeSessions.flatMap((session) =>
+        session.completedAt === undefined ? [] : [toLocalDayKey(session.completedAt)]
+      )
     );
 
     const frequencyPerWeek =
@@ -186,26 +190,8 @@ export const getAdminUserProfile = query({
           )
         : 0;
 
-    const orderedActivityDays = [...practiceActivityDays].sort().reverse();
-    let streakDays = 0;
-    let cursor = new Date();
-    cursor.setHours(0, 0, 0, 0);
-
-    for (const day of orderedActivityDays) {
-      const cursorDate = cursor.toISOString().slice(0, 10);
-      if (day !== cursorDate) {
-        const previousDate = new Date(cursor.getTime() - 24 * 60 * 60 * 1000)
-          .toISOString()
-          .slice(0, 10);
-        if (day !== previousDate) {
-          break;
-        }
-        cursor = new Date(cursor.getTime() - 24 * 60 * 60 * 1000);
-      }
-
-      streakDays += 1;
-      cursor = new Date(cursor.getTime() - 24 * 60 * 60 * 1000);
-    }
+    // Same implementation as the cadet dashboard (docs/session-statistics.md#current-day-streak).
+    const streakDays = computeSessionDayStreaks(completedPracticeSessions, Date.now()).current;
 
     return {
       profile: {
