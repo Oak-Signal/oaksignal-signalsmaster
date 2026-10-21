@@ -30,4 +30,5 @@ export interface Question {
   options: QuestionOption[];        // Array of 4 shuffled multiple-choice options
   correctAnswer: string;            // ID of the correct option (matches one of options[].id)
   userAnswer: string | null;        // ID of user's selected option, null if unanswered
+  answeredAt?: number;              // Server timestamp (ms) when userAnswer was accepted
 }

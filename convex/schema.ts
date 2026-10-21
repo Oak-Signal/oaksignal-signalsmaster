@@ -311,8 +311,8 @@ export default defineSchema({
     sessionLength: v.number(),
     flagIds: v.array(v.id("flags")),
     currentIndex: v.number(),
-    score: v.number(),
-    correctCount: v.number(), // Number of correct answers (0 initially)
+    score: v.number(), // Cache of the derived score percent; display code must derive (docs/session-statistics.md)
+    correctCount: v.number(), // Cache of the recounted correct answers (0 initially)
     status: v.union(
       v.literal("active"),
       v.literal("completed"),
@@ -320,7 +320,8 @@ export default defineSchema({
     ),
     startedAt: v.number(),
     completedAt: v.optional(v.number()),
-    timeTaken: v.optional(v.number()), // Total session duration in ms (completedAt - startedAt)
+    timeTaken: v.optional(v.number()), // Wall-clock elapsed ms (completedAt - startedAt); includes idle/resume time
+    activeTimeMs: v.optional(v.number()), // Cache of active practice time (sum of capped response times), set on completion
     
     // Question Generation Data (optional for backward compatibility)
     questions: v.optional(v.array(v.object({
@@ -334,6 +335,7 @@ export default defineSchema({
       })),
       correctAnswer: v.string(), // ID of correct option
       userAnswer: v.union(v.string(), v.null()), // ID of selected option, null initially
+      answeredAt: v.optional(v.number()), // Server timestamp when userAnswer was accepted
     }))),
     
     // Performance & Analytics Metadata

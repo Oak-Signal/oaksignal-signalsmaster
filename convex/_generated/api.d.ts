@@ -10,6 +10,7 @@
 
 import type * as admin_access_logs from "../admin_access_logs.js";
 import type * as analytics from "../analytics.js";
+import type * as analytics_handlers_audit from "../analytics/handlers/audit.js";
 import type * as analytics_handlers_flags from "../analytics/handlers/flags.js";
 import type * as analytics_handlers_sessions from "../analytics/handlers/sessions.js";
 import type * as analytics_handlers_summary from "../analytics/handlers/summary.js";
@@ -63,6 +64,7 @@ import type * as lib_exam_types from "../lib/exam_types.js";
 import type * as lib_flag_similarity from "../lib/flag_similarity.js";
 import type * as lib_performance from "../lib/performance.js";
 import type * as lib_randomization from "../lib/randomization.js";
+import type * as lib_session_stats from "../lib/session_stats.js";
 import type * as lib_types from "../lib/types.js";
 import type * as notifications from "../notifications.js";
 import type * as practice_sessions from "../practice_sessions.js";
@@ -109,6 +111,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   admin_access_logs: typeof admin_access_logs;
   analytics: typeof analytics;
+  "analytics/handlers/audit": typeof analytics_handlers_audit;
   "analytics/handlers/flags": typeof analytics_handlers_flags;
   "analytics/handlers/sessions": typeof analytics_handlers_sessions;
   "analytics/handlers/summary": typeof analytics_handlers_summary;
@@ -162,6 +165,7 @@ declare const fullApi: ApiFromModules<{
   "lib/flag_similarity": typeof lib_flag_similarity;
   "lib/performance": typeof lib_performance;
   "lib/randomization": typeof lib_randomization;
+  "lib/session_stats": typeof lib_session_stats;
   "lib/types": typeof lib_types;
   notifications: typeof notifications;
   practice_sessions: typeof practice_sessions;
