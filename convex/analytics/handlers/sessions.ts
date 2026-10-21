@@ -4,32 +4,11 @@ import { dateRangeCutoff } from "../services/dateRange";
 import { getAuthenticatedUser } from "../services/auth";
 import { getCompletedSessions } from "../services/sessions";
 import { getFlagLookupByIds } from "../services/flagLookup";
-
-function clampPercent(value: number): number {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-
-  return Math.min(100, Math.max(0, Math.round(value)));
-}
-
-function deriveSessionPercentScore(session: {
-  score: number;
-  correctCount: number;
-  sessionLength: number;
-  questions?: unknown[];
-}): number {
-  const totalQuestions = session.questions?.length ?? session.sessionLength;
-  const safeTotalQuestions = Math.max(0, totalQuestions);
-  const safeCorrectCount = Math.min(
-    safeTotalQuestions,
-    Math.max(0, session.correctCount)
-  );
-  const fallbackPercent =
-    safeTotalQuestions > 0 ? (safeCorrectCount / safeTotalQuestions) * 100 : 0;
-
-  return clampPercent(Number.isFinite(session.score) ? session.score : fallbackPercent);
-}
+import {
+  deriveSessionCorrectCount,
+  deriveSessionScorePercent,
+  deriveSessionTotalQuestions,
+} from "../../lib/session_stats";
 
 export const getSessionResults = query({
   args: {
@@ -106,9 +85,9 @@ export const getSessionResults = query({
       sessionId: session._id,
       mode: session.mode,
       sessionLength: session.sessionLength,
-      score: session.score,
-      correctCount: session.correctCount,
-      totalQuestions: session.questions.length,
+      score: deriveSessionScorePercent(session),
+      correctCount: deriveSessionCorrectCount(session),
+      totalQuestions: deriveSessionTotalQuestions(session),
       startedAt: session.startedAt,
       completedAt: session.completedAt ?? null,
       timeTaken: session.timeTaken ?? null,
@@ -135,9 +114,9 @@ export const getRecentSessions = query({
       sessionId: session._id,
       mode: session.mode,
       sessionLength: session.sessionLength,
-      score: deriveSessionPercentScore(session),
-      correctCount: session.correctCount,
-      totalQuestions: session.questions?.length ?? session.sessionLength,
+      score: deriveSessionScorePercent(session),
+      correctCount: deriveSessionCorrectCount(session),
+      totalQuestions: deriveSessionTotalQuestions(session),
       startedAt: session.startedAt,
       completedAt: session.completedAt ?? null,
       timeTaken: session.timeTaken ?? null,
@@ -167,7 +146,7 @@ export const getPerformanceTrend = query({
       .map((session) => ({
         sessionId: session._id,
         date: session.completedAt ?? session.startedAt,
-        score: deriveSessionPercentScore(session),
+        score: deriveSessionScorePercent(session),
         mode: session.mode,
         sessionLength: session.sessionLength,
       }));

@@ -4,6 +4,10 @@ import {
   getAuthenticatedUser,
   requireAuthenticatedUser,
 } from "../services/auth";
+import {
+  computeAverageScore,
+  deriveSessionScorePercent,
+} from "../../lib/session_stats";
 
 export const getIncompleteSession = query({
   args: {},
@@ -43,14 +47,9 @@ export const getUserPracticeStats = query({
     const totalSessions = allSessions.length;
     const completedCount = completedSessions.length;
 
-    let averageScore = 0;
-    if (completedCount > 0) {
-      const totalScore = completedSessions.reduce(
-        (sum, session) => sum + session.score,
-        0
-      );
-      averageScore = totalScore / completedCount;
-    }
+    const averageScore = computeAverageScore(
+      completedSessions.map(deriveSessionScorePercent)
+    );
 
     const lastPracticed =
       allSessions.length > 0

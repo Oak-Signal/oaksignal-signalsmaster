@@ -5,6 +5,15 @@ import { dateRangeCutoff } from "../services/dateRange";
 import { tallyFlagsFromSessions } from "../services/flagTally";
 import { getCompletedSessions } from "../services/sessions";
 import { getFlagLookupByIds } from "../services/flagLookup";
+import {
+  computeAccuracy,
+  computeAverageScore,
+  computeBestScore,
+  computeWorstScore,
+  deriveSessionAnsweredCount,
+  deriveSessionCorrectCount,
+  deriveSessionScorePercent,
+} from "../../lib/session_stats";
 
 export const getAnalyticsSummary = query({
   args: {
@@ -33,6 +42,7 @@ export const getAnalyticsSummary = query({
         totalSessions: 0,
         averageScore: 0,
         bestScore: 0,
+        worstScore: 0,
         totalTimePracticed: 0,
         avgSessionTime: 0,
         longestStreak: 0,
@@ -51,9 +61,11 @@ export const getAnalyticsSummary = query({
       };
     }
 
-    const totalScore = sessions.reduce((sum, session) => sum + session.score, 0);
-    const averageScore = Math.round(totalScore / totalSessions);
-    const bestScore = Math.max(...sessions.map((session) => session.score));
+    // Session-weighted score stats (docs/session-statistics.md#average-score).
+    const scorePercents = sessions.map(deriveSessionScorePercent);
+    const averageScore = computeAverageScore(scorePercents);
+    const bestScore = computeBestScore(scorePercents);
+    const worstScore = computeWorstScore(scorePercents);
 
     const totalTimePracticed = sessions.reduce(
       (sum, session) => sum + (session.timeTaken ?? 0),
@@ -61,45 +73,30 @@ export const getAnalyticsSummary = query({
     );
     const avgSessionTime = Math.round(totalTimePracticed / totalSessions);
 
+    // Question-weighted accuracy per mode (docs/session-statistics.md#accuracy).
     const modeTally: Record<
       "learn" | "match",
-      { sessions: number; correct: number; attempts: number }
+      { sessions: number; correct: number; answered: number }
     > = {
-      learn: { sessions: 0, correct: 0, attempts: 0 },
-      match: { sessions: 0, correct: 0, attempts: 0 },
+      learn: { sessions: 0, correct: 0, answered: 0 },
+      match: { sessions: 0, correct: 0, answered: 0 },
     };
 
     for (const session of sessions) {
       const bucket = modeTally[session.mode];
       bucket.sessions += 1;
-
-      if (session.questions && session.questions.length > 0) {
-        bucket.attempts += session.questions.length;
-        bucket.correct += session.questions.filter(
-          (question) => question.userAnswer === question.correctAnswer
-        ).length;
-      } else {
-        const attempts = session.sessionLength;
-        const correct = Math.round((session.score / 100) * attempts);
-        bucket.attempts += attempts;
-        bucket.correct += correct;
-      }
+      bucket.correct += deriveSessionCorrectCount(session);
+      bucket.answered += deriveSessionAnsweredCount(session);
     }
 
     const modeBreakdown = {
       learn: {
         sessions: modeTally.learn.sessions,
-        successRate:
-          modeTally.learn.attempts > 0
-            ? Math.round((modeTally.learn.correct / modeTally.learn.attempts) * 100)
-            : 0,
+        successRate: computeAccuracy(modeTally.learn.correct, modeTally.learn.answered),
       },
       match: {
         sessions: modeTally.match.sessions,
-        successRate:
-          modeTally.match.attempts > 0
-            ? Math.round((modeTally.match.correct / modeTally.match.attempts) * 100)
-            : 0,
+        successRate: computeAccuracy(modeTally.match.correct, modeTally.match.answered),
       },
     };
 
@@ -214,6 +211,7 @@ export const getAnalyticsSummary = query({
       totalSessions,
       averageScore,
       bestScore,
+      worstScore,
       totalTimePracticed,
       avgSessionTime,
       longestStreak,

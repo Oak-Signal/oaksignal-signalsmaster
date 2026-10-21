@@ -27,12 +27,12 @@ function formatDuration(ms: number | null): string {
     return `${minutes}m ${seconds}s`
 }
 
-function getScoreVariant(score: number): {
+function getScoreVariant(score: number, isPerfect: boolean): {
     label: string
     description: string
     colorClass: string
 } {
-    if (score === 100)
+    if (isPerfect)
         return {
             label: "Perfect Score! 🎉",
             description: "You got every single flag right. Outstanding seamanship.",
@@ -61,9 +61,10 @@ function getScoreVariant(score: number): {
 }
 
 export function ResultsHeader({ result }: ResultsHeaderProps) {
+    // All values are derived server-side (docs/session-statistics.md); render as-is.
     const { score, correctCount, totalQuestions, mode, timeTaken } = result
-    const { label, description, colorClass } = getScoreVariant(score)
-    const isPerfect = score === 100
+    const isPerfect = totalQuestions > 0 && correctCount === totalQuestions
+    const { label, description, colorClass } = getScoreVariant(score, isPerfect)
 
     return (
         <>

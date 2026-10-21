@@ -188,7 +188,12 @@ function QuizInterfaceContent({ sessionId }: QuizInterfaceProps) {
     return (
       <QuizContainer>
         <QuizLoadingState className="mt-8" />
-        <PerfectScoreCelebration trigger={session.score === 100} />
+        <PerfectScoreCelebration
+          trigger={
+            (session.questions?.length ?? 0) > 0 &&
+            session.correctCount === session.questions?.length
+          }
+        />
       </QuizContainer>
     )
   }

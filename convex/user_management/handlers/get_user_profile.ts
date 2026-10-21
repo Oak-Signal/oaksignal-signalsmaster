@@ -2,15 +2,11 @@ import { query } from "../../_generated/server";
 import { v } from "convex/values";
 
 import { requireAdminUser } from "../../lib/auth";
-
-function calculateAverage(values: number[]): number {
-  if (values.length === 0) {
-    return 0;
-  }
-
-  const sum = values.reduce((acc, current) => acc + current, 0);
-  return sum / values.length;
-}
+import {
+  computeAverageScore,
+  deriveSessionCorrectCount,
+  deriveSessionScorePercent,
+} from "../../lib/session_stats";
 
 function getMostRecentTimestamp(values: number[]): number | null {
   if (values.length === 0) {
@@ -53,8 +49,9 @@ export const getAdminUserProfile = query({
       (session) => session.status === "completed"
     );
 
-    const practiceScores = completedPracticeSessions.map((session) => session.score);
-    const practiceAverageScore = calculateAverage(practiceScores);
+    const practiceAverageScore = computeAverageScore(
+      completedPracticeSessions.map(deriveSessionScorePercent)
+    );
     const totalPracticeTimeMs = completedPracticeSessions.reduce((sum, session) => {
       return sum + (session.timeTaken ?? 0);
     }, 0);
@@ -260,7 +257,13 @@ export const getAdminUserProfile = query({
         sessionHistory: practiceSessions
           .slice()
           .sort((a, b) => b.startedAt - a.startedAt)
-          .slice(0, historyLimit),
+          .slice(0, historyLimit)
+          // Never expose the stored score cache; report values derived from answers.
+          .map((session) => ({
+            ...session,
+            score: deriveSessionScorePercent(session),
+            correctCount: deriveSessionCorrectCount(session),
+          })),
         examAttempts,
         rankedRuns: rankedRuns.slice(0, historyLimit),
       },

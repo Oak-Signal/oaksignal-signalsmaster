@@ -285,9 +285,9 @@ with this document. Once all tasks are complete, T037 removes this section.
 
 | Stat | Status | Task(s) |
 |------|--------|---------|
-| Session score / correct / total | Pending | T008, T013, T014 |
-| Average / Best / Worst score | Pending | T009, T010, T011 |
-| Accuracy (mode/category) | Pending | T009 |
+| Session score / correct / total | Done | T008, T013, T014 |
+| Average / Best / Worst score | Done | T009, T010, T011 |
+| Accuracy (mode/category) | Mode done (T009); category unchanged, already question-weighted | T009 |
 | Sessions Completed | Pending | T031, T032 |
 | Day streaks | Pending | T020, T021 |
 | Response time / Active time / Avg response | Pending | T023–T029 |

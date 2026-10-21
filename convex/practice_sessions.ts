@@ -7,9 +7,7 @@ export {
 
 export {
   abandonSession,
-  completeSession,
   createPracticeSession,
-  updateSessionProgress,
 } from "./practice_sessions/handlers/sessionMutations";
 
 export { submitAnswer } from "./practice_sessions/handlers/answers";

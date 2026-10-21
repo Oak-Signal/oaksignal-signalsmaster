@@ -16,14 +16,6 @@ type ChartDatum = PerformanceTrendPoint & {
   matchScore: number | null;
 };
 
-function clampPercent(value: number): number {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-
-  return Math.min(100, Math.max(0, Math.round(value)));
-}
-
 function resolveDateFormat(width: number): string {
   if (width < 500) {
     return "MMM d";
@@ -72,7 +64,8 @@ export function PerformanceTrendChart({ data }: PerformanceTrendChartProps) {
     const normalizedData = data ?? [];
 
     return normalizedData.map((point) => {
-      const score = clampPercent(point.score);
+      // point.score is derived server-side and is 0–100 by construction.
+      const score = point.score;
 
       return {
         ...point,

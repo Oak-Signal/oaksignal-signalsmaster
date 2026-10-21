@@ -64,12 +64,13 @@ export interface PracticeSession {
 }
 
 /**
- * User Practice Statistics
- * Aggregated data from completed sessions
+ * User Practice Statistics returned by getUserPracticeStats.
+ * Formulas: docs/session-statistics.md
  */
 export interface PracticeStats {
   totalSessions: number;
   completedSessions: number;
+  /** Integer mean of per-session score percents over completed sessions */
   averageScore: number;
   lastPracticed?: number;
   totalFlagsPracticed: number;

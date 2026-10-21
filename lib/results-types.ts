@@ -25,13 +25,20 @@ export interface SessionResultQuestion {
     questionType: "learn" | "match";
 }
 
-/** Full session result returned by getSessionResults */
+/**
+ * Full session result returned by getSessionResults.
+ * `score`, `correctCount`, and `totalQuestions` are derived from the answers server-side
+ * (docs/session-statistics.md#session-score-percent); never recompute them in the UI.
+ */
 export interface SessionResult {
     sessionId: string;
     mode: "learn" | "match";
     sessionLength: number;
+    /** Integer percent 0–100: round(correctCount / totalQuestions × 100) */
     score: number;
+    /** Questions answered correctly, recounted from answers */
     correctCount: number;
+    /** questions.length (legacy: sessionLength) */
     totalQuestions: number;
     startedAt: number;
     completedAt: number | null;
@@ -44,11 +51,15 @@ export interface SessionResult {
 // Recent Activity
 // ---------------------------------------------------------------------------
 
-/** Summary of a recently completed session for the dashboard widget */
+/**
+ * Summary of a recently completed session for the dashboard widget.
+ * Same derived semantics as {@link SessionResult}.
+ */
 export interface RecentSession {
     sessionId: string;
     mode: "learn" | "match";
     sessionLength: number;
+    /** Integer percent 0–100, derived from answers */
     score: number;
     correctCount: number;
     totalQuestions: number;
@@ -118,14 +129,23 @@ export interface MasteryFlag {
 
 export interface ModeStats {
     sessions: number;
+    /** Question-weighted accuracy: round(Σ correct / Σ answered × 100) (docs/session-statistics.md#accuracy) */
     successRate: number;
 }
 
-/** Full analytics summary returned by getAnalyticsSummary */
+/**
+ * Full analytics summary returned by getAnalyticsSummary.
+ * Formulas: docs/session-statistics.md
+ */
 export interface AnalyticsSummary {
+    /** Completed sessions in range */
     totalSessions: number;
+    /** Mean of per-session score percents, rounded once (session-weighted) */
     averageScore: number;
+    /** Highest per-session score percent */
     bestScore: number;
+    /** Lowest per-session score percent (not currently displayed) */
+    worstScore: number;
     /** Total ms spent practicing */
     totalTimePracticed: number;
     /** Average session duration in ms */

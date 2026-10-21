@@ -66,7 +66,8 @@ export function ResultsPageClient({ sessionId }: ResultsPageClientProps) {
         )
     }
 
-    const isPerfect = result.score === 100
+    const isPerfect =
+        result.totalQuestions > 0 && result.correctCount === result.totalQuestions
 
     return (
         <div className="mx-auto w-full max-w-2xl space-y-8 py-8 px-4">
