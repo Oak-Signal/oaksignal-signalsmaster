@@ -16,6 +16,8 @@ import {
   deriveSessionAnsweredCount,
   deriveSessionCorrectCount,
   deriveSessionScorePercent,
+  toIsoWeekKey,
+  toLocalDayKey,
 } from "../../lib/session_stats";
 
 export const getAnalyticsSummary = query({
@@ -145,15 +147,13 @@ export const getAnalyticsSummary = query({
       })
     );
 
+    // ISO-8601 weeks of the local completion day (docs/session-statistics.md#weekly-frequency).
     const weekTally = new Map<string, number>();
     for (const session of sessions) {
-      const date = new Date(session.completedAt ?? session.startedAt);
-      const year = date.getUTCFullYear();
-      const startOfYear = new Date(Date.UTC(year, 0, 1));
-      const dayOfYear =
-        Math.floor((date.getTime() - startOfYear.getTime()) / 86400000) + 1;
-      const weekNum = Math.ceil(dayOfYear / 7);
-      const key = `${year}-W${String(weekNum).padStart(2, "0")}`;
+      if (session.completedAt === undefined) {
+        continue;
+      }
+      const key = toIsoWeekKey(toLocalDayKey(session.completedAt));
       weekTally.set(key, (weekTally.get(key) ?? 0) + 1);
     }
 

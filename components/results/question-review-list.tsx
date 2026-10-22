@@ -14,7 +14,7 @@ import { useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
-import { CheckCircle2, XCircle, ChevronDown, ChevronUp, ExternalLink } from "lucide-react"
+import { CheckCircle2, XCircle, ChevronDown, ChevronUp, ExternalLink, HelpCircle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -37,6 +37,7 @@ function QuestionRow({ question, number }: QuestionRowProps) {
         flagName,
         flagKey,
         flagImagePath,
+        flagMissing,
         userAnswerLabel,
         correctAnswerLabel,
     } = question
@@ -66,38 +67,56 @@ function QuestionRow({ question, number }: QuestionRowProps) {
                             {number}
                         </span>
 
-                        {/* Flag thumbnail — links to reference */}
-                        <Link
-                            href={`/dashboard/reference/flags/${flagKey}`}
-                            className="shrink-0 rounded-md overflow-hidden ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                            aria-label={`View ${flagName} in reference guide`}
-                        >
-                            <div className="relative h-12 w-16 bg-muted rounded-md">
-                                <Image
-                                    src={flagImagePath}
-                                    alt={flagName}
-                                    fill
-                                    className="object-contain p-1"
-                                    sizes="64px"
-                                />
+                        {/* Flag thumbnail — links to reference (placeholder if the flag was removed) */}
+                        {flagMissing ? (
+                            <div
+                                className="shrink-0 flex h-12 w-16 items-center justify-center rounded-md bg-muted text-muted-foreground"
+                                aria-hidden="true"
+                            >
+                                <HelpCircle className="h-5 w-5" />
                             </div>
-                        </Link>
+                        ) : (
+                            <Link
+                                href={`/dashboard/reference/flags/${flagKey}`}
+                                className="shrink-0 rounded-md overflow-hidden ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                aria-label={`View ${flagName} in reference guide`}
+                            >
+                                <div className="relative h-12 w-16 bg-muted rounded-md">
+                                    <Image
+                                        src={flagImagePath}
+                                        alt={flagName}
+                                        fill
+                                        className="object-contain p-1"
+                                        sizes="64px"
+                                    />
+                                </div>
+                            </Link>
+                        )}
 
                         {/* Flag name + reference link icon */}
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
                                 <p className="font-medium truncate">{flagName}</p>
-                                <Link
-                                    href={`/dashboard/reference/flags/${flagKey}`}
-                                    className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                                    aria-label={`Open ${flagName} reference page`}
-                                    tabIndex={-1}
-                                >
-                                    <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-                                </Link>
+                                {!flagMissing && (
+                                    <Link
+                                        href={`/dashboard/reference/flags/${flagKey}`}
+                                        className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                                        aria-label={`Open ${flagName} reference page`}
+                                        tabIndex={-1}
+                                    >
+                                        <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                                    </Link>
+                                )}
                             </div>
-                            <p className="text-xs text-muted-foreground capitalize">
-                                {question.questionType} mode
+                            <p
+                                className={cn(
+                                    "text-xs text-muted-foreground",
+                                    !flagMissing && "capitalize"
+                                )}
+                            >
+                                {flagMissing
+                                    ? "Flag no longer in the reference library"
+                                    : `${question.questionType} mode`}
                             </p>
                         </div>
 

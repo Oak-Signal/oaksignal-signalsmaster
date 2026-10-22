@@ -43,7 +43,8 @@ export function ReviewMistakesClient({ sessionId }: ReviewMistakesClientProps) {
     );
   }
 
-  const missedQuestions = session.questions.filter((q) => !q.isCorrect);
+  // Mistakes on flags removed from the library can't be shown as flashcards.
+  const missedQuestions = session.questions.filter((q) => !q.isCorrect && !q.flagMissing);
 
   if (missedQuestions.length === 0) {
     return (

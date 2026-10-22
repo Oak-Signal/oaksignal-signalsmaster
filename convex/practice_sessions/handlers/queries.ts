@@ -44,22 +44,25 @@ export const getUserPracticeStats = query({
 
     const completedSessions = allSessions.filter((session) => session.status === "completed");
 
-    const totalSessions = allSessions.length;
+    // "Sessions" always means completed sessions (docs/session-statistics.md#sessions-completed).
     const completedCount = completedSessions.length;
+    const totalSessions = completedCount;
 
     const averageScore = computeAverageScore(
       completedSessions.map(deriveSessionScorePercent)
     );
 
-    const lastPracticed =
-      allSessions.length > 0
-        ? Math.max(...allSessions.map((session) => session.startedAt))
-        : undefined;
-
-    const totalFlagsPracticed = completedSessions.reduce(
-      (sum, session) => sum + session.flagIds.length,
-      0
+    // docs/session-statistics.md#last-practiced
+    const completionTimes = completedSessions.flatMap((session) =>
+      session.completedAt === undefined ? [] : [session.completedAt]
     );
+    const lastPracticed =
+      completionTimes.length > 0 ? Math.max(...completionTimes) : undefined;
+
+    // Distinct flags across completed sessions (docs/session-statistics.md#flags-practiced).
+    const totalFlagsPracticed = new Set(
+      completedSessions.flatMap((session) => session.flagIds.map((flagId) => flagId.toString()))
+    ).size;
 
     const modeCount = completedSessions.reduce(
       (acc, session) => {

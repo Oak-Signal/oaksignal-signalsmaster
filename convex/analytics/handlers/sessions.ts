@@ -12,6 +12,8 @@ import {
   deriveSessionTotalQuestions,
 } from "../../lib/session_stats";
 
+const MISSING_FLAG_NAME = "Unknown flag";
+
 export const getSessionResults = query({
   args: {
     sessionId: v.id("practiceSessions"),
@@ -36,52 +38,46 @@ export const getSessionResults = query({
       session.questions.map((question) => question.flagId)
     );
 
-    const enrichedQuestions = await Promise.all(
-      session.questions.map(async (question) => {
-        const flag = flagLookup.get(question.flagId.toString());
-        if (!flag) {
-          return null;
-        }
+    // Every question is returned, even if its flag record was deleted, so the review list length
+    // always equals totalQuestions (docs/session-statistics.md#session-total-questions).
+    const questions = session.questions.map((question) => {
+      const flag = flagLookup.get(question.flagId.toString()) ?? null;
 
-        const isCorrect = question.userAnswer === question.correctAnswer;
-        const userAnswerOption = question.options.find(
-          (option) => option.id === question.userAnswer
-        );
-        const correctAnswerOption = question.options.find(
-          (option) => option.id === question.correctAnswer
-        );
+      const isCorrect = question.userAnswer === question.correctAnswer;
+      const userAnswerOption = question.options.find(
+        (option) => option.id === question.userAnswer
+      );
+      const correctAnswerOption = question.options.find(
+        (option) => option.id === question.correctAnswer
+      );
 
-        const userAnswerLabel = userAnswerOption
-          ? session.mode === "match"
-            ? userAnswerOption.value
-            : userAnswerOption.label
-          : null;
+      const userAnswerLabel = userAnswerOption
+        ? session.mode === "match"
+          ? userAnswerOption.value
+          : userAnswerOption.label
+        : null;
 
-        const correctAnswerLabel = correctAnswerOption
-          ? session.mode === "match"
-            ? correctAnswerOption.value
-            : correctAnswerOption.label
-          : flag.name;
+      const correctAnswerLabel = correctAnswerOption
+        ? session.mode === "match"
+          ? correctAnswerOption.value
+          : correctAnswerOption.label
+        : flag?.name ?? MISSING_FLAG_NAME;
 
-        return {
-          flagId: flag._id,
-          flagKey: flag.key,
-          flagName: flag.name,
-          flagMeaning: flag.meaning,
-          flagImagePath: flag.imagePath,
-          flagCategory: flag.category,
-          flagType: flag.type,
-          isCorrect,
-          userAnswerLabel,
-          correctAnswerLabel,
-          questionType: question.questionType,
-        };
-      })
-    );
-
-    const questions = enrichedQuestions.filter(Boolean) as NonNullable<
-      (typeof enrichedQuestions)[number]
-    >[];
+      return {
+        flagId: question.flagId,
+        flagKey: flag?.key ?? "",
+        flagName: flag?.name ?? MISSING_FLAG_NAME,
+        flagMeaning: flag?.meaning ?? "",
+        flagImagePath: flag?.imagePath ?? "",
+        flagCategory: flag?.category ?? "",
+        flagType: flag?.type ?? "",
+        flagMissing: flag === null,
+        isCorrect,
+        userAnswerLabel,
+        correctAnswerLabel,
+        questionType: question.questionType,
+      };
+    });
 
     return {
       sessionId: session._id,

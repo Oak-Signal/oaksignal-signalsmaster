@@ -42,7 +42,7 @@ export function PracticeStats({ stats, isLoading }: PracticeStatsProps) {
           <div className="flex flex-col items-center justify-center py-6 text-center">
             <Trophy className="h-12 w-12 text-muted-foreground/50 mb-3" />
             <p className="text-sm text-muted-foreground">
-              No practice sessions yet. Start practicing to see your stats!
+              No completed practice sessions yet. Finish a session to see your stats!
             </p>
           </div>
         </CardContent>
@@ -66,7 +66,7 @@ export function PracticeStats({ stats, isLoading }: PracticeStatsProps) {
           <div className="space-y-1">
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <Trophy className="h-3.5 w-3.5" />
-              <p className="text-xs font-medium">Total Sessions</p>
+              <p className="text-xs font-medium">Completed Sessions</p>
             </div>
             <p className="text-2xl font-bold">{stats.totalSessions}</p>
           </div>
@@ -84,7 +84,7 @@ export function PracticeStats({ stats, isLoading }: PracticeStatsProps) {
           <div className="space-y-1">
             <div className="flex items-center gap-1.5 text-muted-foreground">
               <TrendingUp className="h-3.5 w-3.5" />
-              <p className="text-xs font-medium">Flags Practiced</p>
+              <p className="text-xs font-medium">Unique Flags Practiced</p>
             </div>
             <p className="text-2xl font-bold">{stats.totalFlagsPracticed}</p>
           </div>

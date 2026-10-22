@@ -177,6 +177,9 @@
   [Session Total Questions](#session-total-questions) for mode, and per-question tallies for
   category.
 - **Empty value**: `0` when `Σ answered = 0`.
+- **Category inclusion**: a question whose flag record was deleted has no category, so it is left
+  out of the category breakdown. It still counts toward session score, mode accuracy, and totals.
+  The audit reports such questions under a `(missing flag)` category so they remain visible.
 
 ### Total Time Practiced
 
@@ -290,10 +293,10 @@ with this document. Once all tasks are complete, T037 removes this section.
 | Session score / correct / total | Done | T008, T013, T014 |
 | Average / Best / Worst score | Done | T009, T010, T011 |
 | Accuracy (mode/category) | Mode done (T009); category unchanged, already question-weighted | T009 |
-| Sessions Completed | Pending | T031, T032 |
+| Sessions Completed | Done | T031, T032 |
 | Day streaks | Done | T020, T021 |
 | Response time / Active time / Avg response | Done | T023–T029 |
-| Flags Practiced / Mastered | Pending | T031, T033 |
-| Weekly Frequency | Pending | T034 |
-| Last Practiced | Pending | T031 |
-| Results placeholder for missing flags | Pending | T035 |
+| Flags Practiced / Mastered | Done | T031, T033 |
+| Weekly Frequency | Done | T034 |
+| Last Practiced | Done | T031 |
+| Results placeholder for missing flags | Done | T035 |

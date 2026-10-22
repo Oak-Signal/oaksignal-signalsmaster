@@ -42,7 +42,7 @@ export function StatsOverview() {
         <CardContent>
           <div className="text-2xl font-bold">{summary?.totalSessions || 0}</div>
           <p className="text-xs text-muted-foreground">
-            Sessions completed globally
+            Completed practice sessions
           </p>
         </CardContent>
       </Card>

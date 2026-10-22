@@ -5,6 +5,7 @@ import { dateRangeCutoff } from "../services/dateRange";
 import { tallyFlagsFromSessions } from "../services/flagTally";
 import { getCompletedSessions } from "../services/sessions";
 import { getFlagLookupByIds } from "../services/flagLookup";
+import { isFlagMastered } from "../../lib/session_stats";
 
 export const getMostMissedFlags = query({
   args: {
@@ -86,7 +87,7 @@ export const getMasteryFlags = query({
     const tallies = tallyFlagsFromSessions(sessions, cutoff);
 
     const mastered = tallies
-      .filter((item) => item.attempts >= 2 && item.misses === 0)
+      .filter(isFlagMastered)
       .sort((a, b) => b.attempts - a.attempts)
       .slice(0, limit);
 

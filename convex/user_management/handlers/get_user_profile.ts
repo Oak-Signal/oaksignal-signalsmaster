@@ -2,12 +2,14 @@ import { query } from "../../_generated/server";
 import { v } from "convex/values";
 
 import { requireAdminUser } from "../../lib/auth";
+import { tallyFlagsFromSessions } from "../../analytics/services/flagTally";
 import {
   computeAverageScore,
   computeSessionActiveTimeMs,
   computeSessionDayStreaks,
   deriveSessionCorrectCount,
   deriveSessionScorePercent,
+  isFlagMastered,
   toLocalDayKey,
 } from "../../lib/session_stats";
 
@@ -112,16 +114,10 @@ export const getAdminUserProfile = query({
 
     const mostRecentActivityAt = getMostRecentTimestamp(allActivityTimestamps);
 
-    const distinctFlagsMastered = new Set<string>();
-    for (const session of completedPracticeSessions) {
-      if (session.score < 80) {
-        continue;
-      }
-
-      for (const flagId of session.flagIds) {
-        distinctFlagsMastered.add(flagId.toString());
-      }
-    }
+    // Same rule as the cadet Mastery grid (docs/session-statistics.md#flags-mastered).
+    const flagsMasteredCount = tallyFlagsFromSessions(completedPracticeSessions, 0).filter(
+      isFlagMastered
+    ).length;
 
     const categoryStats = new Map<string, { total: number; incorrect: number }>();
     for (const result of examResults) {
@@ -226,7 +222,7 @@ export const getAdminUserProfile = query({
         totalTimeSpentMs: totalPracticeTimeMs + totalExamTimeMs,
       },
       progress: {
-        flagsMasteredCount: distinctFlagsMastered.size,
+        flagsMasteredCount,
         weakAreas,
         learningStreakDays: streakDays,
         sessionFrequencyPerWeek: frequencyPerWeek,

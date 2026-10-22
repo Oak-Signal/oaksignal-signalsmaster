@@ -11,12 +11,17 @@
 /** One enriched question row on the results page */
 export interface SessionResultQuestion {
     flagId: string;
+    /** Empty when flagMissing */
     flagKey: string;
+    /** "Unknown flag" when flagMissing */
     flagName: string;
     flagMeaning: string;
+    /** Empty when flagMissing */
     flagImagePath: string;
     flagCategory: string;
     flagType: string;
+    /** True when the flag record no longer exists; the question still counts toward totals */
+    flagMissing: boolean;
     isCorrect: boolean;
     /** Human-readable label of what the user selected (null if unanswered) */
     userAnswerLabel: string | null;

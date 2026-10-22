@@ -68,11 +68,14 @@ export interface PracticeSession {
  * Formulas: docs/session-statistics.md
  */
 export interface PracticeStats {
+  /** Completed sessions (equal to completedSessions; kept for compatibility) */
   totalSessions: number;
   completedSessions: number;
   /** Integer mean of per-session score percents over completed sessions */
   averageScore: number;
+  /** Latest completedAt of a completed session */
   lastPracticed?: number;
+  /** Distinct flags across completed sessions */
   totalFlagsPracticed: number;
   favoriteMode?: PracticeMode;
 }
