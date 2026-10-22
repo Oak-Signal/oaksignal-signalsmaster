@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AnalyticsSummary } from "@/lib/results-types";
 import { formatDistanceStrict } from "date-fns";
-import { Trophy, Target, Clock, Flame, Activity } from "lucide-react";
+import { Trophy, Target, Clock, Flame, Activity, Timer } from "lucide-react";
 
 interface AnalyticsOverviewCardsProps {
   summary: AnalyticsSummary | null | undefined;
@@ -51,6 +51,15 @@ export function AnalyticsOverviewCards({ summary }: AnalyticsOverviewCardsProps)
       color: "text-indigo-500",
     },
     {
+      title: "Avg Response Time",
+      value: summary.averageResponseTimeMs !== null
+        ? `${(summary.averageResponseTimeMs / 1000).toFixed(1)}s`
+        : "—",
+      icon: Timer,
+      description: "Per flag answered",
+      color: "text-teal-500",
+    },
+    {
       title: "Best Streak",
       value: summary.longestStreak.toString(),
       icon: Flame,
@@ -60,7 +69,7 @@ export function AnalyticsOverviewCards({ summary }: AnalyticsOverviewCardsProps)
   ];
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7">
       {cards.map((card, i) => (
         <Card key={i}>
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">

@@ -84,9 +84,10 @@ export function RecentActivity() {
                             ? formatDistanceToNow(session.completedAt, { addSuffix: true })
                             : "Recently"}
                         </span>
-                        {session.timeTaken && (
+                        {session.timeTaken !== null && (
                           <span className="text-xs tabular-nums before:content-['•'] before:mr-3 before:opacity-50">
-                            {Math.round(session.timeTaken / 1000)}s
+                            <span className="sr-only">Active time: </span>
+                            {Math.round(session.activeTimeMs / 1000)}s
                           </span>
                         )}
                       </div>

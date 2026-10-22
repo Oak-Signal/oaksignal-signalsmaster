@@ -7,8 +7,10 @@ import { getCompletedSessions } from "../services/sessions";
 import { getFlagLookupByIds } from "../services/flagLookup";
 import {
   computeAccuracy,
+  computeAverageResponseTimeMs,
   computeAverageScore,
   computeBestScore,
+  computeSessionActiveTimeMs,
   computeSessionDayStreaks,
   computeWorstScore,
   deriveSessionAnsweredCount,
@@ -46,6 +48,7 @@ export const getAnalyticsSummary = query({
         worstScore: 0,
         totalTimePracticed: 0,
         avgSessionTime: 0,
+        averageResponseTimeMs: null as number | null,
         longestStreak: 0,
         currentStreak: 0,
         modeBreakdown: {
@@ -69,10 +72,11 @@ export const getAnalyticsSummary = query({
     const worstScore = computeWorstScore(scorePercents);
 
     const totalTimePracticed = sessions.reduce(
-      (sum, session) => sum + (session.timeTaken ?? 0),
+      (sum, session) => sum + computeSessionActiveTimeMs(session),
       0
     );
     const avgSessionTime = Math.round(totalTimePracticed / totalSessions);
+    const averageResponseTimeMs = computeAverageResponseTimeMs(sessions);
 
     // Question-weighted accuracy per mode (docs/session-statistics.md#accuracy).
     const modeTally: Record<
@@ -164,6 +168,7 @@ export const getAnalyticsSummary = query({
       worstScore,
       totalTimePracticed,
       avgSessionTime,
+      averageResponseTimeMs,
       longestStreak,
       currentStreak,
       modeBreakdown,

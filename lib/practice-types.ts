@@ -138,7 +138,6 @@ export interface AnswerSubmission {
   sessionId: Id<"practiceSessions">;
   questionIndex: number;
   selectedAnswer: string;             // Option ID (e.g., "opt_1")
-  timeSpent?: number;                 // Optional: milliseconds spent on question
 }
 
 /**

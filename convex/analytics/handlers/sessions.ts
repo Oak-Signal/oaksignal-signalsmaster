@@ -5,6 +5,8 @@ import { getAuthenticatedUser } from "../services/auth";
 import { getCompletedSessions } from "../services/sessions";
 import { getFlagLookupByIds } from "../services/flagLookup";
 import {
+  computeAverageResponseTimeMs,
+  computeSessionActiveTimeMs,
   deriveSessionCorrectCount,
   deriveSessionScorePercent,
   deriveSessionTotalQuestions,
@@ -91,6 +93,8 @@ export const getSessionResults = query({
       startedAt: session.startedAt,
       completedAt: session.completedAt ?? null,
       timeTaken: session.timeTaken ?? null,
+      activeTimeMs: computeSessionActiveTimeMs(session),
+      averageResponseTimeMs: computeAverageResponseTimeMs([session]),
       questions,
     };
   },
@@ -120,6 +124,8 @@ export const getRecentSessions = query({
       startedAt: session.startedAt,
       completedAt: session.completedAt ?? null,
       timeTaken: session.timeTaken ?? null,
+      activeTimeMs: computeSessionActiveTimeMs(session),
+      averageResponseTimeMs: computeAverageResponseTimeMs([session]),
     }));
   },
 });

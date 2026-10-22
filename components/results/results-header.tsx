@@ -7,7 +7,7 @@
  */
 
 import { motion } from "framer-motion"
-import { Trophy, Clock, Flag, Hash } from "lucide-react"
+import { Trophy, Clock, Flag, Hash, Timer } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { PerfectScoreCelebration } from "@/components/practice/celebration-animation"
 import { cn } from "@/lib/utils"
@@ -18,13 +18,17 @@ interface ResultsHeaderProps {
 }
 
 /** Format ms duration into a human-readable string like "2m 34s" */
-function formatDuration(ms: number | null): string {
-    if (!ms) return "—"
-    const totalSeconds = Math.floor(ms / 1000)
+function formatDuration(ms: number): string {
+    const totalSeconds = Math.floor(Math.max(0, ms) / 1000)
     const minutes = Math.floor(totalSeconds / 60)
     const seconds = totalSeconds % 60
     if (minutes === 0) return `${seconds}s`
     return `${minutes}m ${seconds}s`
+}
+
+/** Format a per-flag response time like "3.4s" */
+function formatSecondsPerFlag(ms: number): string {
+    return `${(ms / 1000).toFixed(1)}s`
 }
 
 function getScoreVariant(score: number, isPerfect: boolean): {
@@ -62,7 +66,7 @@ function getScoreVariant(score: number, isPerfect: boolean): {
 
 export function ResultsHeader({ result }: ResultsHeaderProps) {
     // All values are derived server-side (docs/session-statistics.md); render as-is.
-    const { score, correctCount, totalQuestions, mode, timeTaken } = result
+    const { score, correctCount, totalQuestions, mode, timeTaken, activeTimeMs, averageResponseTimeMs } = result
     const isPerfect = totalQuestions > 0 && correctCount === totalQuestions
     const { label, description, colorClass } = getScoreVariant(score, isPerfect)
 
@@ -133,7 +137,18 @@ export function ResultsHeader({ result }: ResultsHeaderProps) {
                     {timeTaken !== null && (
                         <Badge variant="secondary" className="gap-1.5 px-3 py-1">
                             <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-                            <span>{formatDuration(timeTaken)}</span>
+                            <span>
+                                <span className="sr-only">Active time: </span>
+                                {formatDuration(activeTimeMs)}
+                            </span>
+                        </Badge>
+                    )}
+                    {averageResponseTimeMs !== null && (
+                        <Badge variant="secondary" className="gap-1.5 px-3 py-1">
+                            <Timer className="h-3.5 w-3.5" aria-hidden="true" />
+                            <span>
+                                Avg {formatSecondsPerFlag(averageResponseTimeMs)} per flag
+                            </span>
                         </Badge>
                     )}
                 </div>

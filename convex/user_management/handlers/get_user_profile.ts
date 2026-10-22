@@ -4,6 +4,7 @@ import { v } from "convex/values";
 import { requireAdminUser } from "../../lib/auth";
 import {
   computeAverageScore,
+  computeSessionActiveTimeMs,
   computeSessionDayStreaks,
   deriveSessionCorrectCount,
   deriveSessionScorePercent,
@@ -55,7 +56,7 @@ export const getAdminUserProfile = query({
       completedPracticeSessions.map(deriveSessionScorePercent)
     );
     const totalPracticeTimeMs = completedPracticeSessions.reduce((sum, session) => {
-      return sum + (session.timeTaken ?? 0);
+      return sum + computeSessionActiveTimeMs(session);
     }, 0);
 
     const examAttempts = await ctx.db

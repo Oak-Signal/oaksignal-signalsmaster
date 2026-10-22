@@ -2,13 +2,13 @@ import { v } from "convex/values";
 import { mutation } from "../../_generated/server";
 import { getOwnedSession, requireAuthenticatedUser } from "../services/auth";
 import { buildAnswerLabels, buildSimilarFlags } from "../services/feedback";
+import { computeSessionActiveTimeMs } from "../../lib/session_stats";
 
 export const submitAnswer = mutation({
   args: {
     sessionId: v.id("practiceSessions"),
     questionIndex: v.number(),
     selectedAnswer: v.string(),
-    timeSpent: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const user = await requireAuthenticatedUser(
@@ -55,10 +55,13 @@ export const submitAnswer = mutation({
 
     const isCorrect = args.selectedAnswer === currentQuestion.correctAnswer;
 
+    // Single server timestamp for this answer, reused for completion (docs/session-statistics.md#response-time).
+    const answeredAt = Date.now();
     const updatedQuestions = [...session.questions];
     updatedQuestions[args.questionIndex] = {
       ...currentQuestion,
       userAnswer: args.selectedAnswer,
+      answeredAt,
     };
 
     const newCorrectCount = isCorrect
@@ -79,7 +82,7 @@ export const submitAnswer = mutation({
     const nextQuestionIndex = args.questionIndex + 1;
     const isSessionComplete = nextQuestionIndex >= session.questions.length;
 
-    const completedAt = Date.now();
+    const completedAt = answeredAt;
     const updateData: {
       questions: typeof updatedQuestions;
       correctCount: number;
@@ -88,6 +91,7 @@ export const submitAnswer = mutation({
       status?: "active" | "completed";
       completedAt?: number;
       timeTaken?: number;
+      activeTimeMs?: number;
     } = {
       questions: updatedQuestions,
       correctCount: newCorrectCount,
@@ -99,6 +103,11 @@ export const submitAnswer = mutation({
       updateData.status = "completed";
       updateData.completedAt = completedAt;
       updateData.timeTaken = completedAt - session.startedAt;
+      updateData.activeTimeMs = computeSessionActiveTimeMs({
+        ...session,
+        questions: updatedQuestions,
+        timeTaken: updateData.timeTaken,
+      });
     }
 
     await ctx.db.patch(args.sessionId, updateData);

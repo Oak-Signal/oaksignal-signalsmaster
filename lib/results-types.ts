@@ -42,8 +42,12 @@ export interface SessionResult {
     totalQuestions: number;
     startedAt: number;
     completedAt: number | null;
-    /** Total duration in milliseconds, null for sessions before timeTaken was added */
+    /** Wall-clock elapsed ms (includes idle/resume time); null for sessions before timeTaken was added */
     timeTaken: number | null;
+    /** Active practice time in ms: sum of capped response times (docs/session-statistics.md#session-active-time) */
+    activeTimeMs: number;
+    /** Mean capped response time per flag in ms; null when the session has no timing data */
+    averageResponseTimeMs: number | null;
     questions: SessionResultQuestion[];
 }
 
@@ -66,6 +70,9 @@ export interface RecentSession {
     startedAt: number;
     completedAt: number | null;
     timeTaken: number | null;
+    /** Active practice time in ms (see {@link SessionResult.activeTimeMs}) */
+    activeTimeMs: number;
+    averageResponseTimeMs: number | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -146,10 +153,13 @@ export interface AnalyticsSummary {
     bestScore: number;
     /** Lowest per-session score percent (not currently displayed) */
     worstScore: number;
-    /** Total ms spent practicing */
+    /** Total active practice ms: Σ session active time (docs/session-statistics.md#total-time-practiced) */
     totalTimePracticed: number;
-    /** Average session duration in ms */
+    /** Average active session duration in ms */
     avgSessionTime: number;
+    /** Mean capped response time per flag in ms; null when no session has timing data */
+    averageResponseTimeMs: number | null;
+    /** Local-day streaks (America/Toronto) over all history */
     longestStreak: number;
     currentStreak: number;
     modeBreakdown: {

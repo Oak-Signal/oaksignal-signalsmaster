@@ -141,11 +141,6 @@ export function validateAnswerSubmission(
     }
   }
 
-  // Validate time spent (if provided)
-  if (submission.timeSpent !== undefined && submission.timeSpent < 0) {
-    errors.push("Time spent cannot be negative");
-  }
-
   return {
     isValid: errors.length === 0,
     errors,

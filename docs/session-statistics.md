@@ -292,7 +292,7 @@ with this document. Once all tasks are complete, T037 removes this section.
 | Accuracy (mode/category) | Mode done (T009); category unchanged, already question-weighted | T009 |
 | Sessions Completed | Pending | T031, T032 |
 | Day streaks | Done | T020, T021 |
-| Response time / Active time / Avg response | Pending | T023–T029 |
+| Response time / Active time / Avg response | Done | T023–T029 |
 | Flags Practiced / Mastered | Pending | T031, T033 |
 | Weekly Frequency | Pending | T034 |
 | Last Practiced | Pending | T031 |
