@@ -41,6 +41,11 @@ export const getAnalyticsSummary = query({
       (session) => cutoff === 0 || (session.completedAt ?? 0) >= cutoff
     );
 
+    // Local-day streaks over all history, ignoring the date range — computed before the empty-range
+    // early return so it never zeroes them (docs/session-statistics.md#current-day-streak).
+    const { current: currentStreak, longest: longestStreak } =
+      computeSessionDayStreaks(allCompleted, Date.now());
+
     const totalSessions = sessions.length;
     if (totalSessions === 0) {
       return {
@@ -51,8 +56,8 @@ export const getAnalyticsSummary = query({
         totalTimePracticed: 0,
         avgSessionTime: 0,
         averageResponseTimeMs: null as number | null,
-        longestStreak: 0,
-        currentStreak: 0,
+        longestStreak,
+        currentStreak,
         modeBreakdown: {
           learn: { sessions: 0, successRate: 0 },
           match: { sessions: 0, successRate: 0 },
@@ -106,11 +111,6 @@ export const getAnalyticsSummary = query({
         successRate: computeAccuracy(modeTally.match.correct, modeTally.match.answered),
       },
     };
-
-    // Local-day streaks over all history, ignoring the date range
-    // (docs/session-statistics.md#current-day-streak).
-    const { current: currentStreak, longest: longestStreak } =
-      computeSessionDayStreaks(allCompleted, Date.now());
 
     const flagTallies = tallyFlagsFromSessions(sessions, 0);
     const categoryTally = new Map<string, { attempts: number; correct: number }>();

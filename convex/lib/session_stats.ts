@@ -242,6 +242,8 @@ export function computeSessionDayStreaks(
 /**
  * True when every answered question carries a server `answeredAt` timestamp and at least one
  * question was answered.
+ *
+ * @see docs/session-statistics.md#response-time
  */
 export function hasCompleteTiming(session: StatsSession): boolean {
   const answered = (session.questions ?? []).filter(isAnswered);

@@ -26,7 +26,6 @@
   [Weekly Frequency](#weekly-frequency) · [Last Practiced](#last-practiced)
 - In-session stats: [In-session Accuracy](#in-session-accuracy) ·
   [In-session Answer Streak](#in-session-answer-streak)
-- [Implementation Status](#implementation-status)
 
 ---
 
@@ -78,7 +77,9 @@
 ### Session Correct Count
 
 - **Function**: `deriveSessionCorrectCount(session)`
-- **Surfaces**: "X of Y correct" on Results, Recent Activity, and admin session history.
+- **Surfaces**: "X of Y correct" on Results and Recent Activity. Also present in the admin
+  profile's `sessionHistory` data (returned by `getAdminUserProfile` and the admin users API route,
+  but not rendered in the UI).
 - **Producers**: `getSessionResults`, `getRecentSessions`; input to most aggregates.
 - **Formula**: number of questions where `userAnswer === correctAnswer`.
 - **Legacy fallback** (no `questions` array): stored `correctCount`, clamped to
@@ -95,7 +96,7 @@
 ### Session Score Percent
 
 - **Function**: `deriveSessionScorePercent(session)`
-- **Surfaces**: Results hero, Recent Activity, Performance Trend chart, admin session history.
+- **Surfaces**: Results hero, Recent Activity, Performance Trend chart; admin `sessionHistory` data.
 - **Producers**: `getSessionResults`, `getRecentSessions`, `getPerformanceTrend`.
 - **Formula**: `round(correct / total × 100)` using [Session Correct Count](#session-correct-count)
   and [Session Total Questions](#session-total-questions).
@@ -132,8 +133,9 @@
 ### Sessions Completed
 
 - **Surfaces**: Dashboard "Total Sessions", Analytics "Total Sessions", Practice page "Completed
-  Sessions", admin profile "Completed Practice Sessions".
-- **Producers**: `getAnalyticsSummary`, `getUserPracticeStats`, `getUserProfile` (admin).
+  Sessions", admin profile "Completed Practice Sessions" (shown next to the started count, which
+  is labelled "started").
+- **Producers**: `getAnalyticsSummary`, `getUserPracticeStats`, `getAdminUserProfile` (admin).
 - **Formula**: count of the user's sessions with `status = "completed"` (within range on
   analytics).
 - **Note**: Any count of started or abandoned sessions must be labelled as such. These counts are
@@ -184,7 +186,7 @@
 ### Total Time Practiced
 
 - **Surfaces**: Analytics "Time Practiced"; admin profile "Time Spent" (practice portion).
-- **Producers**: `getAnalyticsSummary`, `getUserProfile` (admin).
+- **Producers**: `getAnalyticsSummary`, `getAdminUserProfile` (admin).
 - **Formula**: sum of [Session Active Time](#session-active-time) over completed sessions in range.
 - **Empty value**: `0`.
 
@@ -236,6 +238,8 @@
 
 - **Function**: `isFlagMastered({ attempts, misses })`
 - **Surfaces**: Analytics Mastery grid (top N), admin profile "Flags Mastered" (count).
+- **Producers**: `getMasteryFlags`, `getAdminUserProfile` (admin). Both apply `isFlagMastered` to
+  `tallyFlagsFromSessions` output.
 - **Formula**: a flag is mastered if, within range, `attempts >= 2` and `misses = 0`, counting each
   appearance in a completed session.
 - **Empty value**: `0` / empty list.
@@ -280,23 +284,3 @@
 - **Producers**: `submitAnswer`, `getCurrentQuestion`.
 - **Formula**: number of consecutive correct answers ending at the most recent answer.
 - **Note**: This is unrelated to [Current Day Streak](#current-day-streak).
-
----
-
-## Implementation Status
-
-Each row shows the task in `specs/004-session-stats-audit/tasks.md` that brings the code in line
-with this document. Once all tasks are complete, T037 removes this section.
-
-| Stat | Status | Task(s) |
-|------|--------|---------|
-| Session score / correct / total | Done | T008, T013, T014 |
-| Average / Best / Worst score | Done | T009, T010, T011 |
-| Accuracy (mode/category) | Mode done (T009); category unchanged, already question-weighted | T009 |
-| Sessions Completed | Done | T031, T032 |
-| Day streaks | Done | T020, T021 |
-| Response time / Active time / Avg response | Done | T023–T029 |
-| Flags Practiced / Mastered | Done | T031, T033 |
-| Weekly Frequency | Done | T034 |
-| Last Practiced | Done | T031 |
-| Results placeholder for missing flags | Done | T035 |

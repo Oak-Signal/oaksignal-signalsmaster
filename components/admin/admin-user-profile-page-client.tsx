@@ -557,7 +557,12 @@ export function AdminUserProfilePageClient({ userId }: AdminUserProfilePageClien
             <CardTitle className="text-base">Activity Summary</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1 text-sm">
-            <p>Total Practice Sessions: {activitySummary.totalPracticeSessions}</p>
+            <p>
+              Completed Practice Sessions: {activitySummary.completedPracticeSessions}{" "}
+              <span className="text-muted-foreground">
+                ({activitySummary.totalPracticeSessions} started)
+              </span>
+            </p>
             <p>Practice Average Score: {activitySummary.practiceAverageScore}%</p>
             <p>Exam Attempts: {activitySummary.examAttemptsCount}</p>
             <p>Exam Passes: {activitySummary.examPassCount}</p>
