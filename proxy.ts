@@ -5,6 +5,9 @@ import { logAdminAccessAttempt } from "@/lib/audit/admin-access";
 // strict domain access
 const ALLOWED_EMAIL_DOMAIN = process.env.ALLOWED_SIGNIN_EMAIL_DOMAIN?.trim().toLowerCase();
 
+// Clerk's OAuth strategy identifier for the Microsoft (Entra ID) social connection.
+const MICROSOFT_OAUTH_PROVIDER = "oauth_microsoft";
+
 const isPublicRoute = createRouteMatcher([
   "/",
   "/login(.*)",
@@ -68,6 +71,18 @@ async function resolveUserEmail(userId: string, sessionClaims: unknown): Promise
   }
 }
 
+// Users who signed up/in via Microsoft SSO bypass the email-domain restriction,
+// since their identity is already verified by Microsoft (Entra ID or a personal account).
+async function isMicrosoftSsoUser(userId: string): Promise<boolean> {
+  try {
+    const client = await clerkClient();
+    const user = await client.users.getUser(userId);
+    return user.externalAccounts.some((account) => account.provider === MICROSOFT_OAUTH_PROVIDER);
+  } catch {
+    return false;
+  }
+}
+
 function jsonAccessError(status: number, code: string, message: string): NextResponse {
   return NextResponse.json(
     {
@@ -91,6 +106,11 @@ export default clerkMiddleware(async (auth, request) => {
     const email = await resolveUserEmail(userId, sessionClaims);
     const domainSuffix = `@${ALLOWED_EMAIL_DOMAIN}`;
     isAllowedDomainUser = !!email && email.endsWith(domainSuffix);
+
+    if (!isAllowedDomainUser) {
+      isAllowedDomainUser = await isMicrosoftSsoUser(userId);
+    }
+
     const isForbiddenRoute = request.nextUrl.pathname === "/forbidden";
     const isApiRoute = request.nextUrl.pathname.startsWith("/api/");
     const isPublic = isPublicRoute(request);

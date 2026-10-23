@@ -59,7 +59,7 @@ export function TrustSection() {
             {/* Optional Testimonial Placeholder */}
             <div className="mt-10 p-6 bg-card rounded-xl border shadow-sm max-w-2xl w-full">
               <p className="italic text-muted-foreground mb-4">
-                &quot;-- PLACEHOLDER - add a testimonial -- PLACEHOLDER --&quot;
+                &quot;&quot;
               </p>
               <div className="flex items-center justify-center gap-3">
                 <div className="h-2 w-2 rounded-full bg-primary"></div>
