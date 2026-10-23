@@ -45,7 +45,10 @@ function QuizInterfaceContent({ sessionId }: QuizInterfaceProps) {
   // Fetch session and current question
   const session = useQuery(api.practice_sessions.getSessionById, { sessionId })
   const questionData = useQuery(api.practice_sessions.getCurrentQuestion, { sessionId })
-  
+  // Only the "question" variant carries question/flag/progress data; pending
+  // (auth still resolving) and complete both omit it.
+  const activeQuestion = questionData?.status === "question" ? questionData : undefined
+
   // Mutations
   const submitAnswerMutation = useMutation(api.practice_sessions.submitAnswer)
 
@@ -59,17 +62,29 @@ function QuizInterfaceContent({ sessionId }: QuizInterfaceProps) {
     correctAnswerLabel: string
   } | null>(null)
 
+  // Shows a manual recovery option if auth takes unusually long to resolve.
+  const [authPendingTimedOut, setAuthPendingTimedOut] = useState(false)
+
+  useEffect(() => {
+    if (questionData?.status !== "pending") return
+    const timeoutId = setTimeout(() => setAuthPendingTimedOut(true), 8000)
+    return () => {
+      clearTimeout(timeoutId)
+      setAuthPendingTimedOut(false)
+    }
+  }, [questionData?.status])
+
   // Quiz state management
   const quizState = useQuizState({
-    totalQuestions: questionData?.totalQuestions || 0,
-    currentQuestionIndex: questionData?.questionIndex || 0,
+    totalQuestions: activeQuestion?.totalQuestions || 0,
+    currentQuestionIndex: activeQuestion?.questionIndex || 0,
     onAnswerSubmit: async (selectedAnswer: string) => {
-      if (!questionData) return
+      if (!activeQuestion) return
 
       try {
         const result = await submitAnswerMutation({
           sessionId,
-          questionIndex: questionData.questionIndex,
+          questionIndex: activeQuestion.questionIndex,
           selectedAnswer,
         })
 
@@ -81,7 +96,7 @@ function QuizInterfaceContent({ sessionId }: QuizInterfaceProps) {
         )
 
         // Store feedback data and open modal
-        if (result.flag && questionData) {
+        if (result.flag && activeQuestion) {
           setFeedbackData({
             context: {
               isCorrect: result.isCorrect,
@@ -90,8 +105,8 @@ function QuizInterfaceContent({ sessionId }: QuizInterfaceProps) {
               currentStreak: result.currentStreak,
               score: result.score,
               correctCount: result.correctCount,
-              totalQuestions: questionData.totalQuestions,
-              currentQuestionIndex: questionData.questionIndex,
+              totalQuestions: activeQuestion.totalQuestions,
+              currentQuestionIndex: activeQuestion.questionIndex,
               isLastQuestion: result.isSessionComplete,
             },
             flag: result.flag,
@@ -124,7 +139,7 @@ function QuizInterfaceContent({ sessionId }: QuizInterfaceProps) {
   // Skip the auto-redirect while the feedback modal for the final question is
   // still open, otherwise it yanks the user to /results before they can see it.
   useEffect(() => {
-    if (!session || questionData !== null || feedbackModalOpen) return
+    if (!session || questionData?.status !== "complete" || feedbackModalOpen) return
     router.replace(`/dashboard/practice/session/${sessionId}/results`)
   }, [session, questionData, feedbackModalOpen, router, sessionId])
 
@@ -133,8 +148,8 @@ function QuizInterfaceContent({ sessionId }: QuizInterfaceProps) {
     enabled: !quizState.isAnswered && !quizState.isSubmitting && !feedbackModalOpen,
     hasSelection: !!quizState.selectedAnswer,
     onSelectOption: (index) => {
-      if (questionData?.question.options[index]) {
-        quizState.selectAnswer(questionData.question.options[index].id)
+      if (activeQuestion?.question.options[index]) {
+        quizState.selectAnswer(activeQuestion.question.options[index].id)
       }
     },
     onSubmit: quizState.submitAnswer,
@@ -146,7 +161,7 @@ function QuizInterfaceContent({ sessionId }: QuizInterfaceProps) {
     shouldCelebrate(
       true,
       quizState.streak,
-      questionData?.progress.accuracy || 0
+      activeQuestion?.progress.accuracy || 0
     )
 
   // Loading state
@@ -183,8 +198,31 @@ function QuizInterfaceContent({ sessionId }: QuizInterfaceProps) {
     )
   }
 
+  // Convex auth is still catching up to a Clerk session token refresh; this
+  // resolves on its own within a second or two, so keep showing the loading
+  // state rather than treating it as an error or a completed session.
+  if (questionData.status === "pending") {
+    return (
+      <QuizContainer>
+        <QuizLoadingState />
+        {authPendingTimedOut && (
+          <Card className="border-amber-200 dark:border-amber-900">
+            <CardContent className="flex flex-col items-center gap-3 p-6 text-center">
+              <p className="text-sm text-muted-foreground">
+                Still confirming your session. If this doesn&apos;t resolve, try refreshing the page.
+              </p>
+              <Button variant="outline" onClick={() => window.location.reload()}>
+                Refresh
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+      </QuizContainer>
+    )
+  }
+
   // Session complete
-  if (!questionData) {
+  if (questionData.status === "complete") {
     return (
       <QuizContainer>
         <QuizLoadingState className="mt-8" />

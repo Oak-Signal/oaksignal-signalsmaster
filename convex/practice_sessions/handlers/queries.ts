@@ -1,9 +1,6 @@
 import { v } from "convex/values";
 import { query } from "../../_generated/server";
-import {
-  getAuthenticatedUser,
-  requireAuthenticatedUser,
-} from "../services/auth";
+import { getAuthenticatedUser } from "../services/auth";
 import {
   computeAverageScore,
   deriveSessionScorePercent,
@@ -110,10 +107,18 @@ export const getSessionById = query({
 export const getCurrentQuestion = query({
   args: { sessionId: v.id("practiceSessions") },
   handler: async (ctx, args) => {
-    const user = await requireAuthenticatedUser(
-      ctx,
-      "Must be authenticated to get question"
-    );
+    const user = await getAuthenticatedUser(ctx);
+    if (!user) {
+      // This is a long-lived reactive subscription: it can re-run for a tick
+      // right after a mutation (e.g. submitAnswer) while a Clerk session
+      // token is mid-refresh, before ctx.auth has a valid identity again.
+      // Report "pending" instead of throwing so the client treats it like a
+      // loading state and lets Convex re-run the query once auth settles,
+      // rather than crashing the whole quiz via the error boundary. The page
+      // itself is already gated by authenticated middleware, so a genuinely
+      // signed-out user can't reach this query in the first place.
+      return { status: "pending" as const };
+    }
 
     const session = await ctx.db.get(args.sessionId);
     if (!session || session.userId !== user._id) {
@@ -121,7 +126,7 @@ export const getCurrentQuestion = query({
     }
 
     if (session.status !== "active") {
-      return null;
+      return { status: "complete" as const };
     }
 
     if (!session.questions || session.questions.length === 0) {
@@ -129,7 +134,7 @@ export const getCurrentQuestion = query({
     }
 
     if (session.currentIndex >= session.questions.length) {
-      return null;
+      return { status: "complete" as const };
     }
 
     const currentQuestion = session.questions[session.currentIndex];
@@ -160,6 +165,7 @@ export const getCurrentQuestion = query({
         : 0;
 
     return {
+      status: "question" as const,
       question: currentQuestion,
       flag: {
         _id: flag._id,
