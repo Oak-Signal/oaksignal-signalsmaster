@@ -62,17 +62,33 @@ function QuizInterfaceContent({ sessionId }: QuizInterfaceProps) {
     correctAnswerLabel: string
   } | null>(null)
 
-  // Shows a manual recovery option if auth takes unusually long to resolve.
+  // Shows a manual recovery option if the auto-reload below already ran once
+  // and the session is still stuck (e.g. a genuine sign-out), so we don't
+  // reload in a loop.
   const [authPendingTimedOut, setAuthPendingTimedOut] = useState(false)
 
+  // Observed in production: once this reactive subscription catches an
+  // in-flight Clerk token refresh, Convex's own reauthentication doesn't
+  // always re-run it, leaving the quiz stuck even though the session's
+  // progress is already saved server-side. Reconnecting via a reload
+  // reliably picks up the correct state, so attempt that once automatically
+  // before falling back to asking the user to do it manually.
   useEffect(() => {
-    if (questionData?.status !== "pending") return
-    const timeoutId = setTimeout(() => setAuthPendingTimedOut(true), 8000)
-    return () => {
-      clearTimeout(timeoutId)
-      setAuthPendingTimedOut(false)
+    if (questionData?.status === "pending") {
+      const reloadMarkerKey = `practice-session-auth-reload-${sessionId}`
+      const timeoutId = setTimeout(() => {
+        if (window.sessionStorage.getItem(reloadMarkerKey)) {
+          setAuthPendingTimedOut(true)
+          return
+        }
+        window.sessionStorage.setItem(reloadMarkerKey, "1")
+        window.location.reload()
+      }, 3000)
+      return () => clearTimeout(timeoutId)
     }
-  }, [questionData?.status])
+
+    window.sessionStorage.removeItem(`practice-session-auth-reload-${sessionId}`)
+  }, [questionData?.status, sessionId])
 
   // Quiz state management
   const quizState = useQuizState({
@@ -198,9 +214,9 @@ function QuizInterfaceContent({ sessionId }: QuizInterfaceProps) {
     )
   }
 
-  // Convex auth is still catching up to a Clerk session token refresh; this
-  // resolves on its own within a second or two, so keep showing the loading
-  // state rather than treating it as an error or a completed session.
+  // Convex auth is briefly catching up to a Clerk session token refresh. The
+  // effect above automatically reloads once after a few seconds to recover;
+  // this just keeps the loading UI visible while that happens.
   if (questionData.status === "pending") {
     return (
       <QuizContainer>
